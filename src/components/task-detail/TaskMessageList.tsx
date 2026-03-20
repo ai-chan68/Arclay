@@ -33,8 +33,12 @@ import type { AgentMessage, TaskPlan, PendingQuestion, PermissionRequest, TaskSt
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { extractFilesFromMessages } from '@/shared/lib/file-utils'
 import { PlanApproval } from '@/components/task-detail/PlanApproval'
-import { getPreferredFailureDetail, getWorkspaceDisplayState } from '@/shared/lib'
-import { isPlaceholderAssistantResponse, isProcessAssistantResponse } from '@/shared/lib/task-state'
+import { buildTurnDisplayModel, getPreferredFailureDetail } from '@/shared/lib'
+import {
+  isPlaceholderAssistantResponse,
+  isProcessAssistantResponse,
+  shouldApplyTerminalExecutionFailure,
+} from '@/shared/lib/task-state'
 
 type ApprovalTerminalStatus = 'approved' | 'rejected' | 'expired' | 'canceled' | 'orphaned'
 
@@ -862,6 +866,7 @@ function TimelineTurnItem({
   onSelect: () => void
 }) {
   const timestamp = getTurnTimestamp(turn)
+  const summaryText = getTimelineSummary(turn, index)
 
   return (
     <button
@@ -893,7 +898,24 @@ function TimelineTurnItem({
           <span className="text-[11px] text-muted-foreground/75">Turn {index + 1}</span>
         </div>
         <p className={cn('mt-1 line-clamp-2 text-sm leading-6', isSelected ? 'font-semibold text-foreground' : 'text-foreground/92')}>
-          {getTimelineSummary(turn, index)}
+          {summaryText}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          'pointer-events-none absolute left-full top-1/2 z-30 ml-3 hidden w-[min(24rem,calc(100vw-8rem))] -translate-y-1/2 rounded-2xl border border-border/60',
+          'bg-[color:color-mix(in_oklab,var(--ui-panel)_96%,transparent)] p-3 text-left shadow-[0_18px_40px_color-mix(in_oklab,var(--ui-panel)_35%,transparent)]',
+          'group-hover:block group-focus-visible:block'
+        )}
+        aria-hidden="true"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">{formatTimelineTimestamp(timestamp)}</span>
+          <span className="text-[11px] text-muted-foreground/75">Turn {index + 1}</span>
+        </div>
+        <p className="mt-2 whitespace-normal break-words text-sm leading-6 text-foreground">
+          {summaryText}
         </p>
       </div>
     </button>
@@ -958,6 +980,11 @@ function SelectedTurnWorkspace({
   const hasError = turn.thinkingMessages.some(
     (m) => m.type === 'error' || (m.type === 'tool_result' && m.toolOutput?.includes('Error:'))
   )
+  const hasTerminalExecutionError = shouldApplyTerminalExecutionFailure({
+    hasExecutionError: hasError,
+    isRunning,
+    isTurnComplete: turn.isComplete,
+  })
   const interruptedMeta = isLatestTurn
     ? getInterruptedStatusMeta(latestApprovalTerminal?.status)
     : null
@@ -969,34 +996,37 @@ function SelectedTurnWorkspace({
   // 否则如果轮次有历史计划，显示历史计划
   let activePlan: TaskPlan | undefined
   if (executionPlan && isLatestTurn) {
-    activePlan = calculatePlanStepStatus(executionPlan, turn.thinkingMessages, turn.isComplete, hasError, latestApprovalTerminal)
+    activePlan = calculatePlanStepStatus(
+      executionPlan,
+      turn.thinkingMessages,
+      turn.isComplete,
+      hasTerminalExecutionError,
+      latestApprovalTerminal
+    )
   } else if (turn.plan) {
     activePlan = hasExecutionTrace
-      ? calculatePlanStepStatus(turn.plan, turn.thinkingMessages, turn.isComplete, hasError, latestApprovalTerminal)
+      ? calculatePlanStepStatus(
+        turn.plan,
+        turn.thinkingMessages,
+        turn.isComplete,
+        hasTerminalExecutionError,
+        latestApprovalTerminal
+      )
       : turn.plan
   } else {
     activePlan = undefined
   }
 
-  const shouldShowPlan = !!activePlan
-  const shouldShowThinking =
-    turn.thinkingMessages.length > 0 ||
-    (isRunning && !isAwaitingApproval && !isAwaitingClarification)
-  const hasStableResult = !!turn.resultMessage && !turn.resultMessage.isTemporary
-  const canRevealFinalOutput = turn.isComplete && !isRunning
   const hasRuntimeInteractions = !!pendingPermission || !!latestApprovalTerminal
-  const shouldShowResult =
-    hasRuntimeInteractions ||
-    (canRevealFinalOutput && (hasStableResult || artifacts.length > 0))
   const isPlanOnlyStage =
     isLatestTurn &&
     (isAwaitingApproval || isAwaitingClarification) &&
     !turn.resultMessage &&
     turn.thinkingMessages.length === 0
-  const shouldUseSingleColumn = isPlanOnlyStage && shouldShowPlan
+  const shouldUseSingleColumn = isPlanOnlyStage && !!activePlan
   const thinkingToolCalls = turn.thinkingMessages.filter((m) => m.type === 'tool_use').length
   const planForApproval = approvalPlan || activePlan
-  const displayState = getWorkspaceDisplayState({
+  const displayModel = buildTurnDisplayModel({
     isStopped,
     isRunning,
     taskStatus,
@@ -1007,13 +1037,19 @@ function SelectedTurnWorkspace({
     hasPlanForApproval: !!planForApproval,
     hasExecutionTrace,
     hasResultMessage: !!turn.resultMessage,
-    artifactsCount: artifacts.length,
+    artifacts,
     hasPendingPermission: !!pendingPermission,
     hasPendingQuestion: !!pendingQuestion,
     hasLatestApprovalTerminal: !!latestApprovalTerminal,
     hasPlan: !!activePlan,
+    isTurnComplete: turn.isComplete,
+    resultMessage: turn.resultMessage,
   })
-  const displayPhase = displayState.phase
+  const displayPhase = displayModel.phase
+  const visibleResult = displayModel.visibleResult
+  const hasVisibleResult = visibleResult.kind !== 'none'
+  const canRevealFinalOutput = turn.isComplete && !isRunning
+  const shouldShowResult = hasRuntimeInteractions || hasVisibleResult
   const failureDetail = getPreferredFailureDetail(getMessagesForTurn(turn), turn.resultMessage?.content || null)
 
   return (
@@ -1035,7 +1071,7 @@ function SelectedTurnWorkspace({
       {displayPhase === 'failed' && (
         <div className="min-w-0 space-y-4">
           <FailedStateView message={failureDetail} />
-          {displayState.showPlanSection && activePlan && (
+          {displayModel.showPlanSection && activePlan && (
             <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
               <PlanExecutionView
                 plan={activePlan}
@@ -1064,7 +1100,7 @@ function SelectedTurnWorkspace({
 
       {displayPhase === 'awaiting_clarification' && pendingQuestion && onSubmitQuestion && (
         <div className="min-w-0 space-y-4">
-          {displayState.showPlanSection && activePlan && (
+          {displayModel.showPlanSection && activePlan && (
             <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
               <PlanExecutionView
                 plan={activePlan}
@@ -1095,7 +1131,7 @@ function SelectedTurnWorkspace({
 
       {displayPhase === 'execution' && (
       <div className="min-w-0 space-y-4">
-        {displayState.showPlanSection && (
+        {displayModel.showPlanSection && (
           <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
             <PlanExecutionView
               plan={activePlan!}
@@ -1104,7 +1140,7 @@ function SelectedTurnWorkspace({
           </section>
         )}
 
-        {shouldShowThinking && (
+        {displayModel.hasThinking && (
           <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
             {turn.thinkingMessages.length > 0 ? (
               <ThinkingSection
@@ -1123,10 +1159,12 @@ function SelectedTurnWorkspace({
         {!shouldUseSingleColumn && shouldShowResult && (
           <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
             <div className="mb-3 flex items-center gap-3">
-              <div className="w-4 shrink-0" />
-              <div className="min-w-0 flex items-center gap-2">
+              <div className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true">
+                <span className="size-4" />
+              </div>
+              <div className="min-w-0 flex flex-1 items-center gap-2">
                 <FileText className="size-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">
+                <span className="text-sm font-medium leading-none text-foreground">
                   {canRevealFinalOutput ? '最终输出' : '运行提示'}
                 </span>
                 {canRevealFinalOutput && canOpenPreview && onOpenPreview && (
@@ -1153,30 +1191,22 @@ function SelectedTurnWorkspace({
                 />
               )}
 
-              {canRevealFinalOutput && hasStableResult && turn.resultMessage ? (
+              {canRevealFinalOutput && visibleResult.text ? (
                 <div className={cn(
                   'min-w-0 rounded-2xl px-4 py-4',
-                  turn.resultMessage.isTemporary
-                    ? 'bg-orange-50 dark:bg-orange-900/20'
-                    : 'bg-[color:color-mix(in_oklab,var(--ui-panel)_82%,transparent)]'
+                  'bg-[color:color-mix(in_oklab,var(--ui-panel)_82%,transparent)]'
                 )}>
-                  {turn.resultMessage.isTemporary ? (
-                    <p className="whitespace-pre-wrap text-sm leading-7 text-orange-800 dark:text-orange-200">
-                      {turn.resultMessage.content}
-                    </p>
-                  ) : (
-                    <MarkdownRenderer content={turn.resultMessage.content || ''} fileBaseDir={fileBaseDir} />
-                  )}
+                  <MarkdownRenderer content={visibleResult.text} fileBaseDir={fileBaseDir} />
                 </div>
               ) : null}
 
-              {canRevealFinalOutput && artifacts.length > 0 && (
+              {canRevealFinalOutput && visibleResult.artifacts.length > 0 && (
                 <div className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel)_82%,transparent)] p-4">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">{artifacts.length} 个文件</span>
+                    <span className="text-xs text-muted-foreground">{visibleResult.artifacts.length} 个文件</span>
                   </div>
                   <div className="space-y-2">
-                    {artifacts.map((artifact) => (
+                    {visibleResult.artifacts.map((artifact) => (
                       <div key={artifact.id} className="rounded-xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_72%,transparent)] px-3 py-2.5">
                         <p className="truncate text-sm font-medium text-foreground">{artifact.name}</p>
                         {artifact.path && (
@@ -1299,7 +1329,7 @@ function PlanExecutionView({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex shrink-0 items-center justify-center rounded-lg p-1 text-muted-foreground hover:bg-muted"
+          className="flex size-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
         >
           {isExpanded ? (
             <ChevronDown className="size-4" />
@@ -1308,9 +1338,9 @@ function PlanExecutionView({
           )}
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex min-h-6 items-center gap-2">
             <ListTodo className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">执行计划</span>
+            <span className="text-sm font-medium leading-none text-foreground">执行计划</span>
             {isAllCompleted ? (
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                 已完成
@@ -1662,7 +1692,7 @@ function ThinkingSection({
         )}
       >
         {/* 折叠图标 */}
-        <div className="w-4 flex-shrink-0">
+        <div className="flex w-6 shrink-0 items-center justify-center">
           {isCollapsed ? (
             <ChevronRight className="size-4 text-muted-foreground" />
           ) : (
@@ -1670,9 +1700,9 @@ function ThinkingSection({
           )}
         </div>
 
-        <div className="min-w-0 flex items-center gap-2">
+        <div className="min-w-0 flex min-h-6 flex-1 items-center gap-2">
           <Brain className="size-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-sm font-medium leading-none text-foreground">
             {!isComplete ? '思考中...' : '思考过程'}
           </span>
 

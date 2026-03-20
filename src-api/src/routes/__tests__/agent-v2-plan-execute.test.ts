@@ -301,6 +301,58 @@ describe('V2 Agent Plan Execution', () => {
     expect(taskPlanContent).toContain('resume-marker')
   })
 
+  it('uses the task session directory in the execution prompt workspace instructions', async () => {
+    const taskId = `task_prompt_session_dir_${Date.now()}`
+    const planId = `plan_prompt_session_dir_${Date.now()}`
+    let capturedPrompt = ''
+
+    planStore.upsertPendingPlan(createPlan(planId), {
+      taskId,
+      sessionId: `session_prompt_session_dir_${Date.now()}`,
+    })
+
+    routesModule.setAgentService(
+      {
+        createAgent() {
+          return {}
+        },
+        async *streamExecution(prompt: string): AsyncIterable<AgentMessage> {
+          capturedPrompt = prompt
+          yield {
+            id: 'done_prompt_session_dir',
+            type: 'done',
+            timestamp: Date.now(),
+          }
+        },
+      } as any,
+      {
+        provider: {
+          provider: 'claude',
+          apiKey: 'test',
+          model: 'test-model',
+        } as any,
+        workDir: tempHome,
+      }
+    )
+
+    const executeRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId,
+        prompt: 'Run with session workspace instructions',
+        taskId,
+      }),
+    })
+
+    expect(executeRes.status).toBe(200)
+    await executeRes.text()
+
+    const sessionDir = path.join(tempHome, 'sessions', taskId)
+    expect(capturedPrompt).toContain(`MANDATORY OUTPUT DIRECTORY: ${sessionDir}`)
+    expect(capturedPrompt).not.toContain(`**MANDATORY OUTPUT DIRECTORY: ${tempHome}**`)
+  })
+
   it('appends progress.md when TodoWrite updates are streamed', async () => {
     const taskId = `task_progress_append_${Date.now()}`
     const planId = `plan_progress_append_${Date.now()}`
@@ -547,6 +599,75 @@ describe('V2 Agent Plan Execution', () => {
     const progressContent = fs.readFileSync(progressPath, 'utf-8')
     expect(progressContent).toContain('Status: failed')
     expect(progressContent).toContain('Execution ended before completing all planned steps')
+  })
+
+  it('records provider completion metadata when execution ends incompletely', async () => {
+    const taskId = `task_provider_result_${Date.now()}`
+    const planId = `plan_provider_result_${Date.now()}`
+
+    planStore.upsertPendingPlan(createPlan(planId), {
+      taskId,
+      sessionId: `session_provider_result_${Date.now()}`,
+    })
+
+    routesModule.setAgentService(
+      {
+        createAgent() {
+          return {}
+        },
+        async *streamExecution(): AsyncIterable<AgentMessage> {
+          yield {
+            id: 'todo_provider_result',
+            type: 'tool_use',
+            toolName: 'TodoWrite',
+            toolInput: {
+              todos: [
+                {
+                  id: '1',
+                  content: 'Execute the plan',
+                  status: 'in_progress',
+                },
+              ],
+            },
+            timestamp: Date.now(),
+          }
+          yield {
+            id: 'done_provider_result',
+            type: 'done',
+            timestamp: Date.now() + 1,
+            metadata: {
+              providerResultSubtype: 'max_turns',
+              providerStopReason: 'Maximum turns reached',
+            },
+          }
+        },
+      } as any,
+      {
+        provider: {
+          provider: 'claude',
+          apiKey: 'test',
+          model: 'test-model',
+        } as any,
+        workDir: tempHome,
+      }
+    )
+
+    const executeRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId,
+        prompt: 'Use Playwright to query an order and send me the result',
+        taskId,
+      }),
+    })
+    expect(executeRes.status).toBe(200)
+    await executeRes.text()
+
+    const progressPath = path.join(tempHome, 'sessions', taskId, 'progress.md')
+    const progressContent = fs.readFileSync(progressPath, 'utf-8')
+    expect(progressContent).toContain('provider_result: subtype=max_turns, stopReason=Maximum turns reached')
+    expect(progressContent).toContain('providerResult=max_turns')
   })
 
   it('pauses execution for user clarification when run is blocked by an interactive step', async () => {

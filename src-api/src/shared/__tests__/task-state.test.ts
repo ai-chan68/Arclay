@@ -5,6 +5,8 @@ import {
   deriveStatusFromMessages,
   isProcessAssistantResponse,
   isTaskActivelyRunning,
+  resolveTaskStatus,
+  shouldApplyTerminalExecutionFailure,
 } from '../../../../src/shared/lib/task-state'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
@@ -77,6 +79,51 @@ describe('deriveStatusFromMessages', () => {
 
     expect(deriveStatusFromMessages(messages, false)).toBe('running')
   })
+
+  it('does not mark completed when latest turn is paused for a clarification request', () => {
+    const messages: AgentMessage[] = [
+      createMessage({ id: 'u1', type: 'user', role: 'user', content: 'current turn', timestamp: 1 }),
+      createMessage({
+        id: 'a1',
+        type: 'text',
+        role: 'assistant',
+        content: '查询结果已清晰显示！现在更新状态并记录结果。',
+        timestamp: 2,
+      }),
+      createMessage({
+        id: 'q1',
+        type: 'clarification_request',
+        role: 'assistant',
+        content: '当前页面仍停留在登录/认证流程，请先完成登录后回复我继续。',
+        timestamp: 3,
+      }),
+      createMessage({ id: 'd1', type: 'done', timestamp: 4 }),
+    ]
+
+    expect(deriveStatusFromMessages(messages, false)).toBe('running')
+  })
+
+  it('keeps latest turn completed when an earlier execution error is followed by a final result', () => {
+    const messages: AgentMessage[] = [
+      createMessage({ id: 'u1', type: 'user', role: 'user', content: 'query oms order', timestamp: 1 }),
+      createMessage({
+        id: 'e1',
+        type: 'error',
+        errorMessage: 'Tool temporarily failed while querying.',
+        timestamp: 2,
+      }),
+      createMessage({
+        id: 'r1',
+        type: 'result',
+        role: 'assistant',
+        content: 'OMS统一订单号：645434699',
+        timestamp: 3,
+      }),
+      createMessage({ id: 'd1', type: 'done', timestamp: 4 }),
+    ]
+
+    expect(deriveStatusFromMessages(messages, false)).toBe('completed')
+  })
 })
 
 describe('isTaskActivelyRunning', () => {
@@ -95,6 +142,56 @@ describe('isTaskActivelyRunning', () => {
   it('keeps approval and blocked phases active without an error', () => {
     expect(isTaskActivelyRunning({ phase: 'awaiting_approval', error: null })).toBe(true)
     expect(isTaskActivelyRunning({ phase: 'blocked', error: null })).toBe(true)
+  })
+})
+
+describe('resolveTaskStatus', () => {
+  it('repairs a persisted error status when recovered messages show the latest turn completed', () => {
+    expect(
+      resolveTaskStatus({
+        currentStatus: 'error',
+        derivedStatus: 'completed',
+        isRunning: false,
+        interruptedByApproval: false,
+        manuallyStopped: false,
+        statusFromTurnState: null,
+      })
+    ).toBe('completed')
+  })
+
+  it('keeps a persisted stopped status when the task was manually stopped', () => {
+    expect(
+      resolveTaskStatus({
+        currentStatus: 'stopped',
+        derivedStatus: 'completed',
+        isRunning: false,
+        interruptedByApproval: false,
+        manuallyStopped: true,
+        statusFromTurnState: null,
+      })
+    ).toBe('stopped')
+  })
+})
+
+describe('shouldApplyTerminalExecutionFailure', () => {
+  it('does not treat in-flight tool errors as terminal execution failure', () => {
+    expect(
+      shouldApplyTerminalExecutionFailure({
+        hasExecutionError: true,
+        isRunning: true,
+        isTurnComplete: false,
+      })
+    ).toBe(false)
+  })
+
+  it('treats completed failed turns as terminal execution failure', () => {
+    expect(
+      shouldApplyTerminalExecutionFailure({
+        hasExecutionError: true,
+        isRunning: false,
+        isTurnComplete: true,
+      })
+    ).toBe(true)
   })
 })
 

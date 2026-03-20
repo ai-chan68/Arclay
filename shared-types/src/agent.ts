@@ -44,6 +44,8 @@ export interface AgentMessage {
   clarification?: PendingQuestion;
   // Turn runtime fields
   turn?: AgentTurnSnapshot;
+  // Provider/runtime metadata for diagnostics
+  metadata?: Record<string, unknown>;
   // Attachments
   attachments?: MessageAttachment[];
 }

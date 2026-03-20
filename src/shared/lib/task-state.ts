@@ -193,6 +193,21 @@ export function deriveStatusFromMessages(
     ? messages.slice(lastUserIndex)
     : messages
 
+  const hasPendingInteraction = latestTurnMessages.some((message) =>
+    message.type === 'clarification_request' || message.type === 'permission_request'
+  )
+  if (hasPendingInteraction) return 'running'
+
+  const latestErrorIndex = latestTurnMessages.reduce((lastIndex, message, index) => (
+    message.type === 'error' ? index : lastIndex
+  ), -1)
+  const completionWindow = latestErrorIndex >= 0
+    ? latestTurnMessages.slice(latestErrorIndex + 1)
+    : latestTurnMessages
+  const hasRecoveredCompletion = completionWindow.some((message) => message.type === 'done') &&
+    hasMeaningfulCompletionSignal(completionWindow)
+  if (hasRecoveredCompletion) return 'completed'
+
   const hasError = latestTurnMessages.some((m) => m.type === 'error')
   if (hasError) return 'error'
 
@@ -202,6 +217,64 @@ export function deriveStatusFromMessages(
   // Without explicit terminal signals (done/error), prefer running.
   // This avoids false "completed" during task-switch hydration windows.
   return 'running'
+}
+
+export function resolveTaskStatus({
+  currentStatus,
+  derivedStatus,
+  isRunning,
+  interruptedByApproval,
+  manuallyStopped,
+  statusFromTurnState,
+}: {
+  currentStatus: TaskStatus
+  derivedStatus: TaskStatus
+  isRunning: boolean
+  interruptedByApproval: boolean
+  manuallyStopped: boolean
+  statusFromTurnState: TaskStatus | null
+}): TaskStatus {
+  if (interruptedByApproval) return 'stopped'
+  if (manuallyStopped && !isRunning) return 'stopped'
+  if (statusFromTurnState && !isRunning) return statusFromTurnState
+
+  const hasTerminalTaskStatus =
+    currentStatus === 'completed' ||
+    currentStatus === 'error' ||
+    currentStatus === 'stopped'
+
+  const shouldRepairRecoveredCompletion =
+    currentStatus === 'error' &&
+    derivedStatus === 'completed' &&
+    !isRunning
+
+  if (shouldRepairRecoveredCompletion) {
+    return 'completed'
+  }
+
+  const shouldTrustTerminalTaskStatus =
+    hasTerminalTaskStatus &&
+    !isRunning &&
+    !interruptedByApproval &&
+    !manuallyStopped
+
+  if (shouldTrustTerminalTaskStatus) {
+    return currentStatus
+  }
+
+  return derivedStatus
+}
+
+export function shouldApplyTerminalExecutionFailure({
+  hasExecutionError,
+  isRunning,
+  isTurnComplete,
+}: {
+  hasExecutionError: boolean
+  isRunning: boolean
+  isTurnComplete: boolean
+}): boolean {
+  return hasExecutionError && !isRunning && isTurnComplete
 }
 
 export function isTaskActivelyRunning({

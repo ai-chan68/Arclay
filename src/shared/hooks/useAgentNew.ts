@@ -305,6 +305,7 @@ export interface UseAgentNewActions {
   respondToPermission: (permissionId: string, approved: boolean, addToAutoAllow?: boolean) => Promise<void>
   respondToQuestion: (questionId: string, answers: Record<string, string>) => Promise<void>
   resumeBlockedTurn: () => Promise<void>
+  resetTransientState: () => void
   clear: () => void
 }
 
@@ -1126,16 +1127,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       setPendingPermission(nextPermission || null)
       setPendingQuestion(nextQuestion || null)
       if (nextQuestion) {
-        if (nextQuestion.source === 'clarification') {
-          updatePhase('awaiting_clarification')
-        } else if (nextQuestion.source === 'runtime_tool_question') {
-          if (phaseRef.current === 'idle') {
-            updatePhase('executing')
-          }
-        } else if (phaseRef.current === 'idle') {
-          // Backward compatible fallback for old records without source.
-          updatePhase('awaiting_clarification')
-        }
+        updatePhase('awaiting_clarification')
       } else if (nextPermission && phaseRef.current === 'idle') {
         updatePhase('awaiting_approval')
       }
@@ -1340,6 +1332,19 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
     )
   }, [internalTaskId, runAgent, sessionFolder, taskIndex])
 
+  const resetTransientState = useCallback((): void => {
+    setIsRunning(false)
+    setError(null)
+    setPendingPermission(null)
+    setPendingQuestion(null)
+    setLatestApprovalTerminal(null)
+    setFilesVersion(0)
+    setTurnId(null)
+    setTurnState(null)
+    setTaskVersion(0)
+    setBlockedByTurnIds([])
+  }, [])
+
   /**
    * Clear all state
    */
@@ -1451,6 +1456,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
     respondToPermission,
     respondToQuestion,
     resumeBlockedTurn,
+    resetTransientState,
     clear,
   }
 }

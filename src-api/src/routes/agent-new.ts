@@ -86,6 +86,8 @@ interface ExecutionCompletionSummary {
   pendingInteractionCount: number
   blockerCandidate: ExecutionBlockerCandidate | null
   blockedArtifactPath: string | null
+  providerResultSubtype: string | null
+  providerStopReason: string | null
 }
 
 interface ExecutionBlockerCandidate {
@@ -292,7 +294,28 @@ function formatExecutionCompletionSummary(summary: ExecutionCompletionSummary): 
     `todos=${todo}`,
     `pendingInteractions=${summary.pendingInteractionCount}`,
     `blockedArtifact=${summary.blockedArtifactPath || 'none'}`,
+    `providerResult=${summary.providerResultSubtype || 'none'}`,
   ].join(', ')
+}
+
+function summarizeProviderCompletionMetadata(metadata?: Record<string, unknown> | null): string {
+  if (!metadata) return ''
+
+  const subtype = typeof metadata.providerResultSubtype === 'string' ? metadata.providerResultSubtype.trim() : ''
+  const stopReason = typeof metadata.providerStopReason === 'string' ? metadata.providerStopReason.trim() : ''
+  const durationMs = typeof metadata.providerDurationMs === 'number' && Number.isFinite(metadata.providerDurationMs)
+    ? metadata.providerDurationMs
+    : null
+  const totalCostUsd = typeof metadata.providerTotalCostUsd === 'number' && Number.isFinite(metadata.providerTotalCostUsd)
+    ? metadata.providerTotalCostUsd
+    : null
+
+  const parts: string[] = []
+  if (subtype) parts.push(`subtype=${subtype}`)
+  if (stopReason) parts.push(`stopReason=${stopReason}`)
+  if (durationMs !== null) parts.push(`durationMs=${durationMs}`)
+  if (totalCostUsd !== null) parts.push(`totalCostUsd=${totalCostUsd}`)
+  return parts.join(', ')
 }
 
 function normalizeInteractiveBlockerText(text: string): string {
@@ -1774,6 +1797,7 @@ agentNewRoutes.post('/execute', async (c) => {
   if (planningFilesBootstrap.error) {
     console.warn('[agent-new] Failed to bootstrap planning files:', planningFilesBootstrap.error)
   }
+  const executionWorkspaceDir = planningFilesBootstrap.sessionDir
   const progressFilePath = path.join(planningFilesBootstrap.sessionDir, 'progress.md')
 
   c.header('Content-Type', 'text/event-stream; charset=utf-8')
@@ -1800,6 +1824,8 @@ agentNewRoutes.post('/execute', async (c) => {
       pendingInteractionCount: 0,
       blockerCandidate: null,
       blockedArtifactPath: null,
+      providerResultSubtype: null,
+      providerStopReason: null,
     }
     try {
       executionStarted = true
@@ -1821,7 +1847,7 @@ agentNewRoutes.post('/execute', async (c) => {
       const executionPrompt = buildExecutionPrompt(
         plan,
         prompt,
-        effectiveWorkDir,
+        executionWorkspaceDir,
         formattingAgent.formatPlanForExecution
           ? ((planData, dir) => formattingAgent.formatPlanForExecution!(planData, dir))
           : undefined
@@ -1839,7 +1865,7 @@ agentNewRoutes.post('/execute', async (c) => {
         const observation = createExecutionObservation()
         const isRepairAttempt = attempt > 0
         const promptForAttempt = isRepairAttempt && runtimeGateResult
-          ? buildRuntimeRepairPrompt(executionPrompt, runtimeGateResult, effectiveWorkDir)
+          ? buildRuntimeRepairPrompt(executionPrompt, runtimeGateResult, executionWorkspaceDir)
           : executionPrompt
 
         if (isRepairAttempt && runtimeGateResult) {
@@ -1965,6 +1991,15 @@ agentNewRoutes.post('/execute', async (c) => {
               'error',
               message.errorMessage
             )
+          } else if (message.type === 'done' && message.metadata) {
+            const providerSummary = summarizeProviderCompletionMetadata(message.metadata)
+            if (providerSummary) {
+              await appendExecutionAudit(
+                progressFilePath,
+                'provider_result',
+                providerSummary
+              )
+            }
           }
 
           if (message.type === 'error') {
@@ -1975,6 +2010,17 @@ agentNewRoutes.post('/execute', async (c) => {
               `### Error (${new Date().toISOString()})`,
               `- ${executionFailureReason}`,
             ])
+          }
+
+          if (message.type === 'done' && message.metadata) {
+            const subtype = typeof message.metadata.providerResultSubtype === 'string'
+              ? message.metadata.providerResultSubtype.trim()
+              : ''
+            const stopReason = typeof message.metadata.providerStopReason === 'string'
+              ? message.metadata.providerStopReason.trim()
+              : ''
+            executionSummary.providerResultSubtype = subtype || executionSummary.providerResultSubtype
+            executionSummary.providerStopReason = stopReason || executionSummary.providerStopReason
           }
 
           if (message.type === 'done') {

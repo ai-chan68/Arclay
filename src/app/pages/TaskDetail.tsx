@@ -43,6 +43,7 @@ import {
   generateSessionId,
   deriveStatusFromMessages,
   isTaskActivelyRunning,
+  resolveTaskStatus,
   getPreferredFailureDetail,
   removeBackgroundTask,
   getBackgroundTask,
@@ -92,6 +93,21 @@ function generateTaskTitle(prompt: string): string {
   if (spaceIndex > 10) return title.slice(0, spaceIndex)
 
   return title.slice(0, maxLength - 3) + '...'
+}
+
+function getTurnHeaderTitle(messages: AgentMessage[], fallbackTitle: string): string {
+  const primaryMessage = messages.find((message) => (
+    message.type === 'user' && message.role === 'user' && message.content?.trim()
+  )) || messages.find((message) => (
+    message.type === 'text' && message.role === 'user' && message.content?.trim()
+  )) || messages.find((message) => (
+    message.type === 'result' && message.content?.trim()
+  )) || messages.find((message) => (
+    message.type === 'text' && message.role === 'assistant' && message.content?.trim()
+  ))
+
+  const content = primaryMessage?.content?.replace(/\s+/g, ' ').trim()
+  return content || fallbackTitle
 }
 
 function getTaskErrorNotice(
@@ -274,6 +290,7 @@ function TaskDetailContent() {
     respondToPermission,
     respondToQuestion,
     resumeBlockedTurn,
+    resetTransientState,
     turnId,
     turnState,
     taskVersion,
@@ -381,7 +398,9 @@ function TaskDetailContent() {
     if (!taskId) return
     // taskId 变化时重置初始化标志
     hasInitializedRef.current = false
+    resetTransientState()
     setIsLoading(true)
+    setCurrentRunId(null)
     setCurrentMessages([])
     setCurrentPlan(null)
     setExecutionPlan(null)
@@ -392,7 +411,7 @@ function TaskDetailContent() {
     setTurnsCount(0)
     setArtifacts([])
     setSelectedArtifact(null)
-  }, [taskId])
+  }, [taskId, resetTransientState])
 
   useEffect(() => {
     if (!taskId || !isDbReady || hasInitializedRef.current) return
@@ -536,24 +555,15 @@ function TaskDetailContent() {
           : turnState === 'cancelled'
           ? 'stopped'
           : null
-      const hasTerminalTaskStatus =
-        currentTask.status === 'completed' ||
-        currentTask.status === 'error' ||
-        currentTask.status === 'stopped'
-      const shouldTrustTerminalTaskStatus =
-        hasTerminalTaskStatus &&
-        !effectiveIsRunning &&
-        !interruptedByApproval &&
-        !manuallyStopped
-      const newStatus = interruptedByApproval
-        ? 'stopped'
-        : manuallyStopped && !effectiveIsRunning
-        ? 'stopped'
-        : statusFromTurnState && !effectiveIsRunning
-        ? statusFromTurnState
-        : shouldTrustTerminalTaskStatus
-        ? currentTask.status
-        : deriveStatusFromMessages(currentMessages, effectiveIsRunning)
+      const derivedStatus = deriveStatusFromMessages(currentMessages, effectiveIsRunning)
+      const newStatus = resolveTaskStatus({
+        currentStatus: currentTask.status,
+        derivedStatus,
+        isRunning: effectiveIsRunning,
+        interruptedByApproval,
+        manuallyStopped,
+        statusFromTurnState,
+      })
       if (newStatus !== currentTask.status) {
         const updatedTask = { ...currentTask, status: newStatus, updated_at: new Date().toISOString() }
         setCurrentTask(updatedTask)
@@ -867,6 +877,10 @@ function TaskDetailContent() {
   const isViewingLatestTurn = turnsCount <= 1 || selectedTurnIndex === turnsCount - 1
 
   const taskErrorNotice = useMemo(() => getTaskErrorNotice(error, currentMessages), [error, currentMessages])
+  const headerTitle = useMemo(
+    () => getTurnHeaderTitle(visibleTurnMessages, currentTask?.title || '加载中...'),
+    [visibleTurnMessages, currentTask?.title]
+  )
 
   const handleOpenPreviewPanel = useCallback(() => {
     if (!selectedArtifact) return
@@ -962,8 +976,11 @@ function TaskDetailContent() {
               <PanelLeft className="size-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <h1 className="ew-title truncate text-sm font-medium">
-                {currentTask?.title || '加载中...'}
+              <h1
+                className="ew-title max-w-[min(50vw,36rem)] truncate text-sm font-medium"
+                title={headerTitle}
+              >
+                {headerTitle}
               </h1>
             </div>
             <button

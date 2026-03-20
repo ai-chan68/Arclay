@@ -257,6 +257,7 @@ User's request (answer this AFTER reading the images):
     let executionSuccess = false;
     let executionError = '';
     let sdkMessageCount = 0;
+    let providerCompletionMetadata: Record<string, unknown> | null = null;
 
     console.log(`[Claude ${session.id}] LLM execute request started`, {
       model: this.config.model,
@@ -280,6 +281,11 @@ User's request (answer this AFTER reading the images):
         sdkMessageCount += 1;
         if (signal.aborted) break;
 
+        const completionMetadata = this.extractProviderCompletionMetadata(message);
+        if (completionMetadata) {
+          providerCompletionMetadata = completionMetadata;
+        }
+
         yield* this.processSdkMessage(
           message,
           session.id,
@@ -299,6 +305,7 @@ User's request (answer this AFTER reading the images):
       yield {
         id: this.generateMessageId(),
         type: 'done' as AgentMessageType,
+        metadata: providerCompletionMetadata || undefined,
         timestamp: Date.now(),
       };
     } catch (error) {
@@ -937,6 +944,44 @@ IMPORTANT:
     }
 
     return /\b(create|write|edit|modify|delete|remove|rename|move|copy|run|execute|command|file|folder|directory|script|install|touch|mkdir|cp|mv)\b/i.test(normalized);
+  }
+
+  private extractProviderCompletionMetadata(message: unknown): Record<string, unknown> | null {
+    if (!message || typeof message !== 'object') {
+      return null
+    }
+
+    const record = message as Record<string, unknown>
+    if (record.type !== 'result') {
+      return null
+    }
+
+    const subtype = typeof record.subtype === 'string' && record.subtype.trim()
+      ? record.subtype.trim()
+      : null
+    const stopReason = typeof record.stop_reason === 'string' && record.stop_reason.trim()
+      ? record.stop_reason.trim()
+      : typeof record.stopReason === 'string' && record.stopReason.trim()
+      ? record.stopReason.trim()
+      : null
+    const durationMs = typeof record.duration_ms === 'number' && Number.isFinite(record.duration_ms)
+      ? record.duration_ms
+      : typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+      ? record.durationMs
+      : null
+    const totalCostUsd = typeof record.total_cost_usd === 'number' && Number.isFinite(record.total_cost_usd)
+      ? record.total_cost_usd
+      : typeof record.totalCostUsd === 'number' && Number.isFinite(record.totalCostUsd)
+      ? record.totalCostUsd
+      : null
+
+    const metadata: Record<string, unknown> = {}
+    if (subtype) metadata.providerResultSubtype = subtype
+    if (stopReason) metadata.providerStopReason = stopReason
+    if (durationMs !== null) metadata.providerDurationMs = durationMs
+    if (totalCostUsd !== null) metadata.providerTotalCostUsd = totalCostUsd
+
+    return Object.keys(metadata).length > 0 ? metadata : null
   }
 
   /**
