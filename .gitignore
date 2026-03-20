@@ -23,6 +23,8 @@ build/
 .claude/
 workspace/
 docs/
+AGENTS.md
+CLAUDE.md
 
 # OS
 .DS_Store

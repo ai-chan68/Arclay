@@ -1,90 +1,130 @@
 # EasyWork
 
-EasyWork is a desktop AI work assistant powered by Claude Agent SDK. It supports natural-language task planning, approval, and execution.
+EasyWork is a desktop-first open-source AI workbench focused on real task execution rather than longer chat sessions.
+It turns a natural-language request into a workflow that can be planned, approved, executed, resumed, and inspected.
 
-[Technical Design (ZH)](./EasyWork技术方案.md) | [Chinese README](./README.md)
+[Chinese README](./README.md)
+
+## What It Does
+
+- Two-phase execution flow: `Planning -> Approval -> Execution`
+- Clarification flow before planning when context is insufficient
+- Task workspace with turn timeline, process/result review, and artifact preview
+- File previews for code, documents, images, spreadsheets, HTML, and more
+- Pluggable Provider / Sandbox / Skills architecture
+- Task persistence, approvals, scheduling, and runtime recovery
+- Appearance modes: `Light / Dark / System`
 
 ## Current Capabilities
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Two-phase execution (primary path) | ✅ Available | `/api/v2/agent/plan` -> `/api/v2/agent/execute` |
-| Direct answers for simple queries | ✅ Available | Planning phase may return `direct_answer` (no approval needed) |
-| Legacy API sunset (smooth migration) | ✅ Done | `/api/agent/*` now returns `410` with migration hints; primary flow is `/api/v2/agent/*` |
-| MCP support | ✅ Available | Configurable MCP servers injected during execution |
-| Skills support | ✅ Available | Project `SKILLs/` synced to `.claude/skills/` |
-| File preview | ✅ Available | Right panel supports PDF/PPT/docs/code/images |
-| Task detail workspace | ✅ Available | Left turn timeline + center process/result + right preview |
+| Two-phase execution | ✅ Available | `/api/v2/agent/plan` -> `/api/v2/agent/execute` |
+| Direct answers for simple queries | ✅ Available | Planning may return `direct_answer` |
+| Legacy API sunset | ✅ Done | `/api/agent/*` returns migration hints |
+| MCP support | ✅ Available | Configurable MCP servers injected at runtime |
+| Skills support | ✅ Available | Project-level skills defined under `SKILLs/` |
+| File preview | ✅ Available | Preview panel supports PDF/PPT/docs/code/images |
+| Task detail workspace | ✅ Available | Timeline + process/result + preview layout |
 | Appearance modes | ✅ Available | `Light / Dark / System` in Settings |
-| Brand icon system | ✅ Updated | Platform icons generated from `app-icon.svg` |
-| Multi-agent orchestration | 🚧 Experimental | Backend exists, frontend not integrated |
-
-## Interaction Model
-
-- Default flow is two-phase: plan first, then execute after user approval.
-- Simple prompts can be answered directly in planning phase.
-- Image attachments skip planning and go to direct execution (`/api/v2/agent`).
-- Follow-up prompts in the same task are re-evaluated via `runAgent` (planning included), not auto-forced into direct execution.
-- Appearance can be switched in `Settings -> Appearance` (`Light / Dark / System`).
-- Task detail uses a workspace layout with timeline navigation, detailed process/result review, and synchronized artifact preview.
+| Multi-agent orchestration | 🚧 Experimental | Backend exists, frontend integration is incomplete |
 
 ## Quick Start
 
-```bash
-# Install dependencies
-pnpm install
+### Requirements
 
-# Start API + Web
+- Node.js `>= 20`
+- pnpm `>= 9`
+- Git
+- Rust stable for desktop mode
+- Tauri prerequisites for desktop mode: <https://v2.tauri.app/start/prerequisites/>
+
+### Install
+
+```bash
+git clone <your-repo-url>
+cd easeWork
+
+corepack enable
+corepack prepare pnpm@9 --activate
+pnpm install
+```
+
+### Run
+
+```bash
+# API + Web
 pnpm dev:all
 
-# Start desktop app (Tauri)
+# API only
+pnpm dev:api
+
+# Web only
+pnpm dev:web
+
+# Desktop app (Tauri)
 pnpm dev
 ```
 
-On first run, configure your model provider and API key in Settings.
-You can also switch appearance instantly in `Settings -> Appearance`.
+Default ports:
+
+- API: `http://localhost:2026`
+- Web: `http://localhost:1420`
+
+On first run, configure at least one model provider in Settings and activate it.
+
+Runtime settings are stored locally on your machine:
+
+- `~/.easywork/settings.json`
+- `~/.easywork/plans.json`
+- `~/.easywork/approval-requests.json`
+- `~/.easywork/scheduled-tasks.json`
 
 ## Common Commands
 
 ```bash
-# API / Web
+# Development
+pnpm dev:all
 pnpm dev:api
 pnpm dev:web
+pnpm dev
 
 # Quality
-pnpm typecheck
 pnpm lint
+pnpm typecheck
 pnpm test
+pnpm pre-release
 
 # Build
 pnpm build
+pnpm build:api
 pnpm build:desktop
-
-# Regenerate app icons (all Tauri platforms)
-pnpm tauri icon app-icon.svg
 ```
-
-## Built-in Skills
-
-| Skill | Purpose |
-|-------|---------|
-| `baoyu-slide-deck` | Slide deck generation |
-| `canvas-design` | Visual design generation |
-| `deep-research` | Research-style reporting |
-| `frontend-slides-main` | HTML presentation generation |
-| `planning-with-files` | File-aware planning assistance |
-| `web-search` | Search-oriented task support |
 
 ## Project Structure
 
 ```text
 src/           Frontend (React + Vite)
-src-api/       Backend (Hono + Claude Agent SDK)
-src-tauri/     Desktop shell (Tauri + Rust)
+src-api/       Backend (Hono + Agent Runtime)
+src-tauri/     Desktop shell (Tauri 2 + Rust)
 shared-types/  Shared TypeScript types
+scripts/       Build, release, and quality scripts
+openspec/      Specs and change workflow
 SKILLs/        Project-level skills
-app-icon.svg   Icon source used to generate Tauri multi-platform icons
 ```
+
+## OpenSpec Workflow
+
+This project uses OpenSpec to manage larger changes.
+
+- Active specs: [`openspec/specs/`](./openspec/specs/)
+- Archived changes: [`openspec/changes/archive/`](./openspec/changes/archive/)
+
+For larger contributions, prefer:
+
+1. Define or refine the change in OpenSpec.
+2. Align behavior and scope.
+3. Implement and verify.
 
 ## License
 
