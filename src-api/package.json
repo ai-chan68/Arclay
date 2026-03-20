@@ -1,0 +1,34 @@
+{
+  "name": "src-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.7",
+    "@anthropic-ai/sandbox-runtime": "^0.0.28",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@hono/node-server": "^1.14.1",
+    "hono": "^4.7.10",
+    "mime-types": "^3.0.2",
+    "nanoid": "^5.0.7",
+    "semver": "^7.7.4",
+    "shared-types": "workspace:*",
+    "tree-kill": "^1.2.2",
+    "yaml": "^2.8.2",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.3",
+    "vitest": "^2.1.0"
+  }
+}

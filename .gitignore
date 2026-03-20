@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.test
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local agent / workspace / docs artifacts not intended for GitHub
+.claude/
+workspace/
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Tauri
+src-tauri/target/
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+src-api/workspace/sessions/
+
+# Auto-generated skills directory (synced from SKILLs/)
+.codex/skills/
+.baoyu-skills/
+**/.claude/settings.local.json
+
+# Runtime state (generated locally)
+.easywork/
+.playwright-cli/
+src-tauri/binaries/

@@ -1,0 +1,35 @@
+{
+  "profiles": {
+    "strict": {
+      "name": "strict",
+      "description": "Maximum security - all potentially dangerous operations blocked",
+      "permissions": {
+        "fileOperations": { "read": true, "write": false, "delete": false, "rename": false, "move": false },
+        "networkOperations": { "fetch": false, "search": false, "upload": false },
+        "systemOperations": { "installPackages": false, "runScripts": false, "modifyEnv": false },
+        "protectedPaths": ["~/.ssh/", "~/.config/", ".env"]
+      }
+    },
+    "balanced": {
+      "name": "balanced",
+      "description": "Default profile - allows safe operations, blocks dangerous ones",
+      "permissions": {
+        "fileOperations": { "read": true, "write": true, "delete": false, "rename": true, "move": true },
+        "networkOperations": { "fetch": true, "search": true, "upload": false },
+        "systemOperations": { "installPackages": false, "runScripts": true, "modifyEnv": false },
+        "protectedPaths": ["~/.ssh/", "~/.config/", ".env"]
+      }
+    },
+    "permissive": {
+      "name": "permissive",
+      "description": "Minimal restrictions - allows most operations",
+      "permissions": {
+        "fileOperations": { "read": true, "write": true, "delete": true, "rename": true, "move": true },
+        "networkOperations": { "fetch": true, "search": true, "upload": true },
+        "systemOperations": { "installPackages": true, "runScripts": true, "modifyEnv": true },
+        "protectedPaths": ["~/.ssh/", "~/.config/", ".env"]
+      }
+    }
+  },
+  "defaultProfile": "balanced"
+}

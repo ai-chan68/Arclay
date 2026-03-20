@@ -1,0 +1,342 @@
+/**
+ * Multi-Agent Animation Styles
+ *
+ * 为多Agent协作界面提供丰富的动画效果
+ * 让用户感受到Agent的活跃状态和协作过程
+ */
+
+/* Agent脉冲动画 */
+@keyframes agent-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+.agent-pulse {
+  animation: agent-pulse 2s ease-in-out infinite;
+}
+
+/* Agent思考动画 */
+@keyframes thinking-dots {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.thinking-dot {
+  animation: thinking-dots 1.4s infinite;
+}
+
+.thinking-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Agent连接线动画 */
+@keyframes connection-flow {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.connection-active {
+  animation: connection-flow 1s linear infinite;
+}
+
+/* Agent卡片悬浮效果 */
+.agent-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agent-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Agent状态切换动画 */
+.agent-status-transition {
+  transition: all 0.5s ease-in-out;
+}
+
+/* 进度条流动动画 */
+@keyframes progress-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.progress-bar-animated {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.8),
+    rgba(147, 51, 234, 0.8),
+    rgba(59, 130, 246, 0.8)
+  );
+  background-size: 200% 100%;
+  animation: progress-flow 2s ease infinite;
+}
+
+/* 协作网络节点动画 */
+@keyframes node-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(147, 51, 234, 0.6);
+  }
+}
+
+.node-active {
+  animation: node-glow 2s ease-in-out infinite;
+}
+
+/* 时间线步骤展开动画 */
+@keyframes expand-height {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
+.timeline-details-expanding {
+  animation: expand-height 0.3s ease-out;
+  overflow: hidden;
+}
+
+/* Agent头像旋转动画 */
+@keyframes avatar-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.avatar-working {
+  animation: avatar-rotate 3s linear infinite;
+}
+
+/* 结果淡入动画 */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-fade-in {
+  animation: fade-in-up 0.5s ease-out;
+}
+
+/* 粒子效果 - Agent工作时的粒子 */
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) translateX(20px);
+    opacity: 0;
+  }
+}
+
+.agent-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(59, 130, 246, 0.6);
+  border-radius: 50%;
+  animation: particle-float 3s ease-out infinite;
+}
+
+/* 网格背景动画 */
+@keyframes grid-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.grid-background {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: grid-pulse 4s ease-in-out infinite;
+}
+
+/* Agent状态指示器 */
+@keyframes status-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.status-indicator-active {
+  animation: status-blink 1.5s ease-in-out infinite;
+}
+
+/* 波纹效果 - Agent完成时 */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.agent-ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(34, 197, 94, 0.6);
+  animation: ripple 1s ease-out;
+}
+
+/* 打字机效果 - Agent思考过程 */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.typing-effect {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 2s steps(40, end);
+}
+
+/* 渐变流动 - 用于活跃状态 */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-animated {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 1),
+    rgba(147, 51, 234, 1),
+    rgba(236, 72, 153, 1)
+  );
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* 阴影呼吸效果 */
+@keyframes shadow-breathe {
+  0%, 100% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.shadow-breathe {
+  animation: shadow-breathe 3s ease-in-out infinite;
+}
+
+/* 工具提示淡入 */
+@keyframes tooltip-fade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.tooltip-animated {
+  animation: tooltip-fade 0.2s ease-out;
+}
+
+/* 自定义滚动条样式 - Agent列表 */
+.agent-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.agent-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.agent-list::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 3px;
+}
+
+.agent-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+/* 暗色模式滚动条 */
+.dark .agent-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .agent-list::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+.dark .agent-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.9);
+}
