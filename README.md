@@ -38,30 +38,6 @@ EasyWork 关注的是另一件事：
 - Skills 生态：来源管理、安装更新、健康检查、路由模式
 - Appearance：支持 `Light / Dark / System`
 
-## 适合谁
-
-- 想把 LLM 从聊天窗口带进真实工作流的开发者
-- 需要“先计划、再审批、后执行”的 Agent 产品团队
-- 想研究本地桌面 AI、Tauri、任务恢复与产物预览的开源贡献者
-- 想在一个可运行项目上继续扩展 Provider、Sandbox、Skills 或调度能力的社区成员
-
-## 当前架构
-
-EasyWork 采用桌面优先的三层结构：
-
-1. 前端层 `src/`
-React + React Router + Vite + Tailwind  
-负责任务交互、状态展示、SSE 消费、任务详情工作台、文件预览与设置页面。
-
-2. 后端层 `src-api/`
-Hono + Agent Runtime  
-负责规划/执行编排、审批协调、Provider/Sandbox 管理、Skills 路由与调度。  
-运行时已具备网页任务意图识别、策略化执行、Provider 结束态语义判定与浏览器行为观测能力。
-
-3. 桌面层 `src-tauri/`
-Tauri 2 + Rust  
-负责 sidecar 生命周期、桌面能力桥接、本地数据库与桌面打包。
-
 ## 快速开始
 
 ### 环境要求
@@ -76,7 +52,7 @@ Tauri 2 + Rust
 
 ```bash
 git clone <your-repo-url>
-cd easeWork
+cd EasyWork
 
 corepack enable
 corepack prepare pnpm@9 --activate
@@ -151,88 +127,6 @@ scripts/        构建、质量门禁与发布脚本
 openspec/       OpenSpec 规格与变更管理
 SKILLs/         项目级 Skills 定义
 ```
-
-## API 概览
-
-主要接口：
-
-- 健康检查：`/api/health`、`/api/health/dependencies`
-- 两阶段执行：`/api/v2/agent/plan`、`/api/v2/agent/execute`
-- 兼容直执行：`/api/v2/agent`
-- 执行控制：`/api/v2/agent/stop/:id`
-- 审批回传：`/api/v2/agent/permission`、`/api/v2/agent/question`
-- 定时任务：`/api/scheduled-tasks/*`
-- 设置与 Provider：`/api/settings/*`、`/api/providers`
-- 文件与预览：`/api/files/*`、`/api/preview/*`
-
-> 说明：旧的 `/api/agent/*` 已 sunset，只保留迁移提示。
-
-## Roadmap
-
-当前重点方向包括：
-
-- 更完整的多 Agent 前端闭环
-- 更强的跨重启恢复与运行态持久化
-- 更细的执行可观测性、错误分层与运行报告
-- 更成熟的 Skills 路由反馈与调试体验
-- 更稳定的开源贡献流程、文档和样例配置
-
-## 贡献方式
-
-欢迎 Issue、讨论和 PR。
-
-建议的贡献流程：
-
-1. Fork / Clone 项目
-2. 安装依赖并本地跑通
-3. 对较大改动先补 OpenSpec proposal / design / tasks
-4. 完成实现后运行：
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-```
-
-5. 提交 PR，并说明：
-- 改了什么
-- 为什么改
-- 如何验证
-- 是否涉及 OpenSpec 变更
-
-如果你想低门槛参与，也很欢迎从这些方向开始：
-
-- 补文档或示例配置
-- 改善错误提示和空状态
-- 增加测试和回归用例
-- 新增或整理 Skills / Provider 集成
-
-## 当前状态
-
-EasyWork 仍在快速迭代中，目前比较稳定的是：
-
-- 两阶段执行主链路
-- 网页任务的意图识别与策略化执行
-- 任务详情 workspace
-- Provider / Sandbox 插件化底座
-- 定时任务与审批恢复能力
-- `max_turns` 中断态识别、历史任务回看与执行过程审计
-
-仍在持续完善的方向包括：
-
-- 多 Agent 前端闭环体验
-- 更强的跨重启恢复能力
-- 更完整的上下文管理与可观测性报告
-- 更成熟的 Skills 路由反馈机制
-
-## 开源说明
-
-EasyWork 的目标是成为一个长期维护的开源项目。
-
-- 核心代码默认按 MIT 许可证开放
-- 运行时密钥、Provider 配置与本地状态仍然保存在用户本机
-- 部分能力仍在快速演进中，接口和交互会继续迭代
-- 欢迎通过 Issue、PR 和讨论一起完善路线图与实现细节
 
 ## License
 

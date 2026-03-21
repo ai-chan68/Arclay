@@ -18,23 +18,6 @@ It turns a natural-language request into a workflow that can be planned, approve
 - Execution observability with provider completion metadata, browser action counters, and execution audit logs
 - Appearance modes: `Light / Dark / System`
 
-## Current Capabilities
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Two-phase execution | ✅ Available | `/api/v2/agent/plan` -> `/api/v2/agent/execute` |
-| Direct answers for simple queries | ✅ Available | Planning may return `direct_answer` |
-| Legacy API sunset | ✅ Done | `/api/agent/*` returns migration hints |
-| MCP support | ✅ Available | Configurable MCP servers injected at runtime |
-| Skills support | ✅ Available | Project-level skills defined under `SKILLs/` |
-| Intent-aware web execution | ✅ Available | Web runs can adapt execution strategy by task intent |
-| Interrupted execution semantics | ✅ Available | `max_turns` with meaningful progress is treated as interrupted instead of failed |
-| Runtime observability | ✅ Available | Provider completion metadata and browser action summaries are recorded |
-| File preview | ✅ Available | Preview panel supports PDF/PPT/docs/code/images |
-| Task detail workspace | ✅ Available | Timeline + process/result + preview layout |
-| Appearance modes | ✅ Available | `Light / Dark / System` in Settings |
-| Multi-agent orchestration | 🚧 Experimental | Backend exists, frontend integration is incomplete |
-
 ## Quick Start
 
 ### Requirements
@@ -49,7 +32,7 @@ It turns a natural-language request into a workflow that can be planned, approve
 
 ```bash
 git clone <your-repo-url>
-cd easeWork
+cd EasyWork
 
 corepack enable
 corepack prepare pnpm@9 --activate
