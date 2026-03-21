@@ -47,6 +47,7 @@ import {
   getMcpExecutionDisciplineInstruction,
   getPlanningFilesProtocolInstruction,
 } from '../../../services/plan-execution';
+import { taskPlanner } from '../../../services/task-planner';
 
 /**
  * Task complexity levels for dynamic maxTurns configuration
@@ -73,6 +74,8 @@ const DEFAULT_AUTO_ALLOW_TOOLS = [
 
 const DEFAULT_APPROVAL_TIMEOUT_MS = 10 * 60 * 1000;
 const MIN_PLAN_STEPS = 2;
+
+type WebTaskIntent = 'none' | 'information_retrieval' | 'interaction' | 'hybrid';
 
 async function appendProviderDiagnostics(
   sessionCwd: string,
@@ -121,6 +124,94 @@ function detectTaskComplexity(prompt: string): number {
   return TASK_COMPLEXITY.MAX.maxTurns;
 }
 
+function classifyWebTaskIntent(
+  prompt: string,
+  plan?: Pick<TaskPlan, 'goal' | 'steps' | 'notes'>
+): WebTaskIntent {
+  const corpus = [
+    prompt,
+    plan?.goal,
+    plan?.notes,
+    ...(plan?.steps || []).map((step) => step.description),
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .join('\n')
+    .toLowerCase();
+
+  if (!corpus) {
+    return 'none';
+  }
+
+  const hasWebContext = /(https?:\/\/\S+|网页|页面|浏览器|chrome|playwright|devtools|站点|url|链接|官网|搜索结果|页面内容|网站)/i
+    .test(corpus);
+  if (!hasWebContext) {
+    return 'none';
+  }
+
+  const informationPatterns = [
+    /查找/, /搜索/, /提取/, /读取/, /查看/, /总结/, /汇总/, /整理/, /分析/, /对比/, /收集/, /信息/, /内容/, /字段/, /状态/, /价格/, /参数/, /链接/,
+    /\bextract\b/i, /\bsummar/i, /\bcollect\b/i, /\bfind\b/i, /\bread\b/i, /\bretrieve\b/i, /\banaly[sz]e\b/i, /\bcompare\b/i,
+  ];
+  const interactionPatterns = [
+    /点击/, /输入/, /填写/, /提交/, /上传/, /下载/, /勾选/, /切换/, /选择/, /打开/, /关闭/, /登录/, /拖拽/, /hover/, /悬停/, /复制/,
+    /\bclick\b/i, /\bfill\b/i, /\btype\b/i, /\bsubmit\b/i, /\bupload\b/i, /\bdownload\b/i, /\bselect\b/i, /\bcheck\b/i, /\blogin\b/i, /\bopen\b/i,
+  ];
+
+  const hasInformationIntent = informationPatterns.some((pattern) => pattern.test(corpus));
+  const hasInteractionIntent = interactionPatterns.some((pattern) => pattern.test(corpus));
+
+  if (hasInformationIntent && hasInteractionIntent) {
+    return 'hybrid';
+  }
+  if (hasInteractionIntent) {
+    return 'interaction';
+  }
+  if (hasInformationIntent) {
+    return 'information_retrieval';
+  }
+
+  return 'none';
+}
+
+function getWebExecutionPolicyInstruction(intent: WebTaskIntent): string {
+  if (intent === 'none') {
+    return '';
+  }
+
+  if (intent === 'information_retrieval') {
+    return `
+## Web Information Collection Policy
+
+- When the goal is to gather or summarize information from the web, prefer the highest-information-density method first.
+- Prefer direct text extraction, DOM inspection, structured fields, table parsing, or eval-style reads when they capture the needed facts clearly.
+- Use screenshots when visual evidence is the clearest, most reliable, or most efficient way to capture the result.
+- Capture screenshots for charts, canvases, hover states, visual diffs, maps, image-heavy pages, or when the screenshot is the best user-facing artifact.
+- Avoid repetitive screenshots that do not add new information.
+- If you are approaching the turn limit, return the facts already collected, explain what remains, and recommend the next step instead of ending silently.
+`;
+  }
+
+  if (intent === 'interaction') {
+    return `
+## Web Interaction Policy
+
+- Use browser automation tools to complete the required interactions.
+- Prefer targeted page reads and snapshots for element discovery instead of documenting every step visually.
+- Capture screenshots at key state transitions, on errors, or when the user needs visual confirmation.
+- Avoid repetitive screenshots after every interaction unless each screenshot adds new evidence.
+`;
+  }
+
+  return `
+## Hybrid Web Task Policy
+
+- Start with the highest-information-density method for information gathering.
+- Switch to browser interaction only for the steps that require user-like actions.
+- Use screenshots when visual evidence is the clearest artifact, and avoid repetitive screenshots that do not add new information.
+- If execution stops early, return the facts gathered so far and identify the remaining interactive steps.
+`;
+}
+
 const normalizedPlanSchema = z.object({
   goal: z.string().min(1).optional(),
   steps: z.array(z.string().min(1)).min(MIN_PLAN_STEPS),
@@ -135,6 +226,7 @@ export class ClaudeAgent extends BaseAgent {
 
   private config: AgentProviderConfig;
   private claudeCodePath: string | undefined;
+  private activeContextManager?: import('../../../services/context-manager').ContextManager;
 
   constructor(config: AgentProviderConfig) {
     super();
@@ -147,6 +239,7 @@ export class ClaudeAgent extends BaseAgent {
   async *stream(prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage> {
     this.abortController = options?.abortController || new AbortController();
     const signal = options?.signal || this.abortController.signal;
+    this.activeContextManager = options?.contextManager as import('../../../services/context-manager').ContextManager | undefined;
 
     // 1. 初始化会话
     const session = this.initSession(options?.sessionId);
@@ -274,31 +367,60 @@ User's request (answer this AFTER reading the images):
     });
 
     try {
-      for await (const message of query({
-        prompt: enhancedPrompt,
-        options: queryOptions,
-      })) {
-        sdkMessageCount += 1;
-        if (signal.aborted) break;
+      const MAX_AUTO_RESUMES = 3;
+      let autoResumeCount = 0;
+      let currentPrompt = enhancedPrompt;
 
-        const completionMetadata = this.extractProviderCompletionMetadata(message);
-        if (completionMetadata) {
-          providerCompletionMetadata = completionMetadata;
+      while (true) {
+        providerCompletionMetadata = null;
+
+        for await (const message of query({
+          prompt: currentPrompt,
+          options: queryOptions,
+        })) {
+          sdkMessageCount += 1;
+          if (signal.aborted) break;
+
+          const completionMetadata = this.extractProviderCompletionMetadata(message);
+          if (completionMetadata) {
+            providerCompletionMetadata = completionMetadata;
+          }
+
+          yield* this.processSdkMessage(
+            message,
+            session.id,
+            sentTextHashes,
+            sentToolIds,
+            this.activeContextManager
+          );
         }
 
-        yield* this.processSdkMessage(
-          message,
-          session.id,
-          sentTextHashes,
-          sentToolIds
-        );
+        // Check if we hit max_turns and should auto-resume
+        const isMaxTurns = providerCompletionMetadata?.subtype === 'max_turns';
+        if (!isMaxTurns || autoResumeCount >= MAX_AUTO_RESUMES || signal.aborted) {
+          break;
+        }
+
+        // Auto-resume: notify frontend and continue
+        autoResumeCount++;
+        console.log(`[Claude ${session.id}] Auto-resume #${autoResumeCount}/${MAX_AUTO_RESUMES} after max_turns`);
+        yield {
+          id: this.generateMessageId(),
+          type: 'turn_limit_warning' as AgentMessageType,
+          content: `轮次上限已到达，自动续期中（第${autoResumeCount}次，最多${MAX_AUTO_RESUMES}次）...`,
+          metadata: { currentResume: autoResumeCount, maxResumes: MAX_AUTO_RESUMES },
+          timestamp: Date.now(),
+        };
+        currentPrompt = '继续执行未完成的步骤。';
       }
+
       executionSuccess = true;
       console.log(`[Claude ${session.id}] LLM execute request completed`, {
         model: this.config.model,
         durationMs: Date.now() - executionStartAt,
         sdkMessageCount,
         aborted: signal.aborted,
+        autoResumeCount,
       });
 
       // 发送完成消息
@@ -1197,62 +1319,7 @@ IMPORTANT:
    * Format plan for execution phase
    */
   formatPlanForExecution(plan: TaskPlan, workDir: string): string {
-    const stepsText = plan.steps
-      .map((step, index) => `${index + 1}. ${step.description}`)
-      .join('\n');
-
-    // Generate initial todos JSON for TodoWrite tool
-    const initialTodos = plan.steps.map((step, index) => ({
-      id: String(index + 1),
-      content: step.description,
-      status: 'pending'
-    }));
-
-    return `
-## CRITICAL: Workspace Configuration
-**MANDATORY OUTPUT DIRECTORY: ${workDir}**
-
-ALL files you create MUST be saved to this directory.
-- ALWAYS use absolute paths starting with ${workDir}/
-- NEVER use any other directory
-
-## Execution Plan
-
-**Goal:** ${plan.goal}
-
-**Steps:**
-${stepsText}
-
-${plan.notes ? `**Notes:** ${plan.notes}\n` : ''}
-
-## Instructions
-
-Follow the plan above step by step. Execute each step completely before moving to the next.
-Use the available tools to accomplish each step.
-All natural-language communication with the user must remain in Simplified Chinese unless the user explicitly requests another language.
-${getPlanningFilesProtocolInstruction()}
-${getMcpExecutionDisciplineInstruction()}
-
-## CRITICAL: Use TodoWrite Tool to Track Progress
-
-You MUST use the TodoWrite tool to report your progress. This is required, not optional.
-
-**When to call TodoWrite:**
-1. IMMEDIATELY at the start - mark Step 1 as "in_progress" and all others as "pending"
-2. When you START working on a step - mark it as "in_progress"
-3. When you COMPLETE a step - mark it as "completed" and the next step as "in_progress"
-4. When you FINISH all steps - mark the last step as "completed"
-
-**Initial TodoWrite call (REQUIRED - do this first):**
-Call TodoWrite with these todos:
-\`\`\`json
-${JSON.stringify(initialTodos, null, 2)}
-\`\`\`
-
-Then update the status as you progress through each step.
-
-Begin execution now by calling TodoWrite first.
-`;
+    return taskPlanner.formatForExecution(plan, workDir);
   }
 
   /**
@@ -1573,9 +1640,12 @@ Begin execution now by calling TodoWrite first.
     // 加载 MCP Servers
     const mcpServers = await this.loadMcpServers(options?.mcpConfig, options?.sandbox);
 
-    // 动态计算 maxTurns 基于任务复杂度
-    const maxTurns = prompt ? detectTaskComplexity(prompt) : TASK_COMPLEXITY.MAX.maxTurns;
-    console.log(`[Claude ${providerSessionId}] Dynamic maxTurns set to ${maxTurns} based on task complexity`);
+    // 动态计算 maxTurns：优先使用 IntentClassifier 的 complexityHint，否则 fallback 到正则匹配
+    const COMPLEXITY_MAX_TURNS = { simple: 30, medium: 60, complex: 120 } as const;
+    const maxTurns = options?.complexityHint
+      ? COMPLEXITY_MAX_TURNS[options.complexityHint]
+      : (prompt ? detectTaskComplexity(prompt) : TASK_COMPLEXITY.MAX.maxTurns);
+    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (hint=${options?.complexityHint || 'none'})`);
 
     const queryOptions: Options = {
       cwd,
@@ -2564,7 +2634,8 @@ ${formattedMessages}${truncationNotice}
     message: unknown,
     sessionId: string,
     sentTextHashes: Set<string>,
-    sentToolIds: Set<string>
+    sentToolIds: Set<string>,
+    contextManager?: import('../../../services/context-manager').ContextManager
   ): Generator<AgentMessage> {
     const msg = message as {
       type: string;
@@ -2617,6 +2688,7 @@ ${formattedMessages}${truncationNotice}
               ? `pattern: ${String(toolInput.pattern).slice(0, 40)}`
               : `${Object.keys(toolInput).length} params`;
             console.log(`[Claude ${sessionId}] Tool: ${toolName} (${inputSummary})`);
+            contextManager?.onToolUse(toolName, toolId, toolInput);
             yield {
               id: this.generateMessageId(),
               type: 'tool_use' as AgentMessageType,
@@ -2646,6 +2718,10 @@ ${formattedMessages}${truncationNotice}
           if (isError) {
             console.log(`[Claude ${sessionId}] Tool result ERROR for: ${String(toolUseId).slice(0, 30)}`);
           }
+          contextManager?.onToolResult(
+            toolUseId as string,
+            typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
+          );
           yield {
             id: this.generateMessageId(),
             type: 'tool_result' as AgentMessageType,

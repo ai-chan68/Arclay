@@ -670,6 +670,101 @@ describe('V2 Agent Plan Execution', () => {
     expect(progressContent).toContain('providerResult=max_turns')
   })
 
+  it('treats max turns with meaningful progress as interrupted instead of failed', async () => {
+    const taskId = `task_provider_interrupted_${Date.now()}`
+    const planId = `plan_provider_interrupted_${Date.now()}`
+
+    planStore.upsertPendingPlan(createPlan(planId), {
+      taskId,
+      sessionId: `session_provider_interrupted_${Date.now()}`,
+    })
+
+    routesModule.setAgentService(
+      {
+        createAgent() {
+          return {}
+        },
+        async *streamExecution(): AsyncIterable<AgentMessage> {
+          yield {
+            id: 'todo_provider_interrupted',
+            type: 'tool_use',
+            toolName: 'TodoWrite',
+            toolInput: {
+              todos: [
+                {
+                  id: '1',
+                  content: '使用 Playwright 打开订单页面',
+                  status: 'completed',
+                },
+                {
+                  id: '2',
+                  content: '提取页面中的订单信息',
+                  status: 'in_progress',
+                },
+              ],
+            },
+            timestamp: Date.now(),
+          }
+          yield {
+            id: 'tool_use_provider_interrupted',
+            type: 'tool_use',
+            toolName: 'mcp__chrome-devtools__take_snapshot',
+            toolInput: {},
+            timestamp: Date.now(),
+          }
+          yield {
+            id: 'result_provider_interrupted',
+            type: 'result',
+            role: 'assistant',
+            content: '已提取到部分订单字段，还需要继续完成剩余步骤。',
+            timestamp: Date.now() + 1,
+          }
+          yield {
+            id: 'done_provider_interrupted',
+            type: 'done',
+            timestamp: Date.now() + 2,
+            metadata: {
+              providerResultSubtype: 'max_turns',
+              providerStopReason: 'Maximum turns reached',
+            },
+          }
+        },
+      } as any,
+      {
+        provider: {
+          provider: 'claude',
+          apiKey: 'test',
+          model: 'test-model',
+        } as any,
+        workDir: tempHome,
+      }
+    )
+
+    const executeRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId,
+        prompt: 'Use Playwright to query an order and summarize the visible status information',
+        taskId,
+      }),
+    })
+    expect(executeRes.status).toBe(200)
+
+    const text = await executeRes.text()
+    const events = parseSseEvents(text)
+    const errorEvent = events.find((event) => event.event === 'error')
+
+    expect(errorEvent).toBeFalsy()
+    expect(planStore.getRecord(planId)?.status).toBe('executing')
+
+    const progressPath = path.join(tempHome, 'sessions', taskId, 'progress.md')
+    const progressContent = fs.readFileSync(progressPath, 'utf-8')
+    expect(progressContent).toContain('Status: interrupted')
+    expect(progressContent).not.toContain('Status: failed')
+    expect(progressContent).toContain('providerResult=max_turns')
+  })
+
   it('pauses execution for user clarification when run is blocked by an interactive step', async () => {
     const taskId = `task_execution_blocked_${Date.now()}`
     const planId = `plan_execution_blocked_${Date.now()}`

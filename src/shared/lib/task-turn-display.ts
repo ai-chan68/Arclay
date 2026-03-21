@@ -104,10 +104,16 @@ export function getWorkspaceDisplayState({
   phase: WorkspaceDisplayPhase
   showPlanSection: boolean
 } {
+  const shouldShowFailurePhase =
+    !isRunning && (
+      taskStatus === 'error' ||
+      (hasError && taskStatus !== 'completed')
+    )
+
   const phase: WorkspaceDisplayPhase =
     isStopped
       ? 'stopped'
-      : !isRunning && (taskStatus === 'error' || hasError)
+      : shouldShowFailurePhase
       ? 'failed'
       : isLatestTurn && isAwaitingApproval && hasPlanForApproval && !hasExecutionTrace && !hasResultMessage && artifactsCount === 0
       ? 'awaiting_approval'

@@ -1,6 +1,31 @@
 import type { AgentMessage } from '@shared-types'
 
 const CUSTOM_API_ERROR_PREFIX = '__CUSTOM_API_ERROR__|'
+const FAILURE_DETAIL_PATTERNS = [
+  /(^|\b)api error:/i,
+  /(^|\b)error\b/i,
+  /(^|\b)failed\b/i,
+  /(^|\b)timeout\b/i,
+  /(^|\b)conflict\b/i,
+  /(^|\b)abort(?:ed)?\b/i,
+  /(^|\b)interrupt(?:ed)?\b/i,
+  /(^|\b)reject(?:ed)?\b/i,
+  /(^|\b)cancel(?:ed|led)?\b/i,
+  /(^|\b)expire(?:d)?\b/i,
+  /(^|\b)blocked\b/i,
+  /(^|\b)not found\b/i,
+  /失败/,
+  /错误/,
+  /超时/,
+  /冲突/,
+  /终止/,
+  /中断/,
+  /拒绝/,
+  /取消/,
+  /过期/,
+  /阻塞/,
+  /不存在/,
+]
 
 function getLatestTurnMessages(messages: AgentMessage[]): AgentMessage[] {
   const lastUserIndex = [...messages]
@@ -30,6 +55,29 @@ export function humanizeProviderError(message?: string | null): string | null {
   }
 
   return trimmed
+}
+
+export function isLikelyFailureDetail(message?: string | null): boolean {
+  const normalized = message?.trim()
+  if (!normalized) return false
+  if (isGenericCustomApiError(normalized)) return true
+
+  return FAILURE_DETAIL_PATTERNS.some((pattern) => pattern.test(normalized))
+}
+
+export function isToolResultExecutionError(toolOutput?: string | null): boolean {
+  const normalized = toolOutput?.trim()
+  if (!normalized) return false
+
+  if (/^Error:\s*result\s*\([^)]*\)\s*exceeds maximum allowed tokens\./i.test(normalized)) {
+    return false
+  }
+
+  return (
+    normalized.includes('<tool_use_error>') ||
+    /^Error:/i.test(normalized) ||
+    /^Failed\b/i.test(normalized)
+  )
 }
 
 export function getPreferredFailureDetail(
@@ -64,5 +112,6 @@ export function getPreferredFailureDetail(
     return nonGenericError.errorMessage.trim()
   }
 
-  return humanizeProviderError(fallback)
+  const normalizedFallback = humanizeProviderError(fallback)
+  return isLikelyFailureDetail(normalizedFallback) ? normalizedFallback : null
 }

@@ -33,7 +33,7 @@ import type { AgentMessage, TaskPlan, PendingQuestion, PermissionRequest, TaskSt
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { extractFilesFromMessages } from '@/shared/lib/file-utils'
 import { PlanApproval } from '@/components/task-detail/PlanApproval'
-import { buildTurnDisplayModel, getPreferredFailureDetail } from '@/shared/lib'
+import { buildTurnDisplayModel, getPreferredFailureDetail, isToolResultExecutionError } from '@/shared/lib'
 import {
   isPlaceholderAssistantResponse,
   isProcessAssistantResponse,
@@ -536,12 +536,7 @@ function calculatePlanStepStatus(
 
   // 2. 回退到基于工具调用数量的简单推断（当没有 TodoWrite 时）
   const toolResults = thinkingMessages.filter(m => m.type === 'tool_result')
-  const completedTools = toolResults.filter(r => {
-    const hasError = r.toolOutput?.includes('Error:') ||
-      r.toolOutput?.includes('error') ||
-      r.toolOutput?.startsWith('Failed')
-    return !hasError
-  }).length
+  const completedTools = toolResults.filter(r => !isToolResultExecutionError(r.toolOutput)).length
 
   // 当前正在执行的工具
   const currentToolUse = thinkingMessages
@@ -794,7 +789,7 @@ function summarizeTurn({
   )
   const hasResultMessage = !!turn.resultMessage?.content?.trim()
   const hasError = turn.thinkingMessages.some(
-    (m) => m.type === 'error' || (m.type === 'tool_result' && m.toolOutput?.includes('Error:'))
+    (m) => m.type === 'error' || (m.type === 'tool_result' && isToolResultExecutionError(m.toolOutput))
   )
   const approvalInterruptedByText = hasApprovalInterruptText(turn.resultMessage?.content)
   const interruptedApprovalStatus = isLatestTurn
@@ -978,7 +973,7 @@ function SelectedTurnWorkspace({
     (m) => m.type === 'tool_use' || m.type === 'tool_result'
   )
   const hasError = turn.thinkingMessages.some(
-    (m) => m.type === 'error' || (m.type === 'tool_result' && m.toolOutput?.includes('Error:'))
+    (m) => m.type === 'error' || (m.type === 'tool_result' && isToolResultExecutionError(m.toolOutput))
   )
   const hasTerminalExecutionError = shouldApplyTerminalExecutionFailure({
     hasExecutionError: hasError,
@@ -1679,7 +1674,7 @@ function ThinkingSection({
 
   const hasError = messages.some(m =>
     m.type === 'error' ||
-    (m.type === 'tool_result' && m.toolOutput?.includes('Error:'))
+    (m.type === 'tool_result' && isToolResultExecutionError(m.toolOutput))
   )
 
   return (
@@ -1781,9 +1776,7 @@ function ThinkingMessageItem({ message }: { message: AgentMessage }) {
   }
 
   if (message.type === 'tool_result') {
-    const isError = message.toolOutput?.includes('Error:') ||
-      message.toolOutput?.includes('error') ||
-      message.toolOutput?.startsWith('Failed')
+    const isError = isToolResultExecutionError(message.toolOutput)
     const hasOutput = message.toolOutput && message.toolOutput.trim().length > 0
 
     return (

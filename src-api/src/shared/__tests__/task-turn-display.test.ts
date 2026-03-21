@@ -179,3 +179,30 @@ describe('buildTurnDisplayModel', () => {
     })
   })
 })
+
+describe('getWorkspaceDisplayState', () => {
+  it('keeps completed turns in execution phase when the task is completed despite a non-fatal tool warning', () => {
+    expect(
+      taskTurnDisplay.getWorkspaceDisplayState({
+        isStopped: false,
+        isRunning: false,
+        taskStatus: 'completed',
+        hasError: true,
+        isLatestTurn: true,
+        isAwaitingApproval: false,
+        isAwaitingClarification: false,
+        hasPlanForApproval: false,
+        hasExecutionTrace: true,
+        hasResultMessage: true,
+        artifactsCount: 0,
+        hasPendingPermission: false,
+        hasPendingQuestion: false,
+        hasLatestApprovalTerminal: false,
+        hasPlan: true,
+      })
+    ).toEqual({
+      phase: 'execution',
+      showPlanSection: true,
+    })
+  })
+})

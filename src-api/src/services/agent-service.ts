@@ -22,6 +22,8 @@ import type { IAgent, AgentRunOptions } from '../core/agent/interface'
 import type { SkillsConfig, McpConfig, SandboxConfig, ImageAttachment } from '../core/agent/types'
 import { agentRegistry } from '../core/agent/registry'
 import { getDefaultSystemPrompt } from '../core/agent/system-prompt'
+import { ContextManager } from './context-manager'
+import { intentClassifier } from './intent-classifier'
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -371,11 +373,26 @@ ${categoryInstructions.join('\n---\n')}
       content: msg.content,
     }))
 
+    // --- Intent classification (Task 5.1) ---
+    const classification = intentClassifier.classify(enhancedPrompt)
+    console.log(`[AgentService] Intent: ${classification.primaryIntent} (confidence=${classification.confidence.toFixed(2)}, complexity=${classification.complexity})`)
+
+    // --- Context management (Tasks 5.3–5.5) ---
+    const contextManager = new ContextManager(baseWorkDir)
+    await contextManager.load(effectiveSessionId)
+    const contextPrompt = contextManager.buildContextPrompt()
+
+    // Build system prompt, injecting session context when available
+    let systemPrompt =
+      streamOptions?.systemPrompt ||
+      this.config.systemPrompt ||
+      getDefaultSystemPrompt(systemPromptWorkDir)
+    if (contextPrompt) {
+      systemPrompt = `${systemPrompt}\n\n${contextPrompt}`
+    }
+
     const options: AgentRunOptions = {
-      systemPrompt:
-        streamOptions?.systemPrompt ||
-        this.config.systemPrompt ||
-        getDefaultSystemPrompt(systemPromptWorkDir),
+      systemPrompt,
       signal: abortController.signal,
       sessionId: effectiveSessionId,
       taskId: streamOptions?.taskId || effectiveSessionId, // 确保 ClaudeProvider 使用同一会话目录
@@ -385,6 +402,8 @@ ${categoryInstructions.join('\n---\n')}
       sandbox: this.config.sandbox,
       images: images.length > 0 ? images : undefined,
       conversation: conversationMessages,
+      contextManager,
+      complexityHint: classification.complexity,
     }
 
     try {
@@ -399,6 +418,8 @@ ${categoryInstructions.join('\n---\n')}
         timestamp: Date.now(),
       }
     } finally {
+      // Persist session context after execution
+      await contextManager.save(effectiveSessionId)
       this.runningSessions.delete(effectiveSessionId)
     }
   }

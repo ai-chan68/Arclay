@@ -45,6 +45,10 @@ export interface AgentRunOptions {
   images?: import('./types').ImageAttachment[]
   /** AbortController */
   abortController?: AbortController
+  /** ContextManager instance for step-level variable tracking */
+  contextManager?: unknown
+  /** Complexity hint from IntentClassifier for adaptive maxTurns */
+  complexityHint?: 'simple' | 'medium' | 'complex'
   /** 工具执行回调（非 Claude Provider 多轮循环使用） */
   toolExecutor?: (
     name: string,

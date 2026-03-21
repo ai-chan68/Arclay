@@ -19,6 +19,7 @@ import type { AgentMessage, MessageAttachment } from '@shared-types'
 import type { ConversationMessage } from '../core/agent/interface'
 import { AgentService, type AgentServiceConfig } from '../services/agent-service'
 import { buildExecutionPrompt } from '../services/plan-execution'
+import { taskPlanner } from '../services/task-planner'
 import { bootstrapPlanningFiles } from '../services/planning-files'
 import { approvalCoordinator } from '../services/approval-coordinator'
 import { planStore } from '../services/plan-store'
@@ -78,6 +79,11 @@ interface ExecutionCompletionSummary {
   toolResultCount: number
   meaningfulToolUseCount: number
   browserToolUseCount: number
+  browserNavigationCount: number
+  browserInteractionCount: number
+  browserSnapshotCount: number
+  browserScreenshotCount: number
+  browserEvalCount: number
   assistantTextCount: number
   meaningfulAssistantTextCount: number
   preambleAssistantTextCount: number
@@ -291,6 +297,11 @@ function formatExecutionCompletionSummary(summary: ExecutionCompletionSummary): 
     `toolResult=${summary.toolResultCount}`,
     `meaningfulToolUse=${summary.meaningfulToolUseCount}`,
     `browserToolUse=${summary.browserToolUseCount}`,
+    `browserNavigation=${summary.browserNavigationCount}`,
+    `browserInteraction=${summary.browserInteractionCount}`,
+    `browserSnapshot=${summary.browserSnapshotCount}`,
+    `browserScreenshot=${summary.browserScreenshotCount}`,
+    `browserEval=${summary.browserEvalCount}`,
     `todos=${todo}`,
     `pendingInteractions=${summary.pendingInteractionCount}`,
     `blockedArtifact=${summary.blockedArtifactPath || 'none'}`,
@@ -518,6 +529,49 @@ function isBrowserAutomationToolUse(toolName?: string | null): boolean {
   if (!normalized) return false
 
   return /^mcp__chrome-devtools__/i.test(normalized) || /playwright/i.test(normalized)
+}
+
+function classifyBrowserAutomationToolUse(toolName?: string | null): 'navigation' | 'interaction' | 'snapshot' | 'screenshot' | 'eval' | 'other' {
+  const normalized = (toolName || '').trim().toLowerCase()
+  if (!normalized) return 'other'
+
+  if (/(screenshot|capture_screenshot|\bpdf\b)/i.test(normalized)) {
+    return 'screenshot'
+  }
+  if (/snapshot/i.test(normalized)) {
+    return 'snapshot'
+  }
+  if (/(evaluate|eval|script|javascript|runtime)/i.test(normalized)) {
+    return 'eval'
+  }
+  if (/(navigate|goto|open|reload|go_back|go_forward|tab_new|new_page)/i.test(normalized)) {
+    return 'navigation'
+  }
+  if (/(click|press|fill|type|select|hover|drag|upload|check|uncheck|mouse|keyboard|tap|dialog)/i.test(normalized)) {
+    return 'interaction'
+  }
+
+  return 'other'
+}
+
+function isMaxTurnsProviderResult(subtype?: string | null): boolean {
+  const normalized = (subtype || '').trim().toLowerCase()
+  return normalized === 'max_turns' || normalized === 'error_max_turns'
+}
+
+function hasMeaningfulExecutionProgress(summary: ExecutionCompletionSummary): boolean {
+  const completedTodos = summary.latestTodoSnapshot?.completed || 0
+  return (
+    summary.browserToolUseCount > 0 ||
+    summary.meaningfulToolUseCount > 0 ||
+    summary.meaningfulAssistantTextCount > 0 ||
+    summary.resultMessageCount > 0 ||
+    completedTodos > 0
+  )
+}
+
+function shouldTreatMaxTurnsAsInterrupted(summary: ExecutionCompletionSummary): boolean {
+  return isMaxTurnsProviderResult(summary.providerResultSubtype) && hasMeaningfulExecutionProgress(summary)
 }
 
 function detectIncompleteExecution(
@@ -1388,6 +1442,15 @@ agentNewRoutes.post('/plan', async (c) => {
           return
         }
 
+        // Transition to 'analyzing' before planning
+        if (activeTurn.state === 'queued') {
+          const analyzingState = turnRuntimeStore.markTurnAnalyzing(activeTurn.id)
+          if (analyzingState.status === 'ok' && analyzingState.turn) {
+            activeTurn = analyzingState.turn
+            await emitTurnStateMessage(s, analyzingState)
+          }
+        }
+
         const planningState = turnRuntimeStore.markTurnPlanning(activeTurn.id)
         if (planningState.status === 'blocked' && planningState.turn) {
           activeTurn = planningState.turn
@@ -1808,6 +1871,7 @@ agentNewRoutes.post('/execute', async (c) => {
     let executionStarted = false
     let abortedByUser = false
     let executionFailed = false
+    let executionInterrupted = false
     let executionAwaitingUser = false
     let executionFailureReason = 'Execution failed before completion.'
     let runtimeGateResult: RuntimeGateResult | null = null
@@ -1816,6 +1880,11 @@ agentNewRoutes.post('/execute', async (c) => {
       toolResultCount: 0,
       meaningfulToolUseCount: 0,
       browserToolUseCount: 0,
+      browserNavigationCount: 0,
+      browserInteractionCount: 0,
+      browserSnapshotCount: 0,
+      browserScreenshotCount: 0,
+      browserEvalCount: 0,
       assistantTextCount: 0,
       meaningfulAssistantTextCount: 0,
       preambleAssistantTextCount: 0,
@@ -1842,15 +1911,11 @@ agentNewRoutes.post('/execute', async (c) => {
       }
 
       // Execute using the agent service with plan context
-      // Create agent and format plan for execution
-      const formattingAgent = agentService!.createAgent()
       const executionPrompt = buildExecutionPrompt(
         plan,
         prompt,
         executionWorkspaceDir,
-        formattingAgent.formatPlanForExecution
-          ? ((planData, dir) => formattingAgent.formatPlanForExecution!(planData, dir))
-          : undefined
+        (planData, dir) => taskPlanner.formatForExecution(planData, dir)
       )
       await appendProgressEntry(
         progressFilePath,
@@ -1929,6 +1994,12 @@ agentNewRoutes.post('/execute', async (c) => {
             }
             if (isBrowserAutomationToolUse(message.toolName)) {
               executionSummary.browserToolUseCount += 1
+              const browserToolKind = classifyBrowserAutomationToolUse(message.toolName)
+              if (browserToolKind === 'navigation') executionSummary.browserNavigationCount += 1
+              if (browserToolKind === 'interaction') executionSummary.browserInteractionCount += 1
+              if (browserToolKind === 'snapshot') executionSummary.browserSnapshotCount += 1
+              if (browserToolKind === 'screenshot') executionSummary.browserScreenshotCount += 1
+              if (browserToolKind === 'eval') executionSummary.browserEvalCount += 1
             }
           }
           if (message.type === 'tool_result') executionSummary.toolResultCount += 1
@@ -2150,24 +2221,36 @@ agentNewRoutes.post('/execute', async (c) => {
         if (executionAwaitingUser) {
           // The current execution run is intentionally paused for user input.
         } else {
-          const incompleteReason = detectIncompleteExecution(
-            executionSummary,
-            typeof prompt === 'string' ? prompt : '',
-            plan
-          )
-          if (incompleteReason) {
-            executionFailed = true
-            executionFailureReason = incompleteReason
-            console.warn(`[agent-new] Suspicious execution completion for plan ${planId}: ${formatExecutionCompletionSummary(executionSummary)}`)
-            const incompleteMessage: AgentMessage = {
+          if (shouldTreatMaxTurnsAsInterrupted(executionSummary)) {
+            executionInterrupted = true
+            const interruptedMessage: AgentMessage = {
               id: generateId('msg'),
-              type: 'error',
-              errorMessage: executionFailureReason,
+              type: 'result',
+              role: 'assistant',
+              content: '执行达到轮次上限，已保留当前进展，可继续执行以完成剩余步骤。',
               timestamp: Date.now(),
             }
-            await emitSseMessage(s, incompleteMessage)
+            await emitSseMessage(s, interruptedMessage)
           } else {
-            console.info(`[agent-new] Execution summary for plan ${planId}: ${formatExecutionCompletionSummary(executionSummary)}`)
+            const incompleteReason = detectIncompleteExecution(
+              executionSummary,
+              typeof prompt === 'string' ? prompt : '',
+              plan
+            )
+            if (incompleteReason) {
+              executionFailed = true
+              executionFailureReason = incompleteReason
+              console.warn(`[agent-new] Suspicious execution completion for plan ${planId}: ${formatExecutionCompletionSummary(executionSummary)}`)
+              const incompleteMessage: AgentMessage = {
+                id: generateId('msg'),
+                type: 'error',
+                errorMessage: executionFailureReason,
+                timestamp: Date.now(),
+              }
+              await emitSseMessage(s, incompleteMessage)
+            } else {
+              console.info(`[agent-new] Execution summary for plan ${planId}: ${formatExecutionCompletionSummary(executionSummary)}`)
+            }
           }
         }
       }
@@ -2216,6 +2299,13 @@ agentNewRoutes.post('/execute', async (c) => {
           await appendProgressEntry(progressFilePath, [
             `### Execution End (${new Date().toISOString()})`,
             '- Status: waiting_for_user',
+            `- Summary: ${formatExecutionCompletionSummary(executionSummary)}`,
+          ])
+        } else if (executionInterrupted) {
+          await appendProgressEntry(progressFilePath, [
+            `### Execution End (${new Date().toISOString()})`,
+            '- Status: interrupted',
+            '- Reason: Execution reached the provider turn limit after making progress.',
             `- Summary: ${formatExecutionCompletionSummary(executionSummary)}`,
           ])
         } else {
@@ -2299,6 +2389,7 @@ agentNewRoutes.post('/stop/:id', async (c) => {
     run.isAborted = true
     run.abortController.abort()
     const activeTurn = turnRuntimeStore.findLatestTurnByRun(sessionId, [
+      'analyzing',
       'planning',
       'awaiting_approval',
       'awaiting_clarification',

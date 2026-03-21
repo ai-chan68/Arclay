@@ -15,6 +15,7 @@ export type AgentMessageType =
   | 'user'         // User message
   | 'permission_request' // Permission request
   | 'clarification_request' // Clarification request
+  | 'turn_limit_warning' // Turn limit warning (auto-resume notification)
   | 'turn_state'; // Turn lifecycle snapshot
 
 export type MessageRole = 'user' | 'assistant' | 'system';
@@ -52,6 +53,7 @@ export interface AgentMessage {
 
 export type AgentTurnState =
   | 'queued'
+  | 'analyzing'
   | 'planning'
   | 'awaiting_approval'
   | 'awaiting_clarification'

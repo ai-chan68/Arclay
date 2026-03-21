@@ -42,6 +42,27 @@ describe('getPreferredFailureDetail', () => {
       getPreferredFailureDetail([], '__CUSTOM_API_ERROR__|https://yunyi.rdzhvip.com/claude')
     ).toBe('自定义 Claude API 调用失败：https://yunyi.rdzhvip.com/claude')
   })
+
+  it('does not fall back to final result text when no real error message exists', () => {
+    const messages: AgentMessage[] = [
+      createMessage({ id: 'u1', type: 'user', role: 'user', content: 'research company', timestamp: 1 }),
+      createMessage({
+        id: 't1',
+        type: 'tool_result',
+        toolOutput: 'Error: result exceeds maximum allowed tokens. Output has been saved to disk.',
+        timestamp: 2,
+      }),
+      createMessage({
+        id: 'r1',
+        type: 'result',
+        role: 'assistant',
+        content: '这是最终调研报告正文。',
+        timestamp: 3,
+      }),
+    ]
+
+    expect(getPreferredFailureDetail(messages, '这是最终调研报告正文。')).toBeNull()
+  })
 })
 
 describe('getWorkspaceDisplayState', () => {

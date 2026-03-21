@@ -1,5 +1,6 @@
 export type TurnState =
   | 'queued'
+  | 'analyzing'
   | 'planning'
   | 'awaiting_approval'
   | 'awaiting_clarification'

@@ -27,10 +27,13 @@ EasyWork 关注的是另一件事：
 
 - 两阶段执行主链路：`Planning -> Approval -> Execution`
 - 支持澄清链路：当上下文不足时先提问，再继续规划
+- 支持意图感知执行：可区分信息获取、交互操作与混合型网页任务
+- 支持策略化执行：按任务类型选择文本提取、浏览器自动化、截图与结构化读取方式
 - 任务详情 workspace：左侧时间线、中心过程/结果、右侧文件预览
 - 文件产物预览：代码、文档、图片、表格、HTML 等
 - Provider / Sandbox 插件化：支持运行时切换与 fallback
-- 审批与恢复：支持 `pending / approved / rejected / expired / canceled / orphaned`
+- 审批与恢复：支持计划审批、等待用户、执行中断、失败恢复与跨重启回看
+- 执行可观测性：支持 Provider 完成元信息、浏览器动作统计与执行过程审计
 - 定时任务：支持周期执行、超时、熔断与运行历史
 - Skills 生态：来源管理、安装更新、健康检查、路由模式
 - Appearance：支持 `Light / Dark / System`
@@ -52,7 +55,8 @@ React + React Router + Vite + Tailwind
 
 2. 后端层 `src-api/`
 Hono + Agent Runtime  
-负责规划/执行编排、审批协调、Provider/Sandbox 管理、Skills 路由与调度。
+负责规划/执行编排、审批协调、Provider/Sandbox 管理、Skills 路由与调度。  
+运行时已具备网页任务意图识别、策略化执行、Provider 结束态语义判定与浏览器行为观测能力。
 
 3. 桌面层 `src-tauri/`
 Tauri 2 + Rust  
@@ -112,6 +116,7 @@ pnpm dev
 - `~/.easywork/plans.json`
 - `~/.easywork/approval-requests.json`
 - `~/.easywork/scheduled-tasks.json`
+- `~/.easywork/turn-runtime.json`
 
 ## 常用命令
 
@@ -162,28 +167,13 @@ SKILLs/         项目级 Skills 定义
 
 > 说明：旧的 `/api/agent/*` 已 sunset，只保留迁移提示。
 
-## Open Source 工作方式
-
-这个项目使用 **OpenSpec** 管理需求、设计和任务拆解。
-
-- 活跃规格：[`openspec/specs/`](./openspec/specs/)
-- 已归档变更：[`openspec/changes/archive/`](./openspec/changes/archive/)
-
-如果你准备贡献较大的功能或改动，建议先：
-
-1. 明确需求范围
-2. 创建或补充 OpenSpec change
-3. 再进入实现
-
-这样可以避免 UI、交互和运行时行为在没有设计上下文的情况下漂移。
-
 ## Roadmap
 
 当前重点方向包括：
 
 - 更完整的多 Agent 前端闭环
 - 更强的跨重启恢复与运行态持久化
-- 更清晰的执行可观测性、错误分层与运行报告
+- 更细的执行可观测性、错误分层与运行报告
 - 更成熟的 Skills 路由反馈与调试体验
 - 更稳定的开源贡献流程、文档和样例配置
 
@@ -222,15 +212,17 @@ pnpm test
 EasyWork 仍在快速迭代中，目前比较稳定的是：
 
 - 两阶段执行主链路
+- 网页任务的意图识别与策略化执行
 - 任务详情 workspace
 - Provider / Sandbox 插件化底座
 - 定时任务与审批恢复能力
+- `max_turns` 中断态识别、历史任务回看与执行过程审计
 
 仍在持续完善的方向包括：
 
 - 多 Agent 前端闭环体验
 - 更强的跨重启恢复能力
-- 更完整的可观测性与运行报告
+- 更完整的上下文管理与可观测性报告
 - 更成熟的 Skills 路由反馈机制
 
 ## 开源说明

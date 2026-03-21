@@ -23,6 +23,7 @@ build/
 .claude/
 workspace/
 docs/
+openspec/
 AGENTS.md
 CLAUDE.md
 

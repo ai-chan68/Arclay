@@ -9,10 +9,13 @@ It turns a natural-language request into a workflow that can be planned, approve
 
 - Two-phase execution flow: `Planning -> Approval -> Execution`
 - Clarification flow before planning when context is insufficient
+- Intent-aware execution for web tasks: distinguishes information retrieval, interaction, and hybrid runs
+- Strategy-driven execution: chooses between text extraction, browser automation, screenshots, and structured reads based on task intent
 - Task workspace with turn timeline, process/result review, and artifact preview
 - File previews for code, documents, images, spreadsheets, HTML, and more
 - Pluggable Provider / Sandbox / Skills architecture
-- Task persistence, approvals, scheduling, and runtime recovery
+- Task persistence, approvals, interruption-aware recovery, and runtime replay
+- Execution observability with provider completion metadata, browser action counters, and execution audit logs
 - Appearance modes: `Light / Dark / System`
 
 ## Current Capabilities
@@ -24,6 +27,9 @@ It turns a natural-language request into a workflow that can be planned, approve
 | Legacy API sunset | ✅ Done | `/api/agent/*` returns migration hints |
 | MCP support | ✅ Available | Configurable MCP servers injected at runtime |
 | Skills support | ✅ Available | Project-level skills defined under `SKILLs/` |
+| Intent-aware web execution | ✅ Available | Web runs can adapt execution strategy by task intent |
+| Interrupted execution semantics | ✅ Available | `max_turns` with meaningful progress is treated as interrupted instead of failed |
+| Runtime observability | ✅ Available | Provider completion metadata and browser action summaries are recorded |
 | File preview | ✅ Available | Preview panel supports PDF/PPT/docs/code/images |
 | Task detail workspace | ✅ Available | Timeline + process/result + preview layout |
 | Appearance modes | ✅ Available | `Light / Dark / System` in Settings |
@@ -79,6 +85,7 @@ Runtime settings are stored locally on your machine:
 - `~/.easywork/plans.json`
 - `~/.easywork/approval-requests.json`
 - `~/.easywork/scheduled-tasks.json`
+- `~/.easywork/turn-runtime.json`
 
 ## Common Commands
 
@@ -112,19 +119,6 @@ scripts/       Build, release, and quality scripts
 openspec/      Specs and change workflow
 SKILLs/        Project-level skills
 ```
-
-## OpenSpec Workflow
-
-This project uses OpenSpec to manage larger changes.
-
-- Active specs: [`openspec/specs/`](./openspec/specs/)
-- Archived changes: [`openspec/changes/archive/`](./openspec/changes/archive/)
-
-For larger contributions, prefer:
-
-1. Define or refine the change in OpenSpec.
-2. Align behavior and scope.
-3. Implement and verify.
 
 ## License
 

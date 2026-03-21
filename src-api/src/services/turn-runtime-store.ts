@@ -21,6 +21,7 @@ const STORE_VERSION = 1 as const
 const TERMINAL_STATES: TurnState[] = ['completed', 'failed', 'cancelled']
 const BLOCKING_STATES: TurnState[] = [
   'queued',
+  'analyzing',
   'planning',
   'awaiting_approval',
   'awaiting_clarification',
@@ -44,6 +45,7 @@ function clone<T>(value: T): T {
 function isTurnState(value: unknown): value is TurnState {
   return [
     'queued',
+    'analyzing',
     'planning',
     'awaiting_approval',
     'awaiting_clarification',
@@ -358,13 +360,38 @@ export class TurnRuntimeStore {
     }
   }
 
+  markTurnAnalyzing(turnId: string): TurnTransitionResult {
+    const index = this.findTurnIndex(turnId)
+    if (index < 0) {
+      return { status: 'not_found', turn: null, runtime: null }
+    }
+    const turn = this.data.turns[index]
+    if (!['queued'].includes(turn.state)) {
+      return {
+        status: 'conflict',
+        turn: clone(turn),
+        runtime: clone(this.getOrCreateRuntime(turn.taskId)),
+        reason: `Turn state "${turn.state}" cannot enter analyzing.`,
+      }
+    }
+    turn.state = 'analyzing'
+    turn.reason = null
+    turn.updatedAt = this.now()
+    const runtime = this.getOrCreateRuntime(turn.taskId)
+    runtime.activeTurnId = turn.id
+    runtime.status = 'running'
+    runtime.updatedAt = this.now()
+    this.persist()
+    return { status: 'ok', turn: clone(turn), runtime: clone(runtime) }
+  }
+
   markTurnPlanning(turnId: string): TurnTransitionResult {
     const index = this.findTurnIndex(turnId)
     if (index < 0) {
       return { status: 'not_found', turn: null, runtime: null }
     }
     const turn = this.data.turns[index]
-    if (!['queued', 'planning', 'awaiting_clarification'].includes(turn.state)) {
+    if (!['queued', 'analyzing', 'planning', 'awaiting_clarification'].includes(turn.state)) {
       return {
         status: 'conflict',
         turn: clone(turn),

@@ -96,6 +96,8 @@ function groupIntoTurns(messages: AgentMessage[], isRunning: boolean): Conversat
       }
     } else if (msg.type === 'error') {
       currentTurn.thinkingMessages.push(msg)
+    } else if (msg.type === 'turn_limit_warning') {
+      currentTurn.thinkingMessages.push(msg)
     }
   }
 

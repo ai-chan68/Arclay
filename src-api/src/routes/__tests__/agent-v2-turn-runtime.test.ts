@@ -41,6 +41,15 @@ function getFirstTurnState(events: SseEvent[], expected: string): Record<string,
   return null
 }
 
+function getFirstTurnStateIndex(events: SseEvent[], expected: string): number {
+  return events.findIndex((item) => {
+    if (item.event !== 'turn_state' || !item.data) return false
+    const turn = item.data.turn
+    if (!turn || typeof turn !== 'object') return false
+    return (turn as Record<string, unknown>).state === expected
+  })
+}
+
 describe('V2 Agent Turn Runtime Dependency', () => {
   let app: Hono
   let planStore: {
@@ -125,6 +134,11 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     expect(firstPlanRes.status).toBe(200)
     const firstPlanText = await firstPlanRes.text()
     const firstPlanEvents = parseSseEvents(firstPlanText)
+    const analyzingTurn = getFirstTurnState(firstPlanEvents, 'analyzing')
+    expect(analyzingTurn).not.toBeNull()
+    expect(getFirstTurnStateIndex(firstPlanEvents, 'analyzing')).toBeLessThan(
+      getFirstTurnStateIndex(firstPlanEvents, 'planning')
+    )
     const firstAwaitingTurn = getFirstTurnState(firstPlanEvents, 'awaiting_approval')
     expect(firstAwaitingTurn).not.toBeNull()
     const firstTurnId = String(firstAwaitingTurn?.turnId || '')

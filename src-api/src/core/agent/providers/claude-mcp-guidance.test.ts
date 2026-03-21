@@ -22,6 +22,26 @@ function createPlan(): TaskPlan {
   }
 }
 
+function createInformationRetrievalPlan(): TaskPlan {
+  return {
+    id: 'plan-info',
+    goal: '整理页面中的订单信息',
+    steps: [
+      {
+        id: 'step_1',
+        description: '读取订单页面中的订单号、状态和价格信息',
+        status: 'pending',
+      },
+      {
+        id: 'step_2',
+        description: '汇总页面中的关键信息并返回结果',
+        status: 'pending',
+      },
+    ],
+    createdAt: new Date('2026-03-17T00:00:00.000Z'),
+  }
+}
+
 describe('Claude MCP execution guidance', () => {
   it('tells execution runs to use only session-provided MCP servers', () => {
     const agent = new ClaudeAgent({
@@ -42,5 +62,23 @@ describe('Claude MCP execution guidance', () => {
     expect(prompt).toContain('These files are pre-created before execution starts')
     expect(prompt).toContain('Use Read before the first Edit on any of them')
     expect(prompt).toContain('Do NOT use Write to replace task_plan.md, findings.md, or progress.md')
+  })
+
+  it('guides information retrieval runs to choose screenshots by information value', () => {
+    const agent = new ClaudeAgent({
+      provider: 'claude',
+      apiKey: 'test-key',
+      model: 'test-model',
+    })
+
+    const prompt = agent.formatPlanForExecution(
+      createInformationRetrievalPlan(),
+      '/tmp/easywork-session'
+    )
+
+    expect(prompt).toContain('When the goal is to gather or summarize information from the web')
+    expect(prompt).toContain('prefer the highest-information-density method first')
+    expect(prompt).toContain('Use screenshots when visual evidence is the clearest')
+    expect(prompt).toContain('Avoid repetitive screenshots that do not add new information')
   })
 })
