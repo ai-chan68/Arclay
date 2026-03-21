@@ -30,8 +30,16 @@ pub fn run() {
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
+                // Keep devtools opt-in in development so desktop startup does not
+                // automatically enter developer mode during normal local runs.
+                let should_open_devtools = std::env::var("EASYWORK_OPEN_DEVTOOLS")
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
+
+                if should_open_devtools {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.open_devtools();
+                    }
                 }
             }
 
