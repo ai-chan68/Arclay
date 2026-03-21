@@ -7,16 +7,12 @@ It turns a natural-language request into a workflow that can be planned, approve
 
 ## What It Does
 
-- Two-phase execution flow: `Planning -> Approval -> Execution`
-- Clarification flow before planning when context is insufficient
-- Intent-aware execution for web tasks: distinguishes information retrieval, interaction, and hybrid runs
-- Strategy-driven execution: chooses between text extraction, browser automation, screenshots, and structured reads based on task intent
-- Task workspace with turn timeline, process/result review, and artifact preview
-- File previews for code, documents, images, spreadsheets, HTML, and more
-- Pluggable Provider / Sandbox / Skills architecture
-- Task persistence, approvals, interruption-aware recovery, and runtime replay
-- Execution observability with provider completion metadata, browser action counters, and execution audit logs
-- Appearance modes: `Light / Dark / System`
+- Two-phase execution: `Planning -> Approval -> Execution`, with clarification before planning when needed
+- Intent-aware execution: distinguishes information retrieval, interaction, and hybrid web tasks, then adapts execution strategy
+- Unified task workspace: turn timeline, process/result review, and artifact preview
+- Extensible runtime: supports `Provider / Sandbox / MCP / Skills`
+- Recovery and observability: approval callbacks, waiting-for-user pauses, interruption-aware recovery, history replay, and execution audit logs
+- Scheduling and desktop experience: recurring tasks plus `Light / Dark / System` appearance modes
 
 ## Quick Start
 
