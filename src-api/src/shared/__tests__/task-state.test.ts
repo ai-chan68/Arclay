@@ -5,7 +5,10 @@ import {
   deriveStatusFromMessages,
   isProcessAssistantResponse,
   isTaskActivelyRunning,
+  isValidPhaseTransition,
+  mapTurnStateToPhase,
   resolveTaskStatus,
+  shouldPollRuntimePhase,
   shouldApplyTerminalExecutionFailure,
 } from '../../../../src/shared/lib/task-state'
 
@@ -127,6 +130,10 @@ describe('deriveStatusFromMessages', () => {
 })
 
 describe('isTaskActivelyRunning', () => {
+  it('treats analyzing as an active runtime phase', () => {
+    expect(isTaskActivelyRunning({ phase: 'analyzing' as any, error: null })).toBe(true)
+  })
+
   it('stops treating planning phase as active when a task error exists', () => {
     expect(
       isTaskActivelyRunning({
@@ -142,6 +149,41 @@ describe('isTaskActivelyRunning', () => {
   it('keeps approval and blocked phases active without an error', () => {
     expect(isTaskActivelyRunning({ phase: 'awaiting_approval', error: null })).toBe(true)
     expect(isTaskActivelyRunning({ phase: 'blocked', error: null })).toBe(true)
+  })
+})
+
+describe('isValidPhaseTransition', () => {
+  it('allows transition from idle to analyzing before planning', () => {
+    expect(isValidPhaseTransition('idle' as any, 'analyzing' as any)).toBe(true)
+    expect(isValidPhaseTransition('analyzing' as any, 'planning' as any)).toBe(true)
+  })
+})
+
+describe('mapTurnStateToPhase', () => {
+  it('maps active turn states to matching interactive phases', () => {
+    expect(mapTurnStateToPhase('analyzing' as any)).toBe('analyzing')
+    expect(mapTurnStateToPhase('planning' as any)).toBe('planning')
+    expect(mapTurnStateToPhase('awaiting_approval' as any)).toBe('awaiting_approval')
+    expect(mapTurnStateToPhase('awaiting_clarification' as any)).toBe('awaiting_clarification')
+    expect(mapTurnStateToPhase('executing' as any)).toBe('executing')
+    expect(mapTurnStateToPhase('blocked' as any)).toBe('blocked')
+  })
+
+  it('maps terminal turn states back to idle phase', () => {
+    expect(mapTurnStateToPhase('completed' as any)).toBe('idle')
+    expect(mapTurnStateToPhase('failed' as any)).toBe('idle')
+    expect(mapTurnStateToPhase('cancelled' as any)).toBe('idle')
+  })
+})
+
+describe('shouldPollRuntimePhase', () => {
+  it('keeps runtime recovery polling enabled during analyzing and planning', () => {
+    expect(shouldPollRuntimePhase('analyzing' as any)).toBe(true)
+    expect(shouldPollRuntimePhase('planning' as any)).toBe(true)
+  })
+
+  it('does not poll when the frontend is idle', () => {
+    expect(shouldPollRuntimePhase('idle' as any)).toBe(false)
   })
 })
 

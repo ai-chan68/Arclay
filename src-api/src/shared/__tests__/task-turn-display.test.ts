@@ -178,6 +178,38 @@ describe('buildTurnDisplayModel', () => {
       artifacts: [],
     })
   })
+
+  it('keeps a live planning turn in planning phase before execution actually starts', () => {
+    const buildTurnDisplayModel = (taskTurnDisplay as Record<string, unknown>).buildTurnDisplayModel as
+      | ((input: Record<string, unknown>) => Record<string, unknown>)
+      | undefined
+
+    expect(buildTurnDisplayModel).toBeTypeOf('function')
+
+    const model = buildTurnDisplayModel!({
+      isStopped: false,
+      isRunning: true,
+      taskStatus: 'running',
+      hasError: false,
+      isLatestTurn: true,
+      runtimeState: 'planning',
+      isAwaitingApproval: false,
+      isAwaitingClarification: false,
+      hasPlanForApproval: false,
+      hasExecutionTrace: false,
+      hasResultMessage: false,
+      artifacts: [],
+      hasPendingPermission: false,
+      hasPendingQuestion: false,
+      hasLatestApprovalTerminal: false,
+      hasPlan: false,
+      isTurnComplete: false,
+      resultMessage: null,
+    })
+
+    expect(model.phase).toBe('planning')
+    expect(model.hasThinking).toBe(false)
+  })
 })
 
 describe('getWorkspaceDisplayState', () => {
@@ -202,6 +234,32 @@ describe('getWorkspaceDisplayState', () => {
       })
     ).toEqual({
       phase: 'execution',
+      showPlanSection: true,
+    })
+  })
+
+  it('keeps blocked turns visible as blocked during historical review', () => {
+    expect(
+      taskTurnDisplay.getWorkspaceDisplayState({
+        isStopped: false,
+        isRunning: false,
+        taskStatus: 'running',
+        hasError: false,
+        isLatestTurn: false,
+        runtimeState: 'blocked',
+        isAwaitingApproval: false,
+        isAwaitingClarification: false,
+        hasPlanForApproval: false,
+        hasExecutionTrace: false,
+        hasResultMessage: false,
+        artifactsCount: 0,
+        hasPendingPermission: false,
+        hasPendingQuestion: false,
+        hasLatestApprovalTerminal: false,
+        hasPlan: true,
+      })
+    ).toEqual({
+      phase: 'blocked',
       showPlanSection: true,
     })
   })

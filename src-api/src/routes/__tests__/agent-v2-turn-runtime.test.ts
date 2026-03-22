@@ -55,6 +55,17 @@ describe('V2 Agent Turn Runtime Dependency', () => {
   let planStore: {
     getRecord: (planId: string) => { status: string; failReason?: string | null } | null
   }
+  let approvalCoordinator: {
+    captureQuestionRequest: (
+      question: { id: string; question: string; options?: string[]; allowFreeText?: boolean },
+      context?: {
+        taskId?: string
+        runId?: string
+        providerSessionId?: string
+        source?: 'clarification' | 'runtime_tool_question'
+      }
+    ) => void
+  }
   let oldHome: string | undefined
   let tempHome = ''
 
@@ -66,7 +77,9 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     vi.resetModules()
     const routesModule = await import('../agent-new')
     const storeModule = await import('../../services/plan-store')
+    const coordinatorModule = await import('../../services/approval-coordinator')
     planStore = storeModule.planStore
+    approvalCoordinator = coordinatorModule.approvalCoordinator
 
     const fakeAgentService = {
       createAgent() {
@@ -271,6 +284,21 @@ describe('V2 Agent Turn Runtime Dependency', () => {
       throw new Error('Expected plan record to exist')
     }
 
+    approvalCoordinator.captureQuestionRequest(
+      {
+        id: `q_expired_${Date.now()}`,
+        question: '过期前留下的澄清问题',
+        options: ['继续', '停止'],
+        allowFreeText: false,
+      },
+      {
+        taskId,
+        runId: record.runId || undefined,
+        providerSessionId: record.runId || undefined,
+        source: 'clarification',
+      }
+    )
+
     const now = Date.now()
     const plansFile = path.join(tempHome, '.easywork', 'plans.json')
     const text = fs.readFileSync(plansFile, 'utf-8')
@@ -332,6 +360,16 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     expect(refreshedPlanStoreModule.planStore.getRecord(planId)?.status).toBe('expired')
     expect(refreshedTurnStoreModule.turnRuntimeStore.getTurn(turnId)?.state).toBe('cancelled')
     expect(refreshedTurnStoreModule.turnRuntimeStore.getTurn(turnId)?.reason).toBe('Plan expired before execution.')
+
+    const pendingRes = await refreshedApp.request(`/api/v2/agent/pending?taskId=${encodeURIComponent(taskId)}`)
+    expect(pendingRes.status).toBe(200)
+    const pendingBody = await pendingRes.json() as {
+      pendingCount?: number
+      latestTerminal?: { status?: string; reason?: string | null }
+    }
+    expect(pendingBody.pendingCount).toBe(0)
+    expect(pendingBody.latestTerminal?.status).toBe('canceled')
+    expect(pendingBody.latestTerminal?.reason).toBe('Plan expired before execution.')
   })
 
   it('uses a dedicated runtime session id instead of reusing the client task session id', async () => {

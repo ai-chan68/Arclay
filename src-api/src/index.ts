@@ -18,6 +18,7 @@ import { scheduledTaskScheduler } from './services/scheduled-task-scheduler'
 import { approvalCoordinator } from './services/approval-coordinator'
 import { planStore } from './services/plan-store'
 import { cancelTurnsForExpiredPlans } from './services/plan-turn-sync'
+import { bootstrapRuntimeRecovery } from './services/runtime-recovery-bootstrap'
 import { turnRuntimeStore } from './services/turn-runtime-store'
 
 // Detect if running as Tauri sidecar
@@ -29,33 +30,15 @@ void providerManager.initialize()
 
 const app = new Hono()
 
-// Approval lifecycle:
-// - mark stale pending requests as orphaned after process restart
-// - keep sweeping expired pending requests
-const orphanedCount = approvalCoordinator.markAllPendingAsOrphanedOnStartup()
-if (orphanedCount > 0) {
-  console.log(`[API] Marked pending approvals as orphaned on startup: ${orphanedCount}`)
-}
-approvalCoordinator.startLifecycleSweep()
-
-const planSweep = planStore.sweepOnStartup()
-if (planSweep.expiredRecords.length > 0) {
-  cancelTurnsForExpiredPlans(planSweep.expiredRecords)
-}
-if (planSweep.orphanedCount > 0 || planSweep.expiredCount > 0 || planSweep.compactedCount > 0) {
-  console.log('[API] Plan store sweep on startup:', planSweep)
-}
-planStore.startLifecycleSweep(60_000, (records) => {
-  const cancelledTurnCount = cancelTurnsForExpiredPlans(records)
-  if (cancelledTurnCount > 0) {
-    console.log('[API] Cancelled turns for expired plans:', cancelledTurnCount)
-  }
+bootstrapRuntimeRecovery({
+  approvalCoordinator,
+  planStore,
+  turnRuntimeStore,
+  cancelExpiredPlanTurns: (records) => cancelTurnsForExpiredPlans(records, {
+    cancelPendingApprovals: (scope, reason) => approvalCoordinator.markPendingAsCanceled(scope, reason),
+  }),
+  logInfo: console.log,
 })
-
-const turnRuntimeSweep = turnRuntimeStore.sweepOnStartup()
-if (turnRuntimeSweep.resetRuntimeCount > 0 || turnRuntimeSweep.interruptedTurnCount > 0) {
-  console.log('[API] Turn runtime sweep on startup:', turnRuntimeSweep)
-}
 
 // Initialize sandbox service (doesn't require API key)
 const workDir = getWorkDir()

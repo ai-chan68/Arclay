@@ -53,4 +53,28 @@ describe('planning-files bootstrap', () => {
     expect(result.skippedFiles).toContain('task_plan.md')
     expect(fs.readFileSync(existingTaskPlan, 'utf-8')).toBe('# Existing task plan marker')
   })
+
+  it('repairs empty mandatory planning files instead of skipping them on resume runs', async () => {
+    const sessionDir = path.join(tmpDir, 'sessions', 'task_repair')
+    fs.mkdirSync(sessionDir, { recursive: true })
+    const emptyTaskPlan = path.join(sessionDir, 'task_plan.md')
+    const findingsPath = path.join(sessionDir, 'findings.md')
+
+    fs.writeFileSync(emptyTaskPlan, '   \n', 'utf-8')
+    fs.writeFileSync(findingsPath, '# Existing findings marker', 'utf-8')
+
+    const result = await bootstrapPlanningFiles({
+      workDir: tmpDir,
+      taskId: 'task_repair',
+      goal: 'Repair planning artifacts',
+      steps: ['Recover workspace guardrails'],
+      originalPrompt: 'Resume after accidental file truncation',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(result.repairedFiles).toContain('task_plan.md')
+    expect(result.skippedFiles).toContain('findings.md')
+    expect(fs.readFileSync(emptyTaskPlan, 'utf-8')).toContain('# Task Plan')
+    expect(fs.readFileSync(findingsPath, 'utf-8')).toBe('# Existing findings marker')
+  })
 })

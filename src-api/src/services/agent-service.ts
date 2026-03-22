@@ -18,7 +18,7 @@ import type {
   ToolDefinition,
   MessageAttachment,
 } from '@shared-types'
-import type { IAgent, AgentRunOptions } from '../core/agent/interface'
+import type { ConversationMessage, IAgent, AgentRunOptions } from '../core/agent/interface'
 import type { SkillsConfig, McpConfig, SandboxConfig, ImageAttachment } from '../core/agent/types'
 import { agentRegistry } from '../core/agent/registry'
 import { getDefaultSystemPrompt } from '../core/agent/system-prompt'
@@ -293,7 +293,7 @@ ${categoryInstructions.join('\n---\n')}
     prompt: string,
     sessionId?: string,
     attachments?: MessageAttachment[],
-    conversation?: { role: 'user' | 'assistant'; content: string }[],
+    conversation?: ConversationMessage[],
     streamOptions?: StreamExecutionOptions
   ): AsyncIterable<AgentMessage> {
     const effectiveSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`

@@ -7,7 +7,7 @@
  * Reference: src/shared/lib/background-tasks.ts
  */
 
-import type { AgentMessage, TaskStatus } from '@shared-types'
+import type { AgentMessage, AgentPhase, TaskStatus } from '@shared-types'
 
 /**
  * Background task representation
@@ -18,6 +18,7 @@ export interface BackgroundTask {
   prompt: string
   title: string
   status: TaskStatus
+  phase: AgentPhase
   isRunning: boolean
   startedAt: Date
   messages: AgentMessage[]
@@ -115,6 +116,20 @@ export function updateBackgroundTaskStatus(
         removeBackgroundTask(taskId)
       }, 1000)
     }
+    notifyListeners()
+  }
+}
+
+/**
+ * Update task phase
+ */
+export function updateBackgroundTaskPhase(
+  taskId: string,
+  phase: AgentPhase
+): void {
+  const task = backgroundTasks.get(taskId)
+  if (task) {
+    task.phase = phase
     notifyListeners()
   }
 }

@@ -56,6 +56,16 @@ describe('V2 Agent Plan Execution', () => {
     upsertPendingPlan: (plan: TaskPlan, context?: { taskId?: string; sessionId?: string }) => unknown
     getRecord: (planId: string) => { status: string; failReason?: string | null } | null
   }
+  let turnRuntimeStore: {
+    createTurn: (input: {
+      taskId: string
+      runId?: string
+      prompt?: string
+      readVersion?: number
+    }) => { turn: { id: string } }
+    markTurnAwaitingApproval: (turnId: string) => unknown
+    getTurn: (turnId: string) => { state: string; reason?: string | null } | null
+  }
   let oldHome: string | undefined
   let tempHome = ''
 
@@ -67,7 +77,9 @@ describe('V2 Agent Plan Execution', () => {
     vi.resetModules()
     routesModule = await import('../agent-new')
     const storeModule = await import('../../services/plan-store')
+    const turnStoreModule = await import('../../services/turn-runtime-store')
     planStore = storeModule.planStore
+    turnRuntimeStore = turnStoreModule.turnRuntimeStore
 
     const fakeAgentService = {
       createAgent() {
@@ -247,6 +259,46 @@ describe('V2 Agent Plan Execution', () => {
     expect(planStore.getRecord(planId)?.failReason).toBe('user_cancelled')
   })
 
+  it('returns success when stop falls back to agent service abort for a known session', async () => {
+    const sessionId = `session_abort_fallback_${Date.now()}`
+    const taskId = `task_abort_fallback_${Date.now()}`
+    const turnId = turnRuntimeStore.createTurn({
+      taskId,
+      runId: sessionId,
+      prompt: '等待停止的回合',
+    }).turn.id
+    turnRuntimeStore.markTurnAwaitingApproval(turnId)
+
+    routesModule.setAgentService(
+      {
+        createAgent() {
+          return {}
+        },
+        abort(id?: string) {
+          return id === sessionId
+        },
+      } as any,
+      {
+        provider: {
+          provider: 'claude',
+          apiKey: 'test',
+          model: 'test-model',
+        } as any,
+        workDir: tempHome,
+      }
+    )
+
+    const stopRes = await app.request(`/api/v2/agent/stop/${sessionId}`, {
+      method: 'POST',
+    })
+
+    expect(stopRes.status).toBe(200)
+    const body = await stopRes.json() as { success?: boolean }
+    expect(body.success).toBe(true)
+    expect(turnRuntimeStore.getTurn(turnId)?.state).toBe('cancelled')
+    expect(turnRuntimeStore.getTurn(turnId)?.reason).toBe('Session stopped by user.')
+  })
+
   it('bootstraps planning files before execution and preserves them across resume runs', async () => {
     const taskId = `task_planning_files_${Date.now()}`
     const firstPlanId = `plan_bootstrap_1_${Date.now()}`
@@ -299,6 +351,54 @@ describe('V2 Agent Plan Execution', () => {
 
     const taskPlanContent = fs.readFileSync(taskPlanPath, 'utf-8')
     expect(taskPlanContent).toContain('resume-marker')
+  })
+
+  it('repairs empty planning artifacts on resume execution instead of treating them as preserved', async () => {
+    const taskId = `task_planning_files_repair_${Date.now()}`
+    const firstPlanId = `plan_bootstrap_repair_1_${Date.now()}`
+
+    planStore.upsertPendingPlan(createPlan(firstPlanId), {
+      taskId,
+      sessionId: `session_bootstrap_repair_1_${Date.now()}`,
+    })
+
+    const firstExecuteRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId: firstPlanId,
+        prompt: 'Design order management system',
+        taskId,
+      }),
+    })
+    expect(firstExecuteRes.status).toBe(200)
+    await firstExecuteRes.text()
+
+    const sessionDir = path.join(tempHome, 'sessions', taskId)
+    const taskPlanPath = path.join(sessionDir, 'task_plan.md')
+    fs.writeFileSync(taskPlanPath, '   \n', 'utf-8')
+
+    const secondPlanId = `plan_bootstrap_repair_2_${Date.now()}`
+    planStore.upsertPendingPlan(createPlan(secondPlanId), {
+      taskId,
+      sessionId: `session_bootstrap_repair_2_${Date.now()}`,
+    })
+
+    const secondExecuteRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId: secondPlanId,
+        prompt: 'Resume order management system design',
+        taskId,
+      }),
+    })
+    expect(secondExecuteRes.status).toBe(200)
+    await secondExecuteRes.text()
+
+    const taskPlanContent = fs.readFileSync(taskPlanPath, 'utf-8')
+    expect(taskPlanContent).toContain('# Task Plan')
+    expect(taskPlanContent).not.toBe('   \n')
   })
 
   it('uses the task session directory in the execution prompt workspace instructions', async () => {
@@ -862,6 +962,83 @@ describe('V2 Agent Plan Execution', () => {
     const progressContent = fs.readFileSync(progressPath, 'utf-8')
     expect(progressContent).toContain('Status: waiting_for_user')
     expect(progressContent).toContain('登录')
+  })
+
+  it('keeps provider approval requests attached to the plan task when execute omits taskId', async () => {
+    const taskId = `task_execute_implicit_${Date.now()}`
+    const planId = `plan_execute_implicit_${Date.now()}`
+
+    planStore.upsertPendingPlan(createPlan(planId), {
+      taskId,
+      sessionId: `session_execute_implicit_${Date.now()}`,
+    })
+
+    routesModule.setAgentService(
+      {
+        createAgent() {
+          return {}
+        },
+        async *streamExecution(): AsyncIterable<AgentMessage> {
+          yield {
+            id: 'permission_implicit_task',
+            type: 'permission_request',
+            role: 'assistant',
+            content: '需要你的授权来继续执行。',
+            permission: {
+              id: 'permission_implicit_task',
+              toolName: 'Read',
+              command: 'cat secret.txt',
+              reason: '需要读取受保护文件',
+            },
+            timestamp: Date.now(),
+          } as AgentMessage
+          yield {
+            id: 'done_permission_implicit_task',
+            type: 'done',
+            timestamp: Date.now() + 1,
+          }
+        },
+      } as any,
+      {
+        provider: {
+          provider: 'claude',
+          apiKey: 'test',
+          model: 'test-model',
+        } as any,
+        workDir: tempHome,
+      }
+    )
+
+    const executeRes = await app.request('/api/v2/agent/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId,
+        prompt: 'Execute the plan and return the result',
+      }),
+    })
+    expect(executeRes.status).toBe(200)
+
+    const text = await executeRes.text()
+    const events = parseSseEvents(text)
+    const errorEvent = events.find((event) => event.event === 'error')
+
+    expect(errorEvent).toBeFalsy()
+    expect(planStore.getRecord(planId)?.status).toBe('executing')
+
+    const pendingRes = await app.request(`/api/v2/agent/pending?taskId=${encodeURIComponent(taskId)}`)
+    expect(pendingRes.status).toBe(200)
+    const pendingBody = await pendingRes.json() as {
+      pendingCount?: number
+      pendingPermissions?: Array<{ id?: string }>
+    }
+
+    expect(pendingBody.pendingCount).toBe(1)
+    expect(pendingBody.pendingPermissions?.map((item) => item.id)).toContain('permission_implicit_task')
+
+    const progressPath = path.join(tempHome, 'sessions', taskId, 'progress.md')
+    const progressContent = fs.readFileSync(progressPath, 'utf-8')
+    expect(progressContent).toContain('Status: waiting_for_user')
   })
 
   it('fails execution when provider only emits execution preamble text without starting tools', async () => {

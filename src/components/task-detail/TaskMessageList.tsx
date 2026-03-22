@@ -29,14 +29,20 @@ import {
   Eye,
   FileText,
 } from 'lucide-react'
-import type { AgentMessage, TaskPlan, PendingQuestion, PermissionRequest, TaskStatus } from '@shared-types'
+import type { AgentMessage, AgentTurnSnapshot, AgentTurnState, TaskPlan, PendingQuestion, PermissionRequest, TaskStatus } from '@shared-types'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { extractFilesFromMessages } from '@/shared/lib/file-utils'
 import { PlanApproval } from '@/components/task-detail/PlanApproval'
 import { buildTurnDisplayModel, getPreferredFailureDetail, isToolResultExecutionError } from '@/shared/lib'
 import {
+  type ConversationTurn,
+  getLatestRuntimeSnapshot,
+  getLatestRuntimeState,
+  getMessagesForTurn,
+  groupIntoTurns,
+} from '@/shared/lib/task-message-turns'
+import {
   isPlaceholderAssistantResponse,
-  isProcessAssistantResponse,
   shouldApplyTerminalExecutionFailure,
 } from '@/shared/lib/task-state'
 
@@ -110,19 +116,10 @@ interface TaskMessageListProps {
   }) => void
 }
 
-interface ConversationTurn {
-  id: string
-  userMessage?: AgentMessage
-  thinkingMessages: AgentMessage[]
-  resultMessage?: AgentMessage
-  planMessage?: AgentMessage  // Plan message for this turn
-  isComplete: boolean
-  plan?: TaskPlan  // Extracted plan for this turn
-}
-
 export interface TurnStatusSummary {
   isLatestTurn: boolean
   isRunning: boolean
+  isBlocked: boolean
   isAwaitingApproval: boolean
   isAwaitingClarification: boolean
   isStopped: boolean
@@ -183,7 +180,7 @@ export function TaskMessageList({
   }, [messages, isRunning])
 
   // 处理消息分组
-  const turns = groupIntoTurns(messages, isRunning, executionPlan)
+  const turns = groupIntoTurns(messages, isRunning)
   const latestTurnIndex = turns.length - 1
   const selectedTurnIndex = controlledSelectedTurnIndex ?? internalSelectedTurnIndex
   const safeSelectedTurnIndex = turns.length > 0
@@ -391,8 +388,16 @@ export function TaskMessageList({
               canOpenPreview={canOpenPreview}
               onOpenPreview={onOpenPreview}
               fileBaseDir={fileBaseDir}
-              pendingPermission={safeSelectedTurnIndex === latestTurnIndex ? pendingPermission : null}
-              pendingQuestion={safeSelectedTurnIndex === latestTurnIndex ? pendingQuestion : null}
+              pendingPermission={
+                safeSelectedTurnIndex === latestTurnIndex
+                  ? (pendingPermission || activeTurn.pendingPermission || null)
+                  : (activeTurn.pendingPermission || null)
+              }
+              pendingQuestion={
+                safeSelectedTurnIndex === latestTurnIndex
+                  ? (pendingQuestion || activeTurn.pendingQuestion || null)
+                  : (activeTurn.pendingQuestion || null)
+              }
               onSubmitPermission={onSubmitPermission}
               onSubmitQuestion={onSubmitQuestion}
             />
@@ -412,19 +417,6 @@ interface TodoItem {
   id: string
   content: string
   status: 'pending' | 'in_progress' | 'completed'
-}
-
-function hasMeaningfulTurnResult(turn: ConversationTurn): boolean {
-  if (turn.thinkingMessages.length > 0) {
-    return true
-  }
-
-  const content = turn.resultMessage?.content
-  if (!content?.trim()) {
-    return false
-  }
-
-  return !isPlaceholderAssistantResponse(content)
 }
 
 /**
@@ -578,160 +570,9 @@ function calculatePlanStepStatus(
   }
 }
 
-/**
- * 将消息分组为对话轮次
- */
-function groupIntoTurns(messages: AgentMessage[], isRunning: boolean, executionPlan?: TaskPlan | null): ConversationTurn[] {
-  const turns: ConversationTurn[] = []
-  let currentTurn: ConversationTurn | null = null
-  let accumulatedText = ''
-  let resultIsExplicit = false
-  let lastAssistantTextWasContinuous = false
-
-  for (const msg of messages) {
-    // 跳过 session 消息
-    if (msg.type === 'session') continue
-
-    // Plan 消息关联到当前轮次（如果有的话），否则创建新轮次
-    if (msg.type === 'plan') {
-      const planData = msg.plan as TaskPlan | undefined
-      if (currentTurn) {
-        currentTurn.planMessage = msg
-        currentTurn.plan = planData
-      } else {
-        // 创建一个只包含 plan 的轮次
-        currentTurn = {
-          id: msg.id,
-          userMessage: undefined,
-          thinkingMessages: [],
-          resultMessage: undefined,
-          planMessage: msg,
-          plan: planData,
-          isComplete: true
-        }
-        turns.push(currentTurn)
-        currentTurn = null
-      }
-      continue
-    }
-
-    // 用户消息开始新一轮次 (支持 'user' 类型或 role === 'user' 的消息)
-    if (msg.type === 'user' || (msg.role === 'user' && msg.type === 'text')) {
-      if (currentTurn) {
-        turns.push(currentTurn)
-      }
-      currentTurn = {
-        id: msg.id,
-        userMessage: msg,
-        thinkingMessages: [],
-        resultMessage: undefined,
-        planMessage: undefined,
-        isComplete: false
-      }
-      accumulatedText = ''
-      resultIsExplicit = false
-      lastAssistantTextWasContinuous = false
-      continue
-    }
-
-    // 如果没有当前轮次，创建一个
-    if (!currentTurn) {
-      currentTurn = {
-        id: `turn_${Date.now()}`,
-        userMessage: undefined,
-        thinkingMessages: [],
-        resultMessage: undefined,
-        planMessage: undefined,
-        isComplete: false
-      }
-    }
-
-    // 分类消息
-    if (msg.type === 'tool_use' || msg.type === 'tool_result') {
-      currentTurn.thinkingMessages.push(msg)
-      // 工具调用出现后，只清除明显的占位/过渡文案，保留有实际信息量的中间结果说明。
-      if (
-        msg.type === 'tool_use' &&
-        currentTurn.resultMessage &&
-        !resultIsExplicit &&
-        isPlaceholderAssistantResponse(currentTurn.resultMessage.content)
-      ) {
-        currentTurn.resultMessage = undefined
-      }
-      lastAssistantTextWasContinuous = false
-    } else if (msg.type === 'result') {
-      currentTurn.resultMessage = {
-        ...msg,
-        isTemporary: false,
-      }
-      resultIsExplicit = true
-      currentTurn.isComplete = true
-      lastAssistantTextWasContinuous = false
-    } else if (msg.type === 'clarification_request') {
-      lastAssistantTextWasContinuous = false
-      continue
-    } else if (msg.type === 'done') {
-      if (currentTurn.resultMessage && !resultIsExplicit) {
-        currentTurn.resultMessage = {
-          ...currentTurn.resultMessage,
-          isTemporary: false,
-        }
-      }
-      currentTurn.isComplete = resultIsExplicit || hasMeaningfulTurnResult(currentTurn)
-      lastAssistantTextWasContinuous = false
-    } else if (msg.type === 'text' && msg.role === 'assistant') {
-      accumulatedText = lastAssistantTextWasContinuous
-        ? `${accumulatedText}${msg.content || ''}`
-        : (msg.content || '')
-      lastAssistantTextWasContinuous = true
-
-      const nextTextBlock = accumulatedText
-      if (!isProcessAssistantResponse(nextTextBlock) || !currentTurn.resultMessage) {
-        currentTurn.resultMessage = {
-          ...msg,
-          content: nextTextBlock,
-          isTemporary: !resultIsExplicit,
-        }
-      }
-    } else if (msg.type === 'error') {
-      currentTurn.thinkingMessages.push(msg)
-      lastAssistantTextWasContinuous = false
-    } else {
-      lastAssistantTextWasContinuous = false
-    }
-  }
-
-  // 处理最后一个轮次
-  if (currentTurn) {
-    if (isRunning) {
-      currentTurn.isComplete = false
-    } else if (hasMeaningfulTurnResult(currentTurn)) {
-      currentTurn.isComplete = true
-      if (currentTurn.resultMessage && !resultIsExplicit) {
-        currentTurn.resultMessage = {
-          ...currentTurn.resultMessage,
-          isTemporary: false,
-        }
-      }
-    }
-    turns.push(currentTurn)
-  }
-
-  return turns
-}
-
 function getTurnAnchorId(turnId: string, index: number): string {
   const normalizedId = turnId.replace(/[^a-zA-Z0-9_-]/g, '')
   return `turn-${index + 1}-${normalizedId}`
-}
-
-function getMessagesForTurn(turn: ConversationTurn): AgentMessage[] {
-  const orderedMessages: AgentMessage[] = []
-  if (turn.userMessage) orderedMessages.push(turn.userMessage)
-  if (turn.planMessage) orderedMessages.push(turn.planMessage)
-  orderedMessages.push(...turn.thinkingMessages)
-  if (turn.resultMessage) orderedMessages.push(turn.resultMessage)
-  return orderedMessages
 }
 
 function getTurnLabel(turn: ConversationTurn, index: number): string {
@@ -778,9 +619,13 @@ function summarizeTurn({
   latestApprovalTerminal?: ApprovalTerminalRecord | null
 }): TurnStatusSummary {
   const isLatestTurn = turnIndex === latestTurnIndex
+  const runtimeState = getLatestRuntimeState(turn)
   const isRunningTurn = isLatestTurn && isRunning
+  const isBlockedTurn = runtimeState === 'blocked'
   const isAwaitingApprovalTurn = isLatestTurn && isAwaitingApproval
-  const isAwaitingClarificationTurn = isLatestTurn && isAwaitingClarification
+  const isAwaitingClarificationTurn =
+    (isLatestTurn && isAwaitingClarification) ||
+    (!isLatestTurn && runtimeState === 'awaiting_clarification' && !!turn.pendingQuestion)
   const isStoppedTurn = isLatestTurn && taskStatus === 'stopped' && !isRunningTurn
 
   const hasPlan = !!(turn.planMessage || turn.plan)
@@ -801,6 +646,7 @@ function summarizeTurn({
   return {
     isLatestTurn,
     isRunning: isRunningTurn,
+    isBlocked: isBlockedTurn,
     isAwaitingApproval: isAwaitingApprovalTurn,
     isAwaitingClarification: isAwaitingClarificationTurn,
     isStopped: isStoppedTurn,
@@ -833,7 +679,7 @@ function getTimelineSummary(turn: ConversationTurn, index: number): string {
 }
 
 function getTimelineTone(summary: TurnStatusSummary): string {
-  if (summary.isAwaitingApproval || summary.isAwaitingClarification || summary.isStopped || summary.hasInterruptedApproval) {
+  if (summary.isBlocked || summary.isAwaitingApproval || summary.isAwaitingClarification || summary.isStopped || summary.hasInterruptedApproval) {
     return 'bg-[color:var(--ui-warning)]'
   }
   if (summary.hasError) {
@@ -984,6 +830,13 @@ function SelectedTurnWorkspace({
     ? getInterruptedStatusMeta(latestApprovalTerminal?.status)
     : null
   const turnTime = turn.userMessage?.timestamp || turn.resultMessage?.timestamp || turn.planMessage?.timestamp
+  const runtimeSnapshot = getLatestRuntimeSnapshot(turn)
+  const runtimeState = runtimeSnapshot?.state || null
+  const blockedByTurnIds = runtimeSnapshot?.blockedByTurnIds || []
+  const effectivePendingPermission = pendingPermission || turn.pendingPermission || null
+  const effectivePendingQuestion = pendingQuestion || turn.pendingQuestion || null
+  const canRespondToPermission = isLatestTurn && !!onSubmitPermission
+  const canRespondToQuestion = isLatestTurn && !!onSubmitQuestion
 
   // 计算当前轮次的计划状态
   // 如果有执行计划且是最新轮次，使用执行计划并根据工具调用计算状态
@@ -1012,7 +865,7 @@ function SelectedTurnWorkspace({
     activePlan = undefined
   }
 
-  const hasRuntimeInteractions = !!pendingPermission || !!latestApprovalTerminal
+  const hasRuntimeInteractions = !!effectivePendingPermission || !!latestApprovalTerminal
   const isPlanOnlyStage =
     isLatestTurn &&
     (isAwaitingApproval || isAwaitingClarification) &&
@@ -1027,14 +880,15 @@ function SelectedTurnWorkspace({
     taskStatus,
     hasError,
     isLatestTurn,
+    runtimeState,
     isAwaitingApproval,
     isAwaitingClarification,
     hasPlanForApproval: !!planForApproval,
     hasExecutionTrace,
     hasResultMessage: !!turn.resultMessage,
     artifacts,
-    hasPendingPermission: !!pendingPermission,
-    hasPendingQuestion: !!pendingQuestion,
+    hasPendingPermission: !!effectivePendingPermission,
+    hasPendingQuestion: !!effectivePendingQuestion,
     hasLatestApprovalTerminal: !!latestApprovalTerminal,
     hasPlan: !!activePlan,
     isTurnComplete: turn.isComplete,
@@ -1057,6 +911,20 @@ function SelectedTurnWorkspace({
     >
       {displayPhase === 'planning' && (
         <PlanningStateView isAwaitingClarification={isAwaitingClarification} />
+      )}
+
+      {displayPhase === 'blocked' && (
+        <div className="min-w-0 space-y-4">
+          <BlockedStateView blockedByTurnIds={blockedByTurnIds} />
+          {displayModel.showPlanSection && activePlan && (
+            <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
+              <PlanExecutionView
+                plan={activePlan}
+                terminalStatus={latestApprovalTerminal?.status || null}
+              />
+            </section>
+          )}
+        </div>
       )}
 
       {displayPhase === 'stopped' && (
@@ -1093,7 +961,7 @@ function SelectedTurnWorkspace({
         </div>
       )}
 
-      {displayPhase === 'awaiting_clarification' && pendingQuestion && onSubmitQuestion && (
+      {displayPhase === 'awaiting_clarification' && effectivePendingQuestion && (
         <div className="min-w-0 space-y-4">
           {displayModel.showPlanSection && activePlan && (
             <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-4 sm:px-5">
@@ -1114,11 +982,18 @@ function SelectedTurnWorkspace({
             </div>
 
             <div className="pl-14">
-              <QuestionView
-                question={pendingQuestion}
-                fileBaseDir={fileBaseDir}
-                onSubmit={(answers) => onSubmitQuestion(pendingQuestion.id, answers)}
-              />
+              {canRespondToQuestion && onSubmitQuestion ? (
+                <QuestionView
+                  question={effectivePendingQuestion}
+                  fileBaseDir={fileBaseDir}
+                  onSubmit={(answers) => onSubmitQuestion(effectivePendingQuestion.id, answers)}
+                />
+              ) : (
+                <QuestionReviewView
+                  question={effectivePendingQuestion}
+                  fileBaseDir={fileBaseDir}
+                />
+              )}
             </div>
           </section>
         </div>
@@ -1175,15 +1050,19 @@ function SelectedTurnWorkspace({
             </div>
 
             <div className="space-y-4 pl-14">
-              {latestApprovalTerminal && !pendingPermission && !pendingQuestion && !isAwaitingApproval && !isAwaitingClarification && isLatestTurn && (
+              {latestApprovalTerminal && !effectivePendingPermission && !effectivePendingQuestion && !isAwaitingApproval && !isAwaitingClarification && isLatestTurn && (
                 <ApprovalTerminalNotice notice={latestApprovalTerminal} />
               )}
 
-              {pendingPermission && onSubmitPermission && isLatestTurn && (
-                <PermissionView
-                  permission={pendingPermission}
-                  onSubmit={(approved, addToAutoAllow) => onSubmitPermission(pendingPermission.id, approved, addToAutoAllow)}
-                />
+              {effectivePendingPermission && (
+                canRespondToPermission && onSubmitPermission ? (
+                  <PermissionView
+                    permission={effectivePendingPermission}
+                    onSubmit={(approved, addToAutoAllow) => onSubmitPermission(effectivePendingPermission.id, approved, addToAutoAllow)}
+                  />
+                ) : (
+                  <PermissionReviewView permission={effectivePendingPermission} />
+                )
               )}
 
               {canRevealFinalOutput && visibleResult.text ? (
@@ -1260,6 +1139,35 @@ function StoppedStateView() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <AlertCircle className="size-4 text-[color:var(--ui-warning)]" />
           <span>当前回合已终止，未继续生成执行计划。</span>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function BlockedStateView({
+  blockedByTurnIds,
+}: {
+  blockedByTurnIds: string[]
+}) {
+  return (
+    <div className="min-w-0 space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-[color:color-mix(in_oklab,var(--ui-warning-soft)_72%,transparent)] px-2.5 py-1 text-xs font-medium text-[color:var(--ui-warning)]">
+          依赖阻塞
+        </span>
+      </div>
+      <section className="rounded-2xl bg-[color:color-mix(in_oklab,var(--ui-panel-2)_58%,transparent)] px-4 py-5 sm:px-5">
+        <div className="flex items-start gap-2 text-sm text-muted-foreground">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-[color:var(--ui-warning)]" />
+          <div className="space-y-1">
+            <p>当前回合正在等待前序回合完成后再继续执行。</p>
+            <p className="break-words text-xs text-[color:var(--ui-warning)]/90">
+              {blockedByTurnIds.length > 0
+                ? `依赖回合: ${blockedByTurnIds.join(', ')}`
+                : '依赖信息暂未同步，请稍后重试。'}
+            </p>
+          </div>
         </div>
       </section>
     </div>
@@ -1558,6 +1466,34 @@ function PermissionView({
   )
 }
 
+function PermissionReviewView({
+  permission,
+}: {
+  permission: PermissionRequest
+}) {
+  const metadata = permission.metadata as Record<string, unknown> | undefined
+  const toolName = typeof metadata?.toolName === 'string' ? metadata.toolName.trim() : ''
+
+  return (
+    <div className="my-4 rounded-xl border border-red-200/70 bg-red-50/60 p-4 dark:border-red-800/70 dark:bg-red-950/20">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+          <ShieldAlert className="size-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">历史权限审批</p>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{permission.title}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{permission.description}</p>
+          <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-500">类型: {permission.type}</p>
+          {toolName && (
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500">工具: {toolName}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /**
  * 用户问答视图
  */
@@ -1652,6 +1588,42 @@ function QuestionView({
             '提交回答'
           )}
         </button>
+      </div>
+    </div>
+  )
+}
+
+function QuestionReviewView({
+  question,
+  fileBaseDir,
+}: {
+  question: PendingQuestion
+  fileBaseDir?: string
+}) {
+  return (
+    <div className="my-4 rounded-xl border border-amber-200/70 bg-amber-50/60 p-4 dark:border-amber-800/70 dark:bg-amber-950/20">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+          <HelpCircle className="size-5 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">历史澄清问题</p>
+          <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+            <MarkdownRenderer content={question.question} fileBaseDir={fileBaseDir} />
+          </div>
+          {question.options && question.options.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {question.options.map((option, index) => (
+                <span
+                  key={`${question.id}-option-${index}`}
+                  className="rounded-full bg-white/80 px-2.5 py-1 text-xs text-gray-600 shadow-sm dark:bg-gray-800/70 dark:text-gray-300"
+                >
+                  {option}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

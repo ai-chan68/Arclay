@@ -23,7 +23,7 @@ import { SettingsModal } from './SettingsModal'
 // Extended Task type for UI with additional fields
 export interface UITask extends Task {
   title: string
-  phase: 'idle' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'blocked' | 'executing'
+  phase: 'idle' | 'analyzing' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'blocked' | 'executing'
   selectedArtifactId: string | null
   previewMode: 'static' | 'live'
   isRightSidebarVisible: boolean

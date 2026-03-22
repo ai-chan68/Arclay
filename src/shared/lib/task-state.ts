@@ -10,12 +10,12 @@
  * Note: easywork style - no 'idle' state, tasks start as 'running'
  */
 
-import type { TaskStatus, AgentMessage, AgentError } from '@shared-types'
+import type { TaskStatus, AgentMessage, AgentError, AgentTurnState } from '@shared-types'
 
 /**
  * Agent phase for UI state tracking (not persisted to database)
  */
-export type AgentPhase = 'idle' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'executing' | 'blocked'
+export type AgentPhase = 'idle' | 'analyzing' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'executing' | 'blocked'
 
 /**
  * Transition result
@@ -37,7 +37,8 @@ const VALID_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
 }
 
 const VALID_PHASE_TRANSITIONS: Record<AgentPhase, AgentPhase[]> = {
-  idle: ['planning'],
+  idle: ['analyzing', 'planning'],
+  analyzing: ['planning', 'idle'],
   planning: ['awaiting_approval', 'awaiting_clarification', 'executing', 'blocked', 'idle'],
   awaiting_approval: ['executing', 'idle'],
   awaiting_clarification: ['planning', 'blocked', 'idle'],
@@ -287,12 +288,47 @@ export function isTaskActivelyRunning({
   if (error) return false
 
   return (
+    phase === 'analyzing' ||
     phase === 'planning' ||
     phase === 'awaiting_approval' ||
     phase === 'awaiting_clarification' ||
     phase === 'blocked' ||
     phase === 'executing'
   )
+}
+
+export function shouldPollRuntimePhase(phase: AgentPhase): boolean {
+  return (
+    phase === 'analyzing' ||
+    phase === 'planning' ||
+    phase === 'awaiting_approval' ||
+    phase === 'awaiting_clarification' ||
+    phase === 'blocked' ||
+    phase === 'executing'
+  )
+}
+
+export function mapTurnStateToPhase(turnState: AgentTurnState): AgentPhase {
+  if (
+    turnState === 'completed' ||
+    turnState === 'failed' ||
+    turnState === 'cancelled'
+  ) {
+    return 'idle'
+  }
+
+  if (
+    turnState === 'analyzing' ||
+    turnState === 'planning' ||
+    turnState === 'awaiting_approval' ||
+    turnState === 'awaiting_clarification' ||
+    turnState === 'executing' ||
+    turnState === 'blocked'
+  ) {
+    return turnState
+  }
+
+  return 'idle'
 }
 
 /**

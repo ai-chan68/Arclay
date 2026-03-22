@@ -30,10 +30,13 @@ import { getApiUrl } from '../api'
 import {
   addBackgroundTask,
   removeBackgroundTask,
+  updateBackgroundTaskPhase,
   updateBackgroundTaskStatus,
   updateBackgroundTaskMessages,
   getBackgroundTask,
 } from '../lib/background-tasks'
+import { buildApprovalTerminalMessage, hasApprovalTerminalMessage } from '../lib/approval-terminal'
+import { mapTurnStateToPhase, shouldPollRuntimePhase } from '../lib/task-state'
 
 /**
  * Parse SSE event line
@@ -64,6 +67,7 @@ interface ParsedApiError {
 
 const KNOWN_TURN_STATES: AgentTurnState[] = [
   'queued',
+  'analyzing',
   'planning',
   'awaiting_approval',
   'awaiting_clarification',
@@ -480,6 +484,14 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
   }, [onSessionIdChange])
 
   const updatePhase = useCallback((newPhase: AgentPhase) => {
+    const activeTaskId = taskIdRef.current
+    if (activeTaskId) {
+      const backgroundTask = getBackgroundTask(activeTaskId)
+      if (backgroundTask?.isRunning) {
+        updateBackgroundTaskPhase(activeTaskId, newPhase)
+      }
+    }
+
     if (onPhaseChange) {
       onPhaseChange(newPhase)
     } else {
@@ -528,6 +540,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       prompt: resolveCurrentPrompt(),
       title: taskTitleRef.current || '后台任务',
       status: (taskStatusRef.current || 'running') as any,
+      phase: phaseRef.current,
       isRunning: true,
       messages: currentMessages,
       abortController,
@@ -562,50 +575,59 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       try {
         const message: AgentMessage = JSON.parse(parsed.data)
+        const backgroundTask = getBackgroundTask(currentTaskId)
+        const isDetachedBackgroundTask = !!(
+          backgroundTask?.isRunning &&
+          taskIdRef.current &&
+          taskIdRef.current !== currentTaskId
+        )
 
         if (message.type === 'text') {
           message.role = 'assistant'
         }
 
-        if (message.type === 'session' && message.sessionId) {
+        if (message.type === 'session' && message.sessionId && !isDetachedBackgroundTask) {
           updateSessionId(message.sessionId)
         }
 
         if (message.type === 'turn_state' && message.turn) {
-          setTurnId(message.turn.turnId)
-          setTurnState(message.turn.state)
-          setTaskVersion(message.turn.taskVersion)
-          setBlockedByTurnIds(message.turn.blockedByTurnIds || [])
-          if (message.turn.state === 'blocked') {
-            updatePhase('blocked')
-          } else if (message.turn.state === 'planning') {
-            updatePhase('planning')
-          } else if (message.turn.state === 'awaiting_approval') {
-            updatePhase('awaiting_approval')
-          } else if (message.turn.state === 'awaiting_clarification') {
-            updatePhase('awaiting_clarification')
-          } else if (message.turn.state === 'executing') {
-            updatePhase('executing')
+          const nextPhase = mapTurnStateToPhase(message.turn.state)
+          if (backgroundTask?.isRunning) {
+            updateBackgroundTaskPhase(currentTaskId, nextPhase)
+          }
+
+          if (!isDetachedBackgroundTask) {
+            setTurnId(message.turn.turnId)
+            setTurnState(message.turn.state)
+            setTaskVersion(message.turn.taskVersion)
+            setBlockedByTurnIds(message.turn.blockedByTurnIds || [])
+            updatePhase(nextPhase)
           }
         }
 
         if (message.type === 'plan' && message.plan) {
-          updatePlan(message.plan as TaskPlan)
-          updatePhase('awaiting_approval')
-          setPendingQuestion(null)
-          setLatestApprovalTerminal(null)
+          if (backgroundTask?.isRunning) {
+            updateBackgroundTaskPhase(currentTaskId, 'awaiting_approval')
+          }
+
+          if (!isDetachedBackgroundTask) {
+            updatePlan(message.plan as TaskPlan)
+            updatePhase('awaiting_approval')
+            setPendingQuestion(null)
+            setLatestApprovalTerminal(null)
+          }
         }
 
-        if (message.type === 'permission_request' && message.permission) {
+        if (message.type === 'permission_request' && message.permission && !isDetachedBackgroundTask) {
           setPendingPermission(message.permission)
         }
 
-        if (message.type === 'user' && message.question) {
+        if (message.type === 'user' && message.question && !isDetachedBackgroundTask) {
           setPendingQuestion(message.question)
           updatePhase('awaiting_clarification')
         }
 
-        if (message.type === 'clarification_request') {
+        if (message.type === 'clarification_request' && !isDetachedBackgroundTask) {
           const clarification = message.clarification || message.question
           if (clarification) {
             setPendingQuestion(clarification)
@@ -613,7 +635,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
           }
         }
 
-        if (message.type === 'error') {
+        if (message.type === 'error' && !isDetachedBackgroundTask) {
           setError({
             code: 'PROVIDER_ERROR',
             message: message.errorMessage || 'Unknown error',
@@ -772,19 +794,27 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       return effectiveTaskId
     } catch (err) {
+      const isDetachedBackgroundTask = !!(
+        getBackgroundTask(effectiveTaskId)?.isRunning &&
+        taskIdRef.current &&
+        taskIdRef.current !== effectiveTaskId
+      )
+
       if (err instanceof Error && err.name === 'AbortError') {
         if (planningTimedOut) {
           const timeoutMessage = '规划阶段超时，请检查模型配置或网络连接后重试。'
-          setError({
-            code: 'TIMEOUT',
-            message: timeoutMessage,
-            details: { phase: 'planning' },
-          })
           const errorEvent: AgentMessage = {
             id: generateId('msg'),
             type: 'error',
             errorMessage: timeoutMessage,
             timestamp: Date.now(),
+          }
+          if (!isDetachedBackgroundTask) {
+            setError({
+              code: 'TIMEOUT',
+              message: timeoutMessage,
+              details: { phase: 'planning' },
+            })
           }
           updateMessages(prev => [...prev, errorEvent])
           await onMessageReceivedRef.current?.(errorEvent, effectiveTaskId)
@@ -794,25 +824,33 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       if (isAgentError(err)) {
         console.error('[useAgentNew] Agent error:', err.code, err.message)
-        setError(err)
+        if (!isDetachedBackgroundTask) {
+          setError(err)
+        }
 
         if (autoClearOnError) {
           updateMessages([])
         }
 
-        updatePhase('idle')
+        if (!isDetachedBackgroundTask) {
+          updatePhase('idle')
+        }
         return effectiveTaskId
       }
 
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       console.error('[useAgentNew] Error:', errorMessage)
-      setError({ code: 'NETWORK_ERROR', message: errorMessage })
+      if (!isDetachedBackgroundTask) {
+        setError({ code: 'NETWORK_ERROR', message: errorMessage })
+      }
 
       if (autoClearOnError) {
         updateMessages([])
       }
 
-      updatePhase('idle')
+      if (!isDetachedBackgroundTask) {
+        updatePhase('idle')
+      }
       return effectiveTaskId
     } finally {
       const awaitingInteraction =
@@ -820,6 +858,11 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         phaseRef.current === 'awaiting_clarification' ||
         phaseRef.current === 'blocked'
       const backgroundTask = getBackgroundTask(effectiveTaskId)
+      const isDetachedBackgroundTask = !!(
+        backgroundTask?.isRunning &&
+        taskIdRef.current &&
+        taskIdRef.current !== effectiveTaskId
+      )
       const completionMessages = backgroundTask?.messages ?? messagesRef.current
 
       if (backgroundTask) {
@@ -827,8 +870,10 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       }
       setIsRunning(false)
       abortControllerRef.current = null
-      if (!awaitingInteraction) {
+      if (!awaitingInteraction && !isDetachedBackgroundTask) {
         updatePhase('idle')
+        onRunCompleteRef.current?.(effectiveTaskId, completionMessages)
+      } else if (!awaitingInteraction) {
         onRunCompleteRef.current?.(effectiveTaskId, completionMessages)
       }
     }
@@ -921,12 +966,25 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       await processStream(response, internalTaskId, abortControllerRef.current)
     } catch (err) {
+      const isDetachedBackgroundTask = !!(
+        getBackgroundTask(internalTaskId)?.isRunning &&
+        taskIdRef.current &&
+        taskIdRef.current !== internalTaskId
+      )
+
       if (err instanceof Error && err.name === 'AbortError') return
 
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      setError({ code: 'EXECUTION_ERROR', message: errorMessage })
+      if (!isDetachedBackgroundTask) {
+        setError({ code: 'EXECUTION_ERROR', message: errorMessage })
+      }
     } finally {
       const backgroundTask = getBackgroundTask(internalTaskId)
+      const isDetachedBackgroundTask = !!(
+        backgroundTask?.isRunning &&
+        taskIdRef.current &&
+        taskIdRef.current !== internalTaskId
+      )
       const completionMessages = backgroundTask?.messages ?? messagesRef.current
 
       if (backgroundTask) {
@@ -934,7 +992,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       }
       setIsRunning(false)
       updatePlan(null)
-      if (phaseRef.current !== 'blocked') {
+      if (!isDetachedBackgroundTask && phaseRef.current !== 'blocked') {
         updatePhase('idle')
       }
       abortControllerRef.current = null
@@ -1085,6 +1143,23 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
     updatePhase('idle')
   }, [updatePhase])
 
+  const appendApprovalTerminalHistory = useCallback(async (
+    terminal: ApprovalTerminalRecord,
+    targetTaskId?: string
+  ): Promise<void> => {
+    const effectiveTaskId = targetTaskId || taskIdRef.current || undefined
+    if (!effectiveTaskId) return
+    if (hasApprovalTerminalMessage(messagesRef.current, terminal.id)) return
+
+    const terminalMessage = buildApprovalTerminalMessage(terminal)
+    updateMessages((prev) => (
+      hasApprovalTerminalMessage(prev, terminal.id)
+        ? prev
+        : [...prev, terminalMessage]
+    ))
+    await onMessageReceivedRef.current?.(terminalMessage, effectiveTaskId)
+  }, [updateMessages])
+
   /**
    * Refresh pending permission/question requests from backend.
    * Used for page refresh recovery when no SSE event is currently flowing.
@@ -1148,12 +1223,15 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         ) {
           updatePhase('idle')
         }
+        if (shouldShowTerminal && terminal) {
+          await appendApprovalTerminalHistory(terminal, effectiveTaskId)
+        }
         setLatestApprovalTerminal(shouldShowTerminal ? terminal : null)
       }
     } catch (err) {
       console.error('[useAgentNew] Failed to refresh pending requests:', err)
     }
-  }, [])
+  }, [appendApprovalTerminalHistory])
 
   const refreshTurnRuntime = useCallback(async (targetTaskId?: string): Promise<void> => {
     try {
@@ -1185,14 +1263,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         setTurnId(currentTurn.id)
         setTurnState(currentTurn.state)
         setBlockedByTurnIds(currentTurn.blockedByTurnIds || [])
-        if (currentTurn.state === 'blocked') updatePhase('blocked')
-        if (currentTurn.state === 'planning') updatePhase('planning')
-        if (currentTurn.state === 'awaiting_approval') updatePhase('awaiting_approval')
-        if (currentTurn.state === 'awaiting_clarification') updatePhase('awaiting_clarification')
-        if (currentTurn.state === 'executing') updatePhase('executing')
-        if (currentTurn.state === 'completed' || currentTurn.state === 'failed' || currentTurn.state === 'cancelled') {
-          updatePhase('idle')
-        }
+        updatePhase(mapTurnStateToPhase(currentTurn.state))
       }
 
       const runtimeVersion = data.runtime?.version
@@ -1254,7 +1325,8 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       const result = await response.json().catch(() => null) as {
         success?: boolean
-        nextAction?: 'resume_planning' | 'resume_execution'
+        canResume?: boolean
+        nextAction?: 'resume_planning' | 'resume_execution' | null
         turnId?: string | null
       } | null
       if (result && result.success === false) {
@@ -1271,17 +1343,21 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       setLatestApprovalTerminal(null)
       pendingQuestionRef.current = null
 
-      if (result?.nextAction === 'resume_execution') {
+      const canResume = result?.canResume !== false
+      const nextAction = canResume ? result?.nextAction || null : null
+
+      if (nextAction === 'resume_execution') {
         updatePhase('executing')
-      } else if (result?.nextAction === 'resume_planning') {
+      } else if (nextAction === 'resume_planning') {
         updatePhase('planning')
       }
 
       await refreshPendingRequests(taskIdRef.current || undefined)
 
       const shouldRerunPlanning =
-        (result?.nextAction
-          ? result.nextAction === 'resume_planning'
+        canResume &&
+        (nextAction
+          ? nextAction === 'resume_planning'
           : resolvedQuestion?.source === 'clarification') &&
         !!taskIdRef.current
 
@@ -1370,11 +1446,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
   // Poll pending approvals/questions while execution is active or waiting for interaction.
   // This complements SSE and ensures permission prompts can recover across refresh/reconnect.
   useEffect(() => {
-    const shouldPoll =
-      phase === 'executing' ||
-      phase === 'awaiting_approval' ||
-      phase === 'awaiting_clarification' ||
-      phase === 'blocked'
+    const shouldPoll = shouldPollRuntimePhase(phase)
     if (!taskIdRef.current || !shouldPoll) return
 
     let canceled = false
@@ -1384,9 +1456,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       if (canceled) return
       await refreshPendingRequests(taskIdRef.current || undefined)
       if (
-        phaseRef.current === 'awaiting_approval' ||
-        phaseRef.current === 'awaiting_clarification' ||
-        phaseRef.current === 'blocked'
+        shouldPollRuntimePhase(phaseRef.current)
       ) {
         await refreshTurnRuntime(taskIdRef.current || undefined)
       }

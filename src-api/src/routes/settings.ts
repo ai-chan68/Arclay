@@ -440,7 +440,7 @@ function recreateAgentService(provider: ProviderConfigItem): boolean {
       userDirEnabled: false,  // 不使用用户目录的 skills
       appDirEnabled: true,    // 使用项目目录的 skills
     }
-    const mcpConfig = buildRuntimeMcpConfig(settings)
+    const mcpConfig = buildRuntimeMcpConfig(settings || undefined)
 
     const sandboxSettings = normalizeSandboxSettings(settings?.sandbox)
     const sandboxConfig = sandboxSettings.enabled

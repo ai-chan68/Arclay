@@ -334,11 +334,7 @@ function TaskDetailContent() {
         // Background task keeps a full in-memory timeline. Replace instead of merge
         // to avoid duplicate rendering when DB and in-memory message IDs differ.
         setCurrentMessages(activeBgTask.messages)
-        setCurrentPhase(prev => (
-          prev === 'awaiting_approval' || prev === 'awaiting_clarification'
-            ? prev
-            : 'executing'
-        ))
+        setCurrentPhase(activeBgTask.phase)
       }
     })
   }, [taskId, isRunning])
@@ -460,11 +456,7 @@ function TaskDetailContent() {
             setCurrentMessages(restoredMessages)
           }
           if (activeBackgroundTask?.isRunning) {
-            setCurrentPhase(prev => (
-              prev === 'awaiting_approval' || prev === 'awaiting_clarification'
-                ? prev
-                : 'executing'
-            ))
+            setCurrentPhase(activeBackgroundTask.phase)
           }
         } catch (err) {
           console.error('[TaskDetail] Failed to load messages:', err)

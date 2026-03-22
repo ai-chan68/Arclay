@@ -1,4 +1,4 @@
-import type { AgentMessage, TaskStatus } from '@shared-types'
+import type { AgentMessage, AgentTurnState, TaskStatus } from '@shared-types'
 import type { Artifact } from '../types/artifacts'
 import { pickPrimaryArtifactForPreview } from './file-utils'
 
@@ -6,6 +6,7 @@ export type WorkspaceDisplayPhase =
   | 'planning'
   | 'awaiting_approval'
   | 'awaiting_clarification'
+  | 'blocked'
   | 'execution'
   | 'stopped'
   | 'failed'
@@ -74,6 +75,7 @@ export function getWorkspaceDisplayState({
   taskStatus,
   hasError,
   isLatestTurn,
+  runtimeState,
   isAwaitingApproval,
   isAwaitingClarification,
   hasPlanForApproval,
@@ -90,6 +92,7 @@ export function getWorkspaceDisplayState({
   taskStatus?: TaskStatus
   hasError: boolean
   isLatestTurn: boolean
+  runtimeState?: AgentTurnState | null
   isAwaitingApproval: boolean
   isAwaitingClarification: boolean
   hasPlanForApproval: boolean
@@ -110,15 +113,27 @@ export function getWorkspaceDisplayState({
       (hasError && taskStatus !== 'completed')
     )
 
+  const isPlanningRuntimeState =
+    runtimeState === 'analyzing' || runtimeState === 'planning'
+  const isBlockedRuntimeState = runtimeState === 'blocked'
+  const isApprovalRuntimeState = runtimeState === 'awaiting_approval'
+  const isClarificationRuntimeState = runtimeState === 'awaiting_clarification'
+
   const phase: WorkspaceDisplayPhase =
     isStopped
       ? 'stopped'
       : shouldShowFailurePhase
       ? 'failed'
-      : isLatestTurn && isAwaitingApproval && hasPlanForApproval && !hasExecutionTrace && !hasResultMessage && artifactsCount === 0
+      : isBlockedRuntimeState
+      ? 'blocked'
+      : (isLatestTurn && isAwaitingApproval && hasPlanForApproval && !hasExecutionTrace && !hasResultMessage && artifactsCount === 0) ||
+        (isApprovalRuntimeState && hasPlanForApproval && !hasExecutionTrace && !hasResultMessage && artifactsCount === 0)
       ? 'awaiting_approval'
-      : isLatestTurn && isAwaitingClarification && hasPendingQuestion
+      : (isLatestTurn && isAwaitingClarification && hasPendingQuestion) ||
+        (isClarificationRuntimeState && hasPendingQuestion)
       ? 'awaiting_clarification'
+      : isPlanningRuntimeState
+      ? 'planning'
       : (isLatestTurn && isRunning && !isAwaitingApproval && !isAwaitingClarification) ||
         hasExecutionTrace ||
         hasResultMessage ||
@@ -131,7 +146,7 @@ export function getWorkspaceDisplayState({
 
   return {
     phase,
-    showPlanSection: hasPlan && (phase === 'execution' || phase === 'awaiting_clarification' || phase === 'failed'),
+    showPlanSection: hasPlan && (phase === 'execution' || phase === 'awaiting_clarification' || phase === 'blocked' || phase === 'failed'),
   }
 }
 
@@ -141,6 +156,7 @@ export function buildTurnDisplayModel({
   taskStatus,
   hasError,
   isLatestTurn,
+  runtimeState,
   isAwaitingApproval,
   isAwaitingClarification,
   hasPlanForApproval,
@@ -159,6 +175,7 @@ export function buildTurnDisplayModel({
   taskStatus?: TaskStatus
   hasError: boolean
   isLatestTurn: boolean
+  runtimeState?: AgentTurnState | null
   isAwaitingApproval: boolean
   isAwaitingClarification: boolean
   hasPlanForApproval: boolean
@@ -178,6 +195,7 @@ export function buildTurnDisplayModel({
     taskStatus,
     hasError,
     isLatestTurn,
+    runtimeState,
     isAwaitingApproval,
     isAwaitingClarification,
     hasPlanForApproval,
@@ -209,7 +227,13 @@ export function buildTurnDisplayModel({
     phase: displayState.phase,
     showPlanSection: displayState.showPlanSection,
     hasThinking:
-      hasExecutionTrace || (isRunning && !isAwaitingApproval && !isAwaitingClarification),
+      hasExecutionTrace || (
+        isRunning &&
+        runtimeState !== 'analyzing' &&
+        runtimeState !== 'planning' &&
+        !isAwaitingApproval &&
+        !isAwaitingClarification
+      ),
     hasError,
     availableResult,
     visibleResult,

@@ -41,6 +41,17 @@ describe('V2 Agent Clarification Flow', () => {
       question: { id: string; question: string; options?: string[]; allowFreeText?: boolean },
       context?: { taskId?: string; source?: 'clarification' | 'runtime_tool_question'; round?: number }
     ) => void
+    markPendingAsCanceled: (
+      scope?: { taskId?: string; runId?: string; providerSessionId?: string },
+      reason?: string
+    ) => number
+  }
+  let turnRuntimeStore: {
+    createTurn: (input: { taskId: string; prompt: string; runId?: string }) => { turn: { id: string } }
+    markTurnAwaitingClarification: (turnId: string) => unknown
+    markTurnAwaitingApproval: (turnId: string) => unknown
+    startExecution: (turnId: string) => unknown
+    cancelTurn: (turnId: string, reason?: string) => unknown
   }
   let oldHome: string | undefined
   let tempHome = ''
@@ -53,7 +64,9 @@ describe('V2 Agent Clarification Flow', () => {
     vi.resetModules()
     const routesModule = await import('../agent-new')
     const coordinatorModule = await import('../../services/approval-coordinator')
+    const turnStoreModule = await import('../../services/turn-runtime-store')
     approvalCoordinator = coordinatorModule.approvalCoordinator
+    turnRuntimeStore = turnStoreModule.turnRuntimeStore
 
     const fakeAgentService = {
       createAgent() {
@@ -144,12 +157,26 @@ describe('V2 Agent Clarification Flow', () => {
     const secondEvents = parseSseEvents(secondText)
     const errorEvent = secondEvents.find((event) => event.event === 'error')
     expect(errorEvent?.data?.errorMessage).toContain('澄清轮次超过上限（1）')
+    expect(secondEvents.map((event) => event.event)).toEqual([
+      'session',
+      'error',
+      'turn_state',
+      'done',
+    ])
+    const failedTurnEvent = secondEvents.find((event) => event.event === 'turn_state')
+    const failedTurn = failedTurnEvent?.data?.turn as Record<string, unknown> | undefined
+    expect(failedTurn?.state).toBe('failed')
   })
 
   it('returns nextAction in /question response by source', async () => {
     const taskId = `task_clarification_action_${Date.now()}`
     const questionId = `q_clarification_${Date.now()}`
     const runtimeQuestionId = `q_runtime_${Date.now()}`
+    const clarificationTurn = turnRuntimeStore.createTurn({
+      taskId,
+      prompt: 'clarification turn',
+    }).turn
+    turnRuntimeStore.markTurnAwaitingClarification(clarificationTurn.id)
 
     approvalCoordinator.captureQuestionRequest(
       {
@@ -174,8 +201,19 @@ describe('V2 Agent Clarification Flow', () => {
       }),
     })
     expect(clarificationReply.status).toBe(200)
-    const clarificationBody = await clarificationReply.json() as { nextAction?: string }
+    const clarificationBody = await clarificationReply.json() as {
+      nextAction?: string | null
+      canResume?: boolean
+    }
+    expect(clarificationBody.canResume).toBe(true)
     expect(clarificationBody.nextAction).toBe('resume_planning')
+
+    const runtimeTurn = turnRuntimeStore.createTurn({
+      taskId,
+      prompt: 'runtime question turn',
+    }).turn
+    turnRuntimeStore.markTurnAwaitingApproval(runtimeTurn.id)
+    turnRuntimeStore.startExecution(runtimeTurn.id)
 
     approvalCoordinator.captureQuestionRequest(
       {
@@ -199,8 +237,61 @@ describe('V2 Agent Clarification Flow', () => {
       }),
     })
     expect(runtimeReply.status).toBe(200)
-    const runtimeBody = await runtimeReply.json() as { nextAction?: string }
+    const runtimeBody = await runtimeReply.json() as {
+      nextAction?: string | null
+      canResume?: boolean
+    }
+    expect(runtimeBody.canResume).toBe(true)
     expect(runtimeBody.nextAction).toBe('resume_execution')
+  })
+
+  it('does not advertise resume when the clarification request is already terminal', async () => {
+    const taskId = `task_clarification_terminal_${Date.now()}`
+    const questionId = `q_terminal_${Date.now()}`
+    const turn = turnRuntimeStore.createTurn({
+      taskId,
+      prompt: 'terminal clarification turn',
+    }).turn
+    turnRuntimeStore.cancelTurn(turn.id, 'Plan expired before clarification was answered.')
+
+    approvalCoordinator.captureQuestionRequest(
+      {
+        id: questionId,
+        question: '请澄清输出格式',
+        options: ['Markdown', 'JSON'],
+        allowFreeText: true,
+      },
+      {
+        taskId,
+        source: 'clarification',
+        round: 1,
+      }
+    )
+    approvalCoordinator.markPendingAsCanceled(
+      { taskId },
+      'Plan expired before clarification was answered.'
+    )
+
+    const reply = await app.request('/api/v2/agent/question', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        questionId,
+        answers: { selected: 'Markdown' },
+      }),
+    })
+    expect(reply.status).toBe(200)
+    const body = await reply.json() as {
+      status?: string
+      canResume?: boolean
+      nextAction?: string | null
+      turnId?: string | null
+    }
+
+    expect(body.status).toBe('already_resolved')
+    expect(body.canResume).toBe(false)
+    expect(body.nextAction).toBeNull()
+    expect(body.turnId).toBe(turn.id)
   })
 
   it('includes question source metadata in /pending response', async () => {

@@ -25,6 +25,33 @@ export class ApprovalCoordinator {
   private questionResolvers = new Map<string, QuestionDecisionResolver>()
   private lifecycleTimer: NodeJS.Timeout | null = null
 
+  private clearRuntimeResolver(record: ApprovalRequestRecord): void {
+    if (record.kind === 'permission') {
+      this.permissionResolvers.delete(record.id)
+      return
+    }
+    this.questionResolvers.delete(record.id)
+  }
+
+  private transitionPendingForScope(
+    filter: Omit<ApprovalListFilter, 'status'> = {},
+    status: Exclude<ApprovalRequestStatus, 'pending' | 'approved' | 'rejected'>,
+    reason: string
+  ): number {
+    const pending = approvalStore.listPending(filter)
+    let count = 0
+
+    for (const record of pending) {
+      const result = approvalStore.updatePendingStatus(record.id, status, { reason })
+      if (result.status === 'resolved' && result.record) {
+        this.clearRuntimeResolver(result.record)
+        count += 1
+      }
+    }
+
+    return count
+  }
+
   capturePermissionRequest(permission: PermissionRequest, context?: ApprovalContext): void {
     approvalStore.upsertPendingPermission(permission, context)
   }
@@ -107,6 +134,20 @@ export class ApprovalCoordinator {
   markAllPendingAsOrphanedOnStartup(): number {
     // On API process restart, any unresolved request cannot be attached to a live runtime anymore.
     return approvalStore.markAllPendingAsOrphaned()
+  }
+
+  markPendingAsCanceled(
+    filter: Omit<ApprovalListFilter, 'status'> = {},
+    reason = 'Pending approval request canceled.'
+  ): number {
+    return this.transitionPendingForScope(filter, 'canceled', reason)
+  }
+
+  markPendingAsOrphaned(
+    filter: Omit<ApprovalListFilter, 'status'> = {},
+    reason = 'Pending approval request orphaned.'
+  ): number {
+    return this.transitionPendingForScope(filter, 'orphaned', reason)
   }
 
   startLifecycleSweep(intervalMs = 15_000): void {

@@ -149,7 +149,7 @@ export interface AgentStatus {
   taskId: string | null;
 }
 
-export type AgentPhase = 'idle' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'executing' | 'blocked';
+export type AgentPhase = 'idle' | 'analyzing' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'executing' | 'blocked';
 
 /**
  * Task plan for approval workflow (easywork style)

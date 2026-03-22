@@ -1,4 +1,4 @@
-import { access, mkdir, writeFile } from 'fs/promises'
+import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import path from 'path'
 
@@ -14,6 +14,7 @@ export interface PlanningFilesBootstrapInput {
 export interface PlanningFilesBootstrapResult {
   sessionDir: string
   createdFiles: string[]
+  repairedFiles?: string[]
   skippedFiles: string[]
   error?: string
 }
@@ -175,7 +176,14 @@ async function ensureFile(
 ): Promise<void> {
   try {
     await access(filePath)
-    result.skippedFiles.push(path.basename(filePath))
+    const existing = await readFile(filePath, 'utf-8').catch(() => '')
+    if (existing.trim().length > 0) {
+      result.skippedFiles.push(path.basename(filePath))
+      return
+    }
+
+    await writeFile(filePath, content, 'utf-8')
+    result.repairedFiles?.push(path.basename(filePath))
     return
   } catch {
     // File does not exist; create it below.
@@ -194,6 +202,7 @@ export async function bootstrapPlanningFiles(
   const result: PlanningFilesBootstrapResult = {
     sessionDir,
     createdFiles: [],
+    repairedFiles: [],
     skippedFiles: [],
   }
 
