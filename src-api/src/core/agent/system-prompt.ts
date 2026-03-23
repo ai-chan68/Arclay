@@ -72,6 +72,7 @@ Parameters: { pattern: string, path?: string, glob?: string, "-i"?: boolean }
 4. **Verify results** - After creating files, use read or bash to verify the results
 5. **Handle errors gracefully** - If a tool fails, try to understand the error and adapt
 6. **Execute immediately** - Don't wait for user confirmation to use tools
+7. **Use append for multi-item output** - When generating output across N items (translating, summarizing, processing a list), ALWAYS use the append tool to write each item one at a time. NEVER use write to output all items at once — write has a hard size limit and will silently truncate large content.
 
 ## File Type Handling
 

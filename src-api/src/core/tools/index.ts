@@ -10,6 +10,7 @@ import { createEditTool } from './edit'
 import { createBashTool } from './bash'
 import { createGlobTool } from './glob'
 import { createGrepTool } from './grep'
+import { createAppendTool } from './append'
 import type { SandboxService } from '../sandbox/sandbox-service'
 
 // Re-export types
@@ -26,7 +27,8 @@ export function createDefaultTools(sandbox: SandboxService): ITool[] {
     createEditTool(sandbox),
     createBashTool(sandbox),
     createGlobTool(sandbox),
-    createGrepTool(sandbox)
+    createGrepTool(sandbox),
+    createAppendTool(sandbox)
   ]
 }
 
@@ -126,6 +128,18 @@ export function getDefaultToolDefinitions(): ReturnType<ToolRegistry['list']> {
           '-i': { type: 'boolean', description: 'Case insensitive search' }
         },
         required: ['pattern']
+      }
+    },
+    {
+      name: 'append',
+      description: 'Append content to a file. Creates the file if it does not exist. Use this instead of write when generating large outputs across multiple steps.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string', description: 'The absolute path to the file to append to' },
+          content: { type: 'string', description: 'The content to append' }
+        },
+        required: ['file_path', 'content']
       }
     }
   ]

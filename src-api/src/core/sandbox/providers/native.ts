@@ -190,6 +190,17 @@ export class NativeSandboxProvider implements ISandboxProvider {
   }
 
   /**
+   * Append content to a file (creates file if it does not exist)
+   */
+  async appendFile(filePath: string, content: string): Promise<void> {
+    const absolutePath = this.validatePath(filePath)
+    const dir = path.dirname(absolutePath)
+    const validatedDir = this.validatePath(dir)
+    await fs.mkdir(validatedDir, { recursive: true })
+    await fs.appendFile(absolutePath, content)
+  }
+
+  /**
    * List directory contents
    */
   async listDir(dirPath: string): Promise<SandboxFileInfo[]> {

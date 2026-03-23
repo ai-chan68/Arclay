@@ -36,6 +36,11 @@ export interface ISandboxProvider extends IProvider {
   writeFile(path: string, content: string, options?: { mode?: number }): Promise<void>
 
   /**
+   * Append content to a file (creates file if it does not exist)
+   */
+  appendFile(path: string, content: string): Promise<void>
+
+  /**
    * List directory contents
    */
   listDir(path: string): Promise<SandboxFileInfo[]>

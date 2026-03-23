@@ -305,6 +305,17 @@ export class ClaudeSandboxProvider implements ISandboxProvider {
   }
 
   /**
+   * Append content to a file (creates file if it does not exist)
+   */
+  async appendFile(filePath: string, content: string): Promise<void> {
+    const { promises: fs } = await import('node:fs')
+    const absolutePath = this.validatePath(filePath)
+    const dir = path.dirname(absolutePath)
+    await fs.mkdir(dir, { recursive: true })
+    await fs.appendFile(absolutePath, content)
+  }
+
+  /**
    * List directory contents
    */
   async listDir(dirPath: string): Promise<SandboxFileInfo[]> {

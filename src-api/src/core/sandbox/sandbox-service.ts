@@ -86,6 +86,10 @@ export class SandboxService {
     return this.provider.writeFile(path, content, options)
   }
 
+  async appendFile(path: string, content: string): Promise<void> {
+    return this.provider.appendFile(path, content)
+  }
+
   /**
    * List directory contents
    */
