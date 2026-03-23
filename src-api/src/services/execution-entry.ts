@@ -1,6 +1,7 @@
 import type { AgentMessage, MessageAttachment } from '@shared-types'
 import type { ConversationMessage } from '../core/agent/interface'
 import type { TaskPlan } from '../types/agent-new'
+import { isBrowserAutomationIntent } from './browser-intent'
 import { buildExecutionPrompt } from './plan-execution'
 import type { RunExecutionSessionInput } from './execution-session'
 import type { ExecutionCompletionSummary } from './execution-completion'
@@ -83,9 +84,7 @@ function createExecutionSummary(): ExecutionCompletionSummary {
 
 function isRuntimeRunIntent(promptText: string, plan: TaskPlan): boolean {
   const corpus = [promptText, plan.goal, ...plan.steps.map((step) => step.description)].join('\n').toLowerCase()
-  const browserAutomationHint = /chrome-devtools|playwright|浏览器|radio button|单选框|点击|填入|输入|查询/.test(corpus)
-  const externalOrInternalUrlHint = /https?:\/\/\S+|yx\.mail\.netease\.com/.test(corpus)
-  if (browserAutomationHint && externalOrInternalUrlHint) {
+  if (isBrowserAutomationIntent(promptText, plan)) {
     return false
   }
   const runHint = /运行|启动|run|start|dev server|preview|可跑起来|本地启动|serve/.test(corpus)
@@ -209,11 +208,4 @@ export function resolveExecutionEntry(
       })
     },
   }
-}
-
-function isBrowserAutomationIntent(promptText: string, plan: TaskPlan): boolean {
-  const corpus = [promptText, plan.goal, ...plan.steps.map((step) => step.description)].join('\n').toLowerCase()
-  const browserAutomationHint = /chrome-devtools|playwright|浏览器|radio button|单选框|点击|填入|输入|查询/.test(corpus)
-  const externalOrInternalUrlHint = /https?:\/\/\S+|yx\.mail\.netease\.com/.test(corpus)
-  return browserAutomationHint && externalOrInternalUrlHint
 }

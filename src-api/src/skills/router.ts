@@ -89,7 +89,7 @@ function clampScore(score: number): number {
 
 function isInteractiveInternalWebTask(prompt: string): boolean {
   const normalized = normalizeText(prompt)
-  const hasInternalUrl = /https?:\/\/[^\s]*yx\.mail\.netease\.com/.test(normalized)
+  const hasInternalUrl = /https?:\/\/[^\s]*workspace\.example\.test/.test(normalized)
   const hasInteractiveVerb = /(点击|输入|填写|查询|按钮|表单|click|fill|type|submit|form|search)/.test(normalized)
   return hasInternalUrl && hasInteractiveVerb
 }

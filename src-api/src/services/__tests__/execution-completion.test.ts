@@ -6,6 +6,7 @@ import {
   buildExecutionBlockerCandidate,
   detectBlockedArtifactPath,
   detectIncompleteExecution,
+  isBrowserAutomationIntent,
   shouldTreatMaxTurnsAsInterrupted,
   type ExecutionCompletionSummary,
 } from '../execution-completion'
@@ -132,5 +133,21 @@ describe('detectIncompleteExecution', () => {
     )
 
     expect(reason).toBe('Execution ended before completing all planned steps.')
+  })
+})
+
+describe('isBrowserAutomationIntent', () => {
+  it('treats interactive browser tasks with a generic URL as browser automation intent', () => {
+    const result = isBrowserAutomationIntent(
+      '打开 https://example.test/internal-oms/order-search ，点击查询按钮并输入批次号',
+      createPlan({
+        goal: '通过浏览器完成内部订单查询',
+        steps: [
+          { id: 'step_1', description: '打开页面并点击查询按钮', status: 'pending' },
+        ],
+      })
+    )
+
+    expect(result).toBe(true)
   })
 })

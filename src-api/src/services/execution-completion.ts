@@ -1,6 +1,9 @@
 import path from 'path'
 import type { TaskPlan } from '../types/agent-new'
 import type { AgentMessage } from '@shared-types'
+import { isBrowserAutomationIntent } from './browser-intent'
+
+export { isBrowserAutomationIntent } from './browser-intent'
 
 export interface TodoProgressSnapshot {
   total: number
@@ -75,7 +78,7 @@ export function detectBrowserToolBlockerText(text: string): ExecutionBlockerCand
   const normalized = normalizeInteractiveBlockerText(text)
   if (!normalized) return null
 
-  const loginLike = /login\.netease\.com|登录|登录并授权|authorize|approval|认证|验证码|captcha/i.test(normalized)
+  const loginLike = /auth\.example\.test|登录|登录并授权|authorize|approval|认证|验证码|captcha/i.test(normalized)
   if (!loginLike) {
     return null
   }
@@ -204,13 +207,6 @@ function requiresUserVisibleResult(promptText: string, plan: TaskPlan): boolean 
   ]
 
   return resultIntentPatterns.some((pattern) => pattern.test(corpus))
-}
-
-export function isBrowserAutomationIntent(promptText: string, plan: TaskPlan): boolean {
-  const corpus = [promptText, plan.goal, ...plan.steps.map((step) => step.description)].join('\n').toLowerCase()
-  const browserAutomationHint = /chrome-devtools|playwright|浏览器|radio button|单选框|点击|填入|输入|查询/.test(corpus)
-  const externalOrInternalUrlHint = /https?:\/\/\S+|yx\.mail\.netease\.com/.test(corpus)
-  return browserAutomationHint && externalOrInternalUrlHint
 }
 
 export function detectIncompleteExecution(

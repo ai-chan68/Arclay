@@ -47,6 +47,7 @@ import {
   getMcpExecutionDisciplineInstruction,
   getPlanningFilesProtocolInstruction,
 } from '../../../services/plan-execution';
+import { looksLikeBrowserAutomationIntentInText } from '../../../services/browser-intent';
 import { taskPlanner } from '../../../services/task-planner';
 
 /**
@@ -328,8 +329,7 @@ User's request (answer this AFTER reading the images):
       ? Object.keys(queryOptions.mcpServers).filter((name) => name.trim().length > 0)
       : [];
     const runtimeToolNamespaces = runtimeMcpServerNames.map((name) => `mcp__${name}__*`);
-    const browserAutomationIntent = /chrome-devtools|playwright|浏览器|radio button|单选框|点击|填入|输入|查询/.test(enhancedPrompt)
-      && /https?:\/\/\S+|yx\.mail\.netease\.com/.test(enhancedPrompt);
+    const browserAutomationIntent = looksLikeBrowserAutomationIntentInText(enhancedPrompt);
 
     await appendProviderDiagnostics(sessionCwd, [
       `### Provider Query Options (${new Date().toISOString()})`,
@@ -965,7 +965,7 @@ IMPORTANT:
 
   private isInteractiveInternalWebTask(prompt: string): boolean {
     const normalized = prompt.toLowerCase().trim();
-    const hasInternalUrl = /https?:\/\/[^\s]*yx\.mail\.netease\.com/.test(normalized);
+    const hasInternalUrl = /https?:\/\/[^\s]*workspace\.example\.test/.test(normalized);
     const hasInteractiveVerb = /(点击|输入|填写|查询|按钮|表单|click|fill|type|submit|form|search)/.test(normalized);
     return hasInternalUrl && hasInteractiveVerb;
   }
