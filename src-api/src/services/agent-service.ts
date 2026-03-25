@@ -57,6 +57,8 @@ export interface StreamExecutionOptions {
   workDir?: string
   taskId?: string
   systemPrompt?: string
+  plan?: import('../types/agent-new').TaskPlan
+
 }
 
 export class AgentService {
@@ -404,6 +406,7 @@ ${categoryInstructions.join('\n---\n')}
       conversation: conversationMessages,
       contextManager,
       complexityHint: classification.complexity,
+      plan: streamOptions?.plan,
     }
 
     try {

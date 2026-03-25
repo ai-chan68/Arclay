@@ -11,6 +11,7 @@ import type {
 import type { RuntimePlugin, RuntimePluginMetadata } from '../runtime/plugin-types';
 import type { AgentMessage, AgentSessionInfo } from '@shared-types';
 import type { ToolDefinition } from '@shared-types';
+import type { TaskPlan } from '../../types/agent-new';
 
 /**
  * Agent Provider 类型
@@ -152,6 +153,8 @@ export interface AgentRunOptions {
   contextManager?: unknown;
   /** Complexity hint from IntentClassifier for adaptive maxTurns */
   complexityHint?: 'simple' | 'medium' | 'complex';
+  /** Task plan for step-aware maxTurns calculation */
+  plan?: TaskPlan;
   /** 工具执行回调（非 Claude Provider 多轮循环使用） */
   toolExecutor?: (
     name: string,

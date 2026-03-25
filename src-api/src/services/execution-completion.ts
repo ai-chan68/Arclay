@@ -225,6 +225,10 @@ export function detectIncompleteExecution(
   if (summary.latestTodoSnapshot) {
     const { completed, total, inProgress, pending, failed } = summary.latestTodoSnapshot
     if (completed < total || inProgress > 0 || pending > 0 || failed > 0) {
+      // Distinguish partial progress from total failure
+      if (completed > 0) {
+        return `PARTIAL_COMPLETION:${completed}/${total} steps completed. Execution ended before completing all planned steps.`
+      }
       return 'Execution ended before completing all planned steps.'
     }
   }

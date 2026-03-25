@@ -18,6 +18,20 @@ NC='\033[0m' # No Color
 API_PORT=${PORT:-2026}
 FRONTEND_PORT=${FRONTEND_PORT:-1420}
 
+# 日志目录
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOG_DIR="$ROOT_DIR/logs"
+
+setup_log_dir() {
+    mkdir -p "$LOG_DIR"
+    # 日志文件以启动时间命名，方便区分每次运行
+    LOG_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    API_LOG="$LOG_DIR/api_${LOG_TIMESTAMP}.log"
+    FRONTEND_LOG="$LOG_DIR/frontend_${LOG_TIMESTAMP}.log"
+    TAURI_LOG="$LOG_DIR/tauri_${LOG_TIMESTAMP}.log"
+    log_info "日志目录: $LOG_DIR"
+}
+
 # 打印带颜色的消息
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -188,30 +202,35 @@ log_success "依赖检查通过"
 
 # 步骤 3: 启动服务
 log_info "步骤 3/3: 启动服务..."
+setup_log_dir
 
 case "$MODE" in
     "api")
         log_info "启动 API 服务器 (端口 $API_PORT)..."
+        log_info "日志文件: $API_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src-api dev
+        pnpm --filter src-api dev 2>&1 | tee "$API_LOG"
         ;;
 
     "web")
         log_info "启动 Web 前端 (端口 $FRONTEND_PORT)..."
+        log_info "日志文件: $FRONTEND_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src dev
+        pnpm --filter src dev 2>&1 | tee "$FRONTEND_LOG"
         ;;
 
     "tauri")
         log_info "启动 Tauri 桌面应用..."
+        log_info "日志文件: $TAURI_LOG"
         cd "$(dirname "$0")/.."
-        pnpm tauri dev
+        pnpm tauri dev 2>&1 | tee "$TAURI_LOG"
         ;;
 
     "web-desktop")
         log_info "一键启动 Web + 桌面端 (含 API)..."
         cd "$(dirname "$0")/.."
-        pnpm tauri dev &
+        log_info "日志文件: $TAURI_LOG"
+        pnpm tauri dev >> "$TAURI_LOG" 2>&1 &
         TAURI_PID=$!
 
         sleep 5
@@ -249,8 +268,9 @@ case "$MODE" in
 
     "all")
         log_info "启动 API 服务器 (端口 $API_PORT)..."
+        log_info "API 日志: $API_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src-api dev &
+        pnpm --filter src-api dev >> "$API_LOG" 2>&1 &
         API_PID=$!
 
         # 等待 API 启动
@@ -264,7 +284,8 @@ case "$MODE" in
         fi
 
         log_info "启动 Web 前端 (端口 $FRONTEND_PORT)..."
-        pnpm --filter src dev &
+        log_info "前端日志: $FRONTEND_LOG"
+        pnpm --filter src dev >> "$FRONTEND_LOG" 2>&1 &
         FRONTEND_PID=$!
 
         log_success "所有服务已启动!"

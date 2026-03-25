@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
-import { logger } from 'hono/logger'
 import { routes } from './routes'
 import { setAgentService as setNewAgentService } from './routes/agent-new'
 import { setSandboxService } from './routes/sandbox'
@@ -42,9 +41,22 @@ bootstrapRuntimeRecovery({
 
 // Initialize sandbox service (doesn't require API key)
 const workDir = getWorkDir()
-const sandboxService = await createSandboxService(workDir)
-setSandboxService(sandboxService)
-setPreviewSandboxService(sandboxService)
+let sandboxServicePromise: Promise<void> | null = null
+
+function initializeSandboxServices(): Promise<void> {
+  if (!sandboxServicePromise) {
+    sandboxServicePromise = createSandboxService(workDir).then((sandboxService) => {
+      setSandboxService(sandboxService)
+      setPreviewSandboxService(sandboxService)
+    })
+  }
+
+  return sandboxServicePromise
+}
+
+void initializeSandboxServices().catch((error) => {
+  console.error('Failed to initialize sandbox service:', error)
+})
 
 // Get skills config from settings
 function getSkillsConfig(): SkillsConfig {
@@ -168,7 +180,6 @@ try {
 }
 
 // Middleware
-app.use('*', logger())
 app.use('*', cors({
   origin: [getFrontendUrl(), 'http://localhost:1420', 'http://localhost:5173'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -210,6 +221,8 @@ async function findAvailablePort(startPort: number): Promise<number> {
 
 // Start server with port auto-selection
 async function startServer() {
+  await initializeSandboxServices()
+
   const defaultPort = parseInt(process.env.PORT || '2026', 10)
   const port = await findAvailablePort(defaultPort)
 

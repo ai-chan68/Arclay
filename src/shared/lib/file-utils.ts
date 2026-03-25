@@ -24,6 +24,21 @@ import {
 } from '../types/artifacts';
 
 /**
+ * Internal planning/scaffolding files written by the Agent execution framework.
+ * These should not appear as user-facing artifacts in the UI.
+ */
+const INTERNAL_PLANNING_FILENAMES = new Set([
+  'task_plan.md',
+  'progress.md',
+  'findings.md',
+]);
+
+function isInternalPlanningFile(filePath: string): boolean {
+  const filename = filePath.split(/[\/]/).pop() || '';
+  return INTERNAL_PLANNING_FILENAMES.has(filename);
+}
+
+/**
  * Extract file extension from filename
  */
 export function getFileExtension(filename: string): string {
@@ -111,8 +126,8 @@ export function extractFilesFromMessages(messages: AgentMessage[]): Artifact[] {
         if (input?.file_path || input?.path) {
           const filePath = String(input.file_path || input.path);
           const content = input.content || input.contents;
-          addArtifactFromPath(filePath);
 
+          // Do NOT register artifact yet — wait for tool_result to confirm success
           if (message.toolUseId) {
             pendingWritePayload.set(message.toolUseId, {
               filePath,
@@ -133,7 +148,8 @@ export function extractFilesFromMessages(messages: AgentMessage[]): Artifact[] {
 
       if (!isError && message.toolUseId) {
         const pendingWrite = pendingWritePayload.get(message.toolUseId);
-        if (pendingWrite?.content) {
+        if (pendingWrite) {
+          // Register artifact only after Write succeeds
           addArtifactFromPath(pendingWrite.filePath, pendingWrite.content);
         }
       }
@@ -157,6 +173,7 @@ function createArtifactAdder(artifacts: Artifact[]) {
   return (rawPath: string, content?: string): void => {
     const filePath = normalizePathCandidate(rawPath);
     if (!isLikelyLocalFilePath(filePath)) return;
+    if (isInternalPlanningFile(filePath)) return;
     const existing = artifacts.find(a => a.path === filePath);
     if (existing) {
       if (content && !existing.content && !shouldSkipContent(existing.type)) {

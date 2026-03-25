@@ -111,6 +111,27 @@ export async function resolveExecutionPostRun(
   )
 
   if (incompleteReason) {
+    const isPartialCompletion = incompleteReason.startsWith('PARTIAL_COMPLETION:')
+    if (isPartialCompletion) {
+      const detail = incompleteReason.slice('PARTIAL_COMPLETION:'.length)
+      return {
+        status: 'interrupted',
+        pendingInteractionCount: input.executionSummary.pendingInteractionCount,
+        activeTurn: pauseResult.activeTurn,
+        turnTransition: null,
+        executionAwaitingUser: false,
+        executionInterrupted: true,
+        executionFailed: false,
+        executionFailureReason: '',
+        messages: [{
+          id: input.createId('msg'),
+          type: 'result',
+          role: 'assistant',
+          content: `执行部分完成：${detail} 已产出的文件成果已保留，可继续执行以完成剩余步骤。`,
+          timestamp: (input.now || new Date()).getTime(),
+        }],
+      }
+    }
     return {
       status: 'failed',
       pendingInteractionCount: input.executionSummary.pendingInteractionCount,

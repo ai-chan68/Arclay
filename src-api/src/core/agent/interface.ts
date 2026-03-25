@@ -7,6 +7,7 @@
 
 import type { AgentMessage, AgentSessionInfo } from '@shared-types'
 import type { ProviderConfig, ToolDefinition } from '@shared-types'
+import type { TaskPlan } from '../../types/agent-new'
 
 /**
  * Options for agent execution
@@ -49,6 +50,8 @@ export interface AgentRunOptions {
   contextManager?: unknown
   /** Complexity hint from IntentClassifier for adaptive maxTurns */
   complexityHint?: 'simple' | 'medium' | 'complex'
+  /** Task plan for step-aware maxTurns calculation */
+  plan?: TaskPlan
   /** 工具执行回调（非 Claude Provider 多轮循环使用） */
   toolExecutor?: (
     name: string,

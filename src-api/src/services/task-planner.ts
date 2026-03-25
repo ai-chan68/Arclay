@@ -84,6 +84,15 @@ ${JSON.stringify(initialTodos, null, 2)}
 Then update the status as you progress through each step.
 IMPORTANT: Use Read before the first Edit on any of them.
 Do NOT use Write to replace task_plan.md, findings.md, or progress.md - use Edit or TodoWrite first.
+
+## CRITICAL: Completion Verification (MANDATORY BEFORE STOPPING)
+
+Before ending your execution, you MUST verify completion:
+1. Review your latest TodoWrite state — are ALL items marked 'completed'?
+2. If ANY item is still 'in_progress' or 'pending': DO NOT STOP — continue executing until done.
+3. Only stop when ALL todos are 'completed', OR you encounter an unrecoverable error.
+4. If you cannot complete a step due to an error, mark it 'failed' with a clear reason — NEVER leave it 'in_progress'.
+5. Do NOT stop just because you feel you have done enough — verify the TodoWrite status first.
 `
   }
 

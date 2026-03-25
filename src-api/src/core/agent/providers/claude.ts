@@ -4,7 +4,7 @@
  * 支持 Skills、MCP Servers、Sandbox 等高级功能
  */
 
-import { execSync } from 'child_process';
+import { createRequire } from 'module';
 import { cpSync, existsSync, readdirSync, rmSync } from 'fs';
 import { appendFile, mkdir, writeFile } from 'fs/promises';
 import { homedir, platform, arch } from 'os';
@@ -497,6 +497,21 @@ User's request (answer this AFTER reading the images):
         prompt;
 
       // Use a simple query to get the plan - NO TOOLS for planning phase
+      const claudeCodePath = await this.ensureClaudeCode();
+      if (!claudeCodePath) {
+        yield {
+          id: this.generateMessageId(),
+          type: 'error' as AgentMessageType,
+          errorMessage: '__CLAUDE_CODE_NOT_FOUND__',
+          timestamp: Date.now(),
+        };
+        yield {
+          id: this.generateMessageId(),
+          type: 'done' as AgentMessageType,
+          timestamp: Date.now(),
+        };
+        return;
+      }
       const queryOptions: Options = {
         cwd: options?.cwd || process.cwd(),
         tools: { type: 'preset', preset: 'claude_code' },
@@ -506,6 +521,7 @@ User's request (answer this AFTER reading the images):
         abortController: signal ? { signal } as AbortController : undefined,
         env: this.buildEnvConfig(),
         model: this.config.model,
+        pathToClaudeCodeExecutable: claudeCodePath,
         maxTurns: 1, // Single turn for planning
       };
 
@@ -521,7 +537,8 @@ User's request (answer this AFTER reading the images):
       let planningResult = this.parsePlanningResponse(fullResponse);
 
       // Retry once with a stricter JSON-only suffix when parsing fails.
-      if (planningResult.type === 'unknown' && !signal.aborted) {
+      // Skip retry if model already returned tool-use blocks — retrying won't help and just wastes time.
+      if (planningResult.type === 'unknown' && !signal.aborted && !hasToolUse) {
         const strictJsonPrompt = `${planningPrompt}
 
 IMPORTANT:
@@ -1642,10 +1659,23 @@ IMPORTANT:
 
     // 动态计算 maxTurns：优先使用 IntentClassifier 的 complexityHint，否则 fallback 到正则匹配
     const COMPLEXITY_MAX_TURNS = { simple: 30, medium: 60, complex: 120 } as const;
-    const maxTurns = options?.complexityHint
+    const TURNS_PER_STEP = 15;
+    const MAX_TURNS_HARD_CAP = 300;
+    let maxTurns = options?.complexityHint
       ? COMPLEXITY_MAX_TURNS[options.complexityHint]
       : (prompt ? detectTaskComplexity(prompt) : TASK_COMPLEXITY.MAX.maxTurns);
-    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (hint=${options?.complexityHint || 'none'})`);
+    // Plan-aware maxTurns: scale up based on number of steps or estimated iterations
+    if (options?.plan) {
+      const plan = options.plan;
+      const iterationBased = plan.estimatedIterations
+        ? Math.ceil(plan.estimatedIterations / 10) * TURNS_PER_STEP
+        : plan.steps.length * TURNS_PER_STEP;
+      const planBasedTurns = Math.min(iterationBased, MAX_TURNS_HARD_CAP);
+      if (planBasedTurns > maxTurns) {
+        maxTurns = planBasedTurns;
+      }
+    }
+    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (hint=${options?.complexityHint || 'none'}, planSteps=${options?.plan?.steps.length ?? 'n/a'}, estimatedIterations=${options?.plan?.estimatedIterations ?? 'n/a'})`);
 
     const queryOptions: Options = {
       cwd,
@@ -1995,110 +2025,28 @@ Prioritize these skills when they are relevant.
   }
 
   /**
-   * 确保 Claude Code 已安装
+   * 使用 SDK 内置的 cli.js
+   * 项目依赖 @anthropic-ai/claude-agent-sdk，直接使用其内置 cli.js，无需查找外部 claude 二进制
    */
   private async ensureClaudeCode(): Promise<string | undefined> {
     if (this.claudeCodePath) {
       return this.claudeCodePath;
     }
 
-    const os = platform();
-    const extendedEnv = { ...process.env, PATH: this.getExtendedPath() };
+    // SDK cli.js 使用 `#!/usr/bin/env node` shebang，spawn 时依赖进程 PATH 找到 node
+    // Tauri sidecar 环境 PATH 被剥离，需要提前写回扩展 PATH
+    process.env.PATH = this.getExtendedPath();
 
-    // 1. 尝试通过 which/where 查找
-    try {
-      if (os === 'win32') {
-        const result = execSync('where claude', {
-          encoding: 'utf-8',
-          stdio: 'pipe',
-          env: extendedEnv,
-        }).trim();
-        const firstPath = result.split('\n')[0];
-        if (firstPath && existsSync(firstPath)) {
-          this.claudeCodePath = firstPath;
-          console.log(`[Claude] Found Claude Code at: ${firstPath}`);
-          return this.claudeCodePath;
-        }
-      } else {
-        // 尝试使用 login shell
-        try {
-          const shellResult = execSync('bash -l -c "which claude"', {
-            encoding: 'utf-8',
-            stdio: 'pipe',
-            env: extendedEnv,
-          }).trim();
-          if (shellResult && existsSync(shellResult)) {
-            this.claudeCodePath = shellResult;
-            console.log(`[Claude] Found Claude Code at: ${shellResult}`);
-            return this.claudeCodePath;
-          }
-        } catch {
-          // Try zsh
-          try {
-            const zshResult = execSync('zsh -l -c "which claude"', {
-              encoding: 'utf-8',
-              stdio: 'pipe',
-              env: extendedEnv,
-            }).trim();
-            if (zshResult && existsSync(zshResult)) {
-              this.claudeCodePath = zshResult;
-              console.log(`[Claude] Found Claude Code at: ${zshResult}`);
-              return this.claudeCodePath;
-            }
-          } catch {
-            // Fall through
-          }
-        }
-
-        // Fallback: simple which
-        const result = execSync('which claude', {
-          encoding: 'utf-8',
-          stdio: 'pipe',
-          env: extendedEnv,
-        }).trim();
-        if (result && existsSync(result)) {
-          this.claudeCodePath = result;
-          console.log(`[Claude] Found Claude Code at: ${result}`);
-          return this.claudeCodePath;
-        }
-      }
-    } catch {
-      // which/where failed
+    const require = createRequire(import.meta.url);
+    const sdkCliPath = require.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
+    if (!existsSync(sdkCliPath)) {
+      console.error(`[Claude] SDK cli.js not found at: ${sdkCliPath}`);
+      return undefined;
     }
 
-    // 2. 检查常见安装路径
-    const home = homedir();
-    const commonPaths =
-      os === 'win32'
-        ? [
-            join(home, 'AppData', 'Local', 'Programs', 'claude', 'claude.exe'),
-            join(home, 'AppData', 'Roaming', 'npm', 'claude.cmd'),
-          ]
-        : [
-            '/usr/local/bin/claude',
-            '/opt/homebrew/bin/claude',
-            join(home, '.local', 'bin', 'claude'),
-            join(home, '.npm-global', 'bin', 'claude'),
-            join(home, '.volta', 'bin', 'claude'),
-          ];
-
-    for (const p of commonPaths) {
-      if (existsSync(p)) {
-        this.claudeCodePath = p;
-        console.log(`[Claude] Found Claude Code at: ${p}`);
-        return this.claudeCodePath;
-      }
-    }
-
-    // 3. 检查环境变量
-    if (process.env.CLAUDE_CODE_PATH && existsSync(process.env.CLAUDE_CODE_PATH)) {
-      this.claudeCodePath = process.env.CLAUDE_CODE_PATH;
-      console.log(`[Claude] Using CLAUDE_CODE_PATH: ${this.claudeCodePath}`);
-      return this.claudeCodePath;
-    }
-
-    console.warn('[Claude] Claude Code not found');
-    return undefined;
+    this.claudeCodePath = sdkCliPath;
+    console.log(`[Claude] Using bundled SDK cli.js at: ${sdkCliPath}`);
+    return this.claudeCodePath;
   }
 
   /**

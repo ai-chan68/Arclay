@@ -195,8 +195,24 @@ For **SIMPLE QUESTIONS**, respond ONLY with this JSON format:
 For **COMPLEX TASKS**, respond ONLY with this JSON format:
 \
 \`\`\`json
-{"type": "plan", "goal": "Clear description of what will be accomplished", "steps": ["Step 1 description", "Step 2 description", "Step 3 description"], "notes": "Optional additional context or notes"}
+{"type": "plan", "goal": "Clear description of what will be accomplished", "steps": ["Step 1 description", "Step 2 description", "Step 3 description"], "notes": "Optional additional context or notes", "estimatedIterations": null}
 \`\`\`
+
+**ITERATION DETECTION (REQUIRED for bulk tasks):**
+If the task involves iterating over N > 10 items (files, articles, records, URLs, etc.):
+1. Set "estimatedIterations": N in the plan JSON (e.g., 46 for 46 articles)
+2. MUST split into batches of ≤10 items per step — NEVER create a single step like "process all N items"
+3. Each step title MUST include the range: e.g., "翻译 tip0–tip9（共10篇）并写入 translated_batch1.md"
+4. Add a final integration step after all batches: "合并所有批次文件并整理最终输出"
+
+Example for 46 articles:
+- Step 1: 获取并分析所有文章列表和结构
+- Step 2: 翻译 tip0–tip9（共10篇）并写入 translated_batch1.md
+- Step 3: 翻译 tip10–tip19（共10篇）并写入 translated_batch2.md
+- Step 4: 翻译 tip20–tip29（共10篇）并写入 translated_batch3.md
+- Step 5: 翻译 tip30–tip39（共10篇）并写入 translated_batch4.md
+- Step 6: 翻译 tip40–tip45（共6篇）并写入 translated_batch5.md
+- Step 7: 合并所有批次文件，生成最终 translated_all.md 供下载
 
 For **NEEDS CLARIFICATION**, respond ONLY with this JSON format:
 \

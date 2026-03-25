@@ -7,6 +7,7 @@ export interface TaskPlan {
   goal: string
   steps: PlanStep[]
   notes?: string
+  estimatedIterations?: number
   createdAt: Date
 }
 

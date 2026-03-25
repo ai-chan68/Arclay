@@ -36,7 +36,7 @@ export interface ResolveExecutionEntryInput extends ExecutionEntryPassthrough {
     sessionId: string,
     attachments?: MessageAttachment[],
     conversation?: ConversationMessage[],
-    context?: { workDir: string; taskId: string }
+    context?: { workDir: string; taskId: string; plan?: import('../types/agent-new').TaskPlan }
   ) => AsyncIterable<AgentMessage>
   capturePendingInteraction: (
     message: AgentMessage,
@@ -191,6 +191,7 @@ export function resolveExecutionEntry(
       {
         workDir: passthrough.effectiveWorkDir,
         taskId: passthrough.executionTaskId,
+        plan: passthrough.plan,
       }
     ),
     processExecutionMessage: async (message, observation) => {

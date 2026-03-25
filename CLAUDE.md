@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication Language
+
+Always respond to the user in Simplified Chinese.
+Code, file content, commit messages, and tool outputs remain in their original language.
+
 ## Project Overview
 
 **EasyWork** is a desktop AI assistant that executes tasks through natural language. Built with Tauri 2 (desktop) + React 19 (frontend) + Hono (backend API), powered by Claude Agent SDK.
