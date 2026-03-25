@@ -4,6 +4,8 @@
  * System prompts to guide agent behavior and tool usage
  */
 
+import { getMemoryToolInstruction } from '../../services/memory/memory-tool'
+
 /**
  * Get the default system prompt for the agent
  * This tells the LLM how to behave as an agent with tools
@@ -146,6 +148,8 @@ DO NOT try workarounds like:
 - ✅ CORRECT: \`ls -la\` shows empty dir → report "Directory is empty" to user
 
 Remember: You are an agent with real tools. Execute tasks by calling tools, not by describing them.
+
+${getMemoryToolInstruction(workDir)}
 `
 }
 

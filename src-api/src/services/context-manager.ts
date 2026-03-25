@@ -11,6 +11,8 @@
 import { join } from 'path'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
+import type { MemoryStore } from './memory/memory-store'
+import { MemoryInjector } from './memory/memory-injector'
 
 export interface SessionContext {
   sessionId: string
@@ -34,9 +36,14 @@ export class ContextManager {
   private sessionContext: SessionContext | null = null
   // Work directory root
   private workDir: string
+  // Memory injector (optional — backward compatible)
+  private memoryInjector: MemoryInjector | null = null
 
-  constructor(workDir: string) {
+  constructor(workDir: string, memoryStore?: MemoryStore) {
     this.workDir = workDir
+    if (memoryStore) {
+      this.memoryInjector = new MemoryInjector(memoryStore)
+    }
   }
 
   private sessionDir(sessionId: string): string {
@@ -160,7 +167,17 @@ export class ContextManager {
 
   // --- Context prompt injection ---
 
-  buildContextPrompt(): string {
+  async buildContextPrompt(): Promise<string> {
+    // If memory system is available, delegate to MemoryInjector
+    if (this.memoryInjector) {
+      return this.memoryInjector.buildMemoryPrompt(this.sessionContext)
+    }
+
+    // Fallback: original logic (backward compatible)
+    return this.buildLegacyContextPrompt()
+  }
+
+  private buildLegacyContextPrompt(): string {
     if (!this.sessionContext) return ''
     const parts: string[] = []
 

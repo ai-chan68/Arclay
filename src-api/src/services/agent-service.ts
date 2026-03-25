@@ -24,6 +24,9 @@ import { agentRegistry } from '../core/agent/registry'
 import { getDefaultSystemPrompt } from '../core/agent/system-prompt'
 import { ContextManager } from './context-manager'
 import { intentClassifier } from './intent-classifier'
+import { MemoryStore } from './memory/memory-store'
+import { HistoryLogger } from './memory/history-logger'
+import { generateDailySummary } from './memory/daily-memory'
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -380,9 +383,10 @@ ${categoryInstructions.join('\n---\n')}
     console.log(`[AgentService] Intent: ${classification.primaryIntent} (confidence=${classification.confidence.toFixed(2)}, complexity=${classification.complexity})`)
 
     // --- Context management (Tasks 5.3–5.5) ---
-    const contextManager = new ContextManager(baseWorkDir)
+    const memoryStore = new MemoryStore(baseWorkDir)
+    const contextManager = new ContextManager(baseWorkDir, memoryStore)
     await contextManager.load(effectiveSessionId)
-    const contextPrompt = contextManager.buildContextPrompt()
+    const contextPrompt = await contextManager.buildContextPrompt()
 
     // Build system prompt, injecting session context when available
     let systemPrompt =
@@ -409,9 +413,13 @@ ${categoryInstructions.join('\n---\n')}
       plan: streamOptions?.plan,
     }
 
+    const historyLogger = new HistoryLogger(memoryStore, effectiveSessionId)
+
     try {
       for await (const message of agent.stream(enhancedPrompt, options)) {
         yield message
+        // Record execution trace to JSONL (non-blocking, errors logged not thrown)
+        historyLogger.logAgentMessage(message).catch(() => {})
       }
     } catch (error) {
       yield {
@@ -423,6 +431,23 @@ ${categoryInstructions.join('\n---\n')}
     } finally {
       // Persist session context after execution
       await contextManager.save(effectiveSessionId)
+      await historyLogger.logCompletion()
+      // Generate daily memory from execution history
+      try {
+        const dailySummary = await generateDailySummary(effectiveSessionId, memoryStore)
+        if (dailySummary) {
+          const session = contextManager.getSession()
+          if (session) {
+            const existing = session.conversationSummary
+            session.conversationSummary = existing
+              ? `${existing}\n\n${dailySummary}`
+              : dailySummary
+            await contextManager.save(effectiveSessionId)
+          }
+        }
+      } catch (err) {
+        console.warn('[AgentService] Failed to generate daily memory:', err)
+      }
       this.runningSessions.delete(effectiveSessionId)
     }
   }

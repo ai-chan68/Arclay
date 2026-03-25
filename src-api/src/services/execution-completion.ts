@@ -49,29 +49,36 @@ function looksLikeInteractiveBlocker(text: string): boolean {
   const normalized = normalizeInteractiveBlockerText(text)
   if (!normalized) return false
 
-  const blockerPatterns = [
+  const explicitUserActionPatterns = [
     /等待用户/i,
     /需要用户/i,
     /需要你/i,
+    /需要您的/i,
     /请你/i,
-    /请先/i,
+    /(?:^|[\s，。！？；:：\(（【\[]+)请先.*回复我继续/i,
+    /(?:^|[\s，。！？；:：\(（【\[]+)请先.*再继续/i,
+    /(?:^|[\s，。！？；:：\(（【\[]+)请(?:完成|处理|提供|确认|回复|选择|登录|授权)/i,
     /回复我继续/i,
+    /需要.*才能继续/i,
     /provide.*login/i,
+    /provide.*credential/i,
+    /need.*your/i,
     /need.*login/i,
     /waiting for user/i,
     /user input/i,
-    /manual/i,
-    /登录/,
-    /认证/,
-    /验证码/,
-    /verify/,
-    /approve/,
-    /approval/,
-    /confirm/,
+    /manual (?:step|action|intervention)/i,
+    /confirm.*continue/i,
     /captcha/i,
   ]
 
-  return blockerPatterns.some((pattern) => pattern.test(normalized))
+  if (explicitUserActionPatterns.some((pattern) => pattern.test(normalized))) {
+    return true
+  }
+
+  const authKeywordPattern = /登录|认证|验证码|verify|approve|approval|confirm|captcha/i
+  const continuationCuePattern = /无法继续|继续之前|才能继续|before continuing|to continue/i
+
+  return authKeywordPattern.test(normalized) && continuationCuePattern.test(normalized)
 }
 
 export function detectBrowserToolBlockerText(text: string): ExecutionBlockerCandidate | null {

@@ -103,14 +103,14 @@ describe('ContextManager', () => {
   })
 
   describe('buildContextPrompt()', () => {
-    it('returns empty string when no context loaded', () => {
-      expect(mgr.buildContextPrompt()).toBe('')
+    it('returns empty string when no context loaded', async () => {
+      expect(await mgr.buildContextPrompt()).toBe('')
     })
 
     it('includes active files in prompt', async () => {
       await mgr.load(sessionId)
       mgr.trackFile('/tmp/foo.ts')
-      const prompt = mgr.buildContextPrompt()
+      const prompt = await mgr.buildContextPrompt()
       expect(prompt).toContain('/tmp/foo.ts')
     })
 
@@ -118,7 +118,7 @@ describe('ContextManager', () => {
       const ctx = await mgr.load(sessionId)
       ctx.conversationSummary = 'summary from prior request'
 
-      const prompt = mgr.buildContextPrompt()
+      const prompt = await mgr.buildContextPrompt()
 
       expect(prompt).toContain('summary from prior request')
     })

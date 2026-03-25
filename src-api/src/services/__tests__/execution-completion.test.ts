@@ -88,6 +88,37 @@ describe('buildExecutionBlockerCandidate', () => {
     expect(candidate?.reason).toContain('登录')
     expect(candidate?.userMessage).toContain('请处理后回复我继续')
   })
+
+  it('treats assistant instructions that explicitly ask the user to act as blockers', () => {
+    const message: AgentMessage = {
+      id: 'assistant_login_blocker',
+      type: 'text',
+      role: 'assistant',
+      content: '当前页面仍停留在登录/认证流程，请先完成登录后回复我继续。',
+      timestamp: 1,
+    }
+
+    const candidate = buildExecutionBlockerCandidate(message)
+    expect(candidate).toBeTruthy()
+    expect(candidate?.userMessage).toContain('回复我继续')
+  })
+
+  it('does not treat descriptive execution summaries as user-action blockers', () => {
+    const message: AgentMessage = {
+      id: 'assistant_summary_text',
+      type: 'text',
+      role: 'assistant',
+      content: [
+        '## bb-browser 执行原理总结',
+        '它的核心思路是复用真实浏览器登录态，而不是自己模拟登录。',
+        'Daemon 层负责路由请求，Chrome 扩展层负责接收命令并与浏览器交互。',
+        '适配器可以根据站点认证方式选择 Cookie、Bearer Token + CSRF，或直接调用页面内部状态。',
+      ].join('\n'),
+      timestamp: 1,
+    }
+
+    expect(buildExecutionBlockerCandidate(message)).toBeNull()
+  })
 })
 
 describe('shouldTreatMaxTurnsAsInterrupted', () => {
@@ -132,7 +163,9 @@ describe('detectIncompleteExecution', () => {
       createPlan()
     )
 
-    expect(reason).toBe('Execution ended before completing all planned steps.')
+    expect(reason).toBe(
+      'PARTIAL_COMPLETION:1/2 steps completed. Execution ended before completing all planned steps.'
+    )
   })
 })
 
