@@ -95,9 +95,6 @@ export class HistoryLogger {
     const record: HistoryRecord = {
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
-      taskId: this.sessionId,
-      turnId: null,
-      runId: this.sessionId,
       type,
       content: extractContent(message),
       metadata: extractMetadata(message),
@@ -118,9 +115,6 @@ export class HistoryLogger {
     const record: HistoryRecord = {
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
-      taskId: this.sessionId,
-      turnId: null,
-      runId: this.sessionId,
       type: 'done',
       content: summary || 'turn completed',
     }
