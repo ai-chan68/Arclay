@@ -58,3 +58,4 @@ src-api/workspace/sessions/
 .easywork/
 .playwright-cli/
 src-tauri/binaries/
+.worktrees/
