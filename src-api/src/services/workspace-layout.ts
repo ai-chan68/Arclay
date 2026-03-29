@@ -52,3 +52,7 @@ export function resolveTaskContextPath(baseWorkDir: string, taskId: string): str
 export function resolveTaskHistoryPath(baseWorkDir: string, taskId: string): string {
   return path.join(resolveTaskWorkspaceDir(baseWorkDir, taskId), 'history.jsonl')
 }
+
+export function resolveTurnHistoryPath(baseWorkDir: string, taskId: string, turnId: string): string {
+  return path.join(resolveTurnWorkspaceDir(baseWorkDir, taskId, turnId), 'history.jsonl')
+}

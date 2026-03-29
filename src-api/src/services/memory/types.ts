@@ -38,6 +38,9 @@ export type HistoryRecordType =
 export interface HistoryRecord {
   readonly timestamp: string          // ISO 8601
   readonly sessionId: string
+  readonly taskId: string
+  readonly turnId: string | null
+  readonly runId: string | null
   readonly type: HistoryRecordType
   readonly content: string
   readonly metadata?: Record<string, unknown>

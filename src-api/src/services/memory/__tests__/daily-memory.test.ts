@@ -28,12 +28,18 @@ describe('generateDailySummary', () => {
       {
         timestamp: '2026-03-26T09:33:14.239Z',
         sessionId: 'run_1',
+        taskId: 'task_daily_summary',
+        turnId: null,
+        runId: 'run_1',
         type: 'agent_response',
         content: '我来帮您查询今天杭州的天气情况。',
       },
       {
         timestamp: '2026-03-26T09:33:18.167Z',
         sessionId: 'run_1',
+        taskId: 'task_daily_summary',
+        turnId: null,
+        runId: 'run_1',
         type: 'tool_use',
         content: 'WebSearch: {"query":"杭州今天天气 2026年3月26日"}',
         metadata: { toolName: 'WebSearch' },
@@ -58,6 +64,9 @@ describe('generateDailySummary', () => {
       {
         timestamp: '2026-03-26T09:33:14.239Z',
         sessionId: 'run_2',
+        taskId: 'task_daily_summary',
+        turnId: null,
+        runId: 'run_2',
         type: 'plan',
         content: 'goal: 翻译GitHub项目中的所有46篇tip文章',
       },

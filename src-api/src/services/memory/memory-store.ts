@@ -12,7 +12,7 @@ import { dirname, join } from 'path'
 import { readFile, appendFile, mkdir, readdir, rename, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import type { MemoryEntry, HistoryRecord } from './types'
-import { resolveTaskHistoryPath } from '../workspace-layout'
+import { resolveTaskHistoryPath, resolveTurnHistoryPath } from '../workspace-layout'
 
 const MEMORY_FILE = 'memory.md'
 const DAILY_DIR = 'memory/daily'
@@ -149,21 +149,26 @@ export class MemoryStore {
   // JSONL session history
   // ---------------------------------------------------------------------------
 
+  private taskHistoryPath(taskId: string): string {
+    return resolveTaskHistoryPath(this.workDir, this.historyScopeId || taskId)
+  }
+
+  private turnHistoryPath(taskId: string, turnId: string): string {
+    return resolveTurnHistoryPath(this.workDir, this.historyScopeId || taskId, turnId)
+  }
+
   private historyPath(sessionId: string): string {
-    return resolveTaskHistoryPath(this.workDir, this.historyScopeId || sessionId)
+    return this.taskHistoryPath(sessionId)
   }
 
   async appendHistory(sessionId: string, record: HistoryRecord): Promise<void> {
-    const targetPath = this.historyPath(sessionId)
-    await this.ensureDir(dirname(targetPath))
-    const line = JSON.stringify(record) + '\n'
-    await appendFile(targetPath, line, 'utf-8')
+    await this.appendTaskHistory(sessionId, record)
   }
 
   async loadHistory(sessionId: string): Promise<HistoryRecord[]> {
     let raw: string
     try {
-      raw = await readFile(this.historyPath(sessionId), 'utf-8')
+      raw = await readFile(this.taskHistoryPath(sessionId), 'utf-8')
     } catch {
       return []
     }
@@ -179,6 +184,20 @@ export class MemoryStore {
       }
     }
     return records
+  }
+
+  async appendTaskHistory(taskId: string, record: HistoryRecord): Promise<void> {
+    const targetPath = this.taskHistoryPath(taskId)
+    await this.ensureDir(dirname(targetPath))
+    const line = JSON.stringify(record) + '\n'
+    await appendFile(targetPath, line, 'utf-8')
+  }
+
+  async appendTurnHistory(taskId: string, turnId: string, record: HistoryRecord): Promise<void> {
+    const targetPath = this.turnHistoryPath(taskId, turnId)
+    await this.ensureDir(dirname(targetPath))
+    const line = JSON.stringify(record) + '\n'
+    await appendFile(targetPath, line, 'utf-8')
   }
 
   // ---------------------------------------------------------------------------
