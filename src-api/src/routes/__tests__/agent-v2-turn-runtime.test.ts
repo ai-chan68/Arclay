@@ -215,6 +215,38 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     expect(getFirstTurnState(resumeSecondEvents, 'awaiting_approval')).not.toBeNull()
   })
 
+  it('returns session review docs in the runtime snapshot when they exist', async () => {
+    const taskId = `task_runtime_docs_${Date.now()}`
+    const sessionDir = path.join(tempHome, 'sessions', taskId)
+    fs.mkdirSync(sessionDir, { recursive: true })
+    fs.writeFileSync(path.join(sessionDir, 'task_plan.md'), '# Task Plan', 'utf-8')
+    fs.writeFileSync(path.join(sessionDir, 'progress.md'), '# Progress Log', 'utf-8')
+
+    const response = await app.request(`/api/v2/agent/runtime/${taskId}`)
+    expect(response.status).toBe(200)
+
+    const payload = await response.json() as {
+      taskId: string
+      sessionDocs?: Array<{ name?: string; path?: string; type?: string }>
+    }
+
+    expect(payload.taskId).toBe(taskId)
+    expect(payload.sessionDocs).toEqual([
+      {
+        id: 'session-doc-task-plan-md',
+        name: 'task_plan.md',
+        path: path.join(sessionDir, 'task_plan.md'),
+        type: 'markdown',
+      },
+      {
+        id: 'session-doc-progress-md',
+        name: 'progress.md',
+        path: path.join(sessionDir, 'progress.md'),
+        type: 'markdown',
+      },
+    ])
+  })
+
   it('rejects execute when readVersion mismatches runtime version', async () => {
     const taskId = `task_turn_version_${Date.now()}`
     const planRes = await app.request('/api/v2/agent/plan', {
@@ -391,6 +423,65 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     const sessionEvent = planEvents.find((event) => event.event === 'session' && event.data)
     expect(sessionEvent?.data?.sessionId).toBeTruthy()
     expect(sessionEvent?.data?.sessionId).not.toBe(clientSessionId)
+  })
+
+  it('persists planning turn detail and serves it from the detail endpoint', async () => {
+    const taskId = `task_turn_detail_${Date.now()}`
+    const planRes = await app.request('/api/v2/agent/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: '帮我分析项目并生成执行计划',
+        taskId,
+      }),
+    })
+    expect(planRes.status).toBe(200)
+    const planText = await planRes.text()
+    const planEvents = parseSseEvents(planText)
+    const awaitingTurn = getFirstTurnState(planEvents, 'awaiting_approval')
+    expect(awaitingTurn).not.toBeNull()
+    const turnId = String(awaitingTurn?.turnId || '')
+    expect(turnId.length).toBeGreaterThan(0)
+
+    const detailRes = await app.request(`/api/v2/agent/turn/${encodeURIComponent(turnId)}/detail`)
+    expect(detailRes.status).toBe(200)
+    const detailBody = await detailRes.json() as {
+      detail?: {
+        summaryText?: string | null
+        planSnapshot?: { goal?: string }
+      }
+    }
+
+    expect(detailBody.detail?.summaryText).toContain('帮我分析项目并生成执行计划')
+    expect(detailBody.detail?.planSnapshot?.goal).toBe('帮我分析项目并生成执行计划')
+  })
+
+  it('serves the latest pending approval plan for a task turn', async () => {
+    const taskId = `task_pending_plan_${Date.now()}`
+    const planRes = await app.request('/api/v2/agent/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: '帮我规划一个需要审批的复杂任务',
+        taskId,
+      }),
+    })
+    expect(planRes.status).toBe(200)
+    const planText = await planRes.text()
+    const planEvents = parseSseEvents(planText)
+    const awaitingTurn = getFirstTurnState(planEvents, 'awaiting_approval')
+    expect(awaitingTurn).not.toBeNull()
+    const turnId = String(awaitingTurn?.turnId || '')
+    expect(turnId.length).toBeGreaterThan(0)
+
+    const pendingPlanRes = await app.request(
+      `/api/v2/agent/task/${encodeURIComponent(taskId)}/pending-plan?turnId=${encodeURIComponent(turnId)}`
+    )
+    expect(pendingPlanRes.status).toBe(200)
+    const pendingPlan = await pendingPlanRes.json() as { goal?: string; id?: string }
+
+    expect(pendingPlan.id).toBeTruthy()
+    expect(pendingPlan.goal).toContain('帮我规划一个需要审批的复杂任务')
   })
 
   it('keeps pending approvals query-compatible with legacy sessionId filter', async () => {

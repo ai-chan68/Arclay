@@ -179,6 +179,87 @@ describe('buildTurnDisplayModel', () => {
     })
   })
 
+  it('uses persisted output text when no streamed result message is available', () => {
+    const buildTurnDisplayModel = (taskTurnDisplay as Record<string, unknown>).buildTurnDisplayModel as
+      | ((input: Record<string, unknown>) => Record<string, unknown>)
+      | undefined
+
+    expect(buildTurnDisplayModel).toBeTypeOf('function')
+
+    const model = buildTurnDisplayModel!({
+      isStopped: false,
+      isRunning: false,
+      taskStatus: 'completed',
+      hasError: false,
+      isLatestTurn: true,
+      isAwaitingApproval: false,
+      isAwaitingClarification: false,
+      hasPlanForApproval: false,
+      hasExecutionTrace: true,
+      hasResultMessage: false,
+      artifacts: [],
+      hasPendingPermission: false,
+      hasPendingQuestion: false,
+      hasLatestApprovalTerminal: false,
+      hasPlan: true,
+      isTurnComplete: true,
+      resultMessage: null,
+      persistedOutputText: '这是从 output.md 恢复的最终输出',
+    })
+
+    expect(model.availableResult).toMatchObject({
+      kind: 'text',
+      text: '这是从 output.md 恢复的最终输出',
+    })
+    expect(model.visibleResult).toMatchObject({
+      kind: 'text',
+      text: '这是从 output.md 恢复的最终输出',
+    })
+  })
+
+  it('prefers persisted output text over streamed assistant summary for completed turns', () => {
+    const resultMessage = createMessage({
+      id: 'summary1',
+      type: 'text',
+      role: 'assistant',
+      content: '所有内容已获取并总结完成。',
+      isTemporary: false,
+      timestamp: 1,
+    })
+
+    const buildTurnDisplayModel = (taskTurnDisplay as Record<string, unknown>).buildTurnDisplayModel as
+      | ((input: Record<string, unknown>) => Record<string, unknown>)
+      | undefined
+
+    expect(buildTurnDisplayModel).toBeTypeOf('function')
+
+    const model = buildTurnDisplayModel!({
+      isStopped: false,
+      isRunning: false,
+      taskStatus: 'completed',
+      hasError: false,
+      isLatestTurn: true,
+      isAwaitingApproval: false,
+      isAwaitingClarification: false,
+      hasPlanForApproval: false,
+      hasExecutionTrace: true,
+      hasResultMessage: true,
+      artifacts: [],
+      hasPendingPermission: false,
+      hasPendingQuestion: false,
+      hasLatestApprovalTerminal: false,
+      hasPlan: true,
+      isTurnComplete: true,
+      resultMessage,
+      persistedOutputText: '## 三篇文章总结\n\n这里是完整正文。',
+    })
+
+    expect(model.visibleResult).toMatchObject({
+      kind: 'text',
+      text: '## 三篇文章总结\n\n这里是完整正文。',
+    })
+  })
+
   it('keeps a live planning turn in planning phase before execution actually starts', () => {
     const buildTurnDisplayModel = (taskTurnDisplay as Record<string, unknown>).buildTurnDisplayModel as
       | ((input: Record<string, unknown>) => Record<string, unknown>)

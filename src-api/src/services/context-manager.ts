@@ -13,6 +13,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import type { MemoryStore } from './memory/memory-store'
 import { MemoryInjector } from './memory/memory-injector'
+import { resolveTaskWorkspaceDir } from './workspace-layout'
 
 export interface SessionContext {
   sessionId: string
@@ -36,18 +37,21 @@ export class ContextManager {
   private sessionContext: SessionContext | null = null
   // Work directory root
   private workDir: string
+  // Task-scoped storage root (optional)
+  private storageRootId?: string
   // Memory injector (optional — backward compatible)
   private memoryInjector: MemoryInjector | null = null
 
-  constructor(workDir: string, memoryStore?: MemoryStore) {
+  constructor(workDir: string, memoryStore?: MemoryStore, storageRootId?: string) {
     this.workDir = workDir
+    this.storageRootId = storageRootId?.trim() || undefined
     if (memoryStore) {
       this.memoryInjector = new MemoryInjector(memoryStore)
     }
   }
 
   private sessionDir(sessionId: string): string {
-    return join(this.workDir, 'sessions', sessionId)
+    return resolveTaskWorkspaceDir(this.workDir, this.storageRootId || sessionId)
   }
 
   // --- Session persistence ---

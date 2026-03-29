@@ -3,7 +3,7 @@ import type { AgentRun } from '../agent-run-store'
 import type { TaskPlan } from '../../types/agent-new'
 import type { PlanRecord } from '../../types/plan-store'
 import type { TaskRuntimeRecord, TurnArtifactRecord, TurnRecord } from '../../types/turn-runtime'
-import { resolvePlanLookupRequest, resolvePlanRejectRequest, resolveRunStatusRequest, resolveStopSessionRequest, resolveTaskRuntimeRequest, resolveTurnLookupRequest } from '../runtime-request'
+import { resolvePendingPlanLookupRequest, resolvePlanLookupRequest, resolvePlanRejectRequest, resolveRunStatusRequest, resolveStopSessionRequest, resolveTaskRuntimeRequest, resolveTurnDetailRequest, resolveTurnLookupRequest } from '../runtime-request'
 
 function createRun(overrides: Partial<AgentRun> = {}): AgentRun {
   return {
@@ -158,6 +158,40 @@ describe('runtime-request', () => {
     })
   })
 
+  it('looks up pending plans by task/turn for approval-state recovery', () => {
+    const ready = resolvePendingPlanLookupRequest({
+      taskId: 'task_runtime_request',
+      turnId: 'turn_runtime_request',
+      getPendingPlan: vi.fn(() => createPlan()),
+    })
+    expect(ready.statusCode).toBe(200)
+    expect(ready.body).toEqual(createPlan())
+
+    const invalid = resolvePendingPlanLookupRequest({
+      taskId: '',
+      turnId: 'turn_runtime_request',
+      getPendingPlan: vi.fn(),
+    })
+    expect(invalid).toEqual({
+      statusCode: 400,
+      body: {
+        error: 'taskId is required',
+      },
+    })
+
+    const missing = resolvePendingPlanLookupRequest({
+      taskId: 'task_runtime_request',
+      turnId: 'turn_runtime_request',
+      getPendingPlan: vi.fn(() => null),
+    })
+    expect(missing).toEqual({
+      statusCode: 404,
+      body: {
+        error: 'Pending plan not found',
+      },
+    })
+  })
+
   it('builds task runtime snapshot and validates taskId presence', () => {
     const artifacts: TurnArtifactRecord[] = [
       {
@@ -173,6 +207,14 @@ describe('runtime-request', () => {
       getRuntime: vi.fn(() => createRuntime()),
       listTurns: vi.fn(() => [createTurn()]),
       listArtifacts: vi.fn(() => artifacts),
+      listSessionDocuments: vi.fn(() => [
+        {
+          id: 'session-doc-task-plan-md',
+          name: 'task_plan.md',
+          path: '/tmp/task_runtime_request/task_plan.md',
+          type: 'markdown',
+        },
+      ]),
     })
     expect(ready).toEqual({
       statusCode: 200,
@@ -181,6 +223,14 @@ describe('runtime-request', () => {
         runtime: createRuntime(),
         turns: [createTurn()],
         artifacts,
+        sessionDocs: [
+          {
+            id: 'session-doc-task-plan-md',
+            name: 'task_plan.md',
+            path: '/tmp/task_runtime_request/task_plan.md',
+            type: 'markdown',
+          },
+        ],
       },
     })
 
@@ -189,6 +239,7 @@ describe('runtime-request', () => {
       getRuntime: vi.fn(),
       listTurns: vi.fn(),
       listArtifacts: vi.fn(),
+      listSessionDocuments: vi.fn(),
     })
     expect(invalid).toEqual({
       statusCode: 400,
@@ -221,6 +272,57 @@ describe('runtime-request', () => {
       statusCode: 404,
       body: {
         error: 'Turn not found',
+      },
+    })
+  })
+
+  it('builds turn detail response and preserves persisted detail payload', () => {
+    const detail = {
+      taskId: 'task_runtime_request',
+      turn: createTurn(),
+      summaryText: '导出 PDF',
+      planSnapshot: null,
+      output: {
+        textPath: '/tmp/task_runtime_request/turns/turn_runtime_request/output.md',
+        text: '最终输出',
+        artifacts: [
+          {
+            id: 'artifact_1',
+            name: 'report.pdf',
+            path: '/tmp/task_runtime_request/report.pdf',
+            type: 'pdf',
+          },
+        ],
+        primaryArtifactId: 'artifact_1',
+      },
+      updatedAt: '2026-03-26T00:00:00.000Z',
+    }
+
+    const ready = resolveTurnDetailRequest({
+      turnId: 'turn_runtime_request',
+      getTurn: vi.fn(() => createTurn()),
+      getRuntime: vi.fn(() => createRuntime()),
+      loadTurnDetail: vi.fn(() => detail),
+    })
+    expect(ready).toEqual({
+      statusCode: 200,
+      body: {
+        turn: createTurn(),
+        runtime: createRuntime(),
+        detail,
+      },
+    })
+
+    const missing = resolveTurnDetailRequest({
+      turnId: 'turn_runtime_request',
+      getTurn: vi.fn(() => createTurn()),
+      getRuntime: vi.fn(() => createRuntime()),
+      loadTurnDetail: vi.fn(() => null),
+    })
+    expect(missing).toEqual({
+      statusCode: 404,
+      body: {
+        error: 'Turn detail not found',
       },
     })
   })

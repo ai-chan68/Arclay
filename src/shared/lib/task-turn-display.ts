@@ -47,12 +47,14 @@ function getStableResultText(resultMessage?: Pick<AgentMessage, 'content' | 'isT
 
 function buildResultView({
   resultMessage,
+  persistedOutputText,
   artifacts,
 }: {
   resultMessage?: Pick<AgentMessage, 'content' | 'isTemporary'> | null
+  persistedOutputText?: string | null
   artifacts: Artifact[]
 }): TurnResultView {
-  const text = getStableResultText(resultMessage)
+  const text = persistedOutputText?.trim() || getStableResultText(resultMessage) || undefined
   const preferredArtifact = pickPrimaryArtifactForPreview(artifacts)
   const hasText = typeof text === 'string' && text.length > 0
   const hasArtifacts = artifacts.length > 0
@@ -169,6 +171,7 @@ export function buildTurnDisplayModel({
   hasPlan,
   isTurnComplete,
   resultMessage,
+  persistedOutputText,
 }: {
   isStopped: boolean
   isRunning: boolean
@@ -188,16 +191,22 @@ export function buildTurnDisplayModel({
   hasPlan: boolean
   isTurnComplete: boolean
   resultMessage?: Pick<AgentMessage, 'content' | 'isTemporary'> | null
+  persistedOutputText?: string | null
 }): TurnDisplayModel {
+  const latestScopedStopped = isLatestTurn && isStopped
+  const latestScopedTaskStatus = isLatestTurn ? taskStatus : undefined
+  const latestScopedAwaitingApproval = isLatestTurn && isAwaitingApproval
+  const latestScopedAwaitingClarification = isLatestTurn && isAwaitingClarification
+
   const displayState = getWorkspaceDisplayState({
-    isStopped,
+    isStopped: latestScopedStopped,
     isRunning,
-    taskStatus,
+    taskStatus: latestScopedTaskStatus,
     hasError,
     isLatestTurn,
     runtimeState,
-    isAwaitingApproval,
-    isAwaitingClarification,
+    isAwaitingApproval: latestScopedAwaitingApproval,
+    isAwaitingClarification: latestScopedAwaitingClarification,
     hasPlanForApproval,
     hasExecutionTrace,
     hasResultMessage,
@@ -210,6 +219,7 @@ export function buildTurnDisplayModel({
 
   const availableResult = buildResultView({
     resultMessage,
+    persistedOutputText,
     artifacts,
   })
 
@@ -217,8 +227,8 @@ export function buildTurnDisplayModel({
     hasPendingPermission ||
     hasPendingQuestion ||
     hasLatestApprovalTerminal ||
-    isAwaitingApproval ||
-    isAwaitingClarification
+    latestScopedAwaitingApproval ||
+    latestScopedAwaitingClarification
 
   const canRevealFinalOutput = isTurnComplete && !isRunning && !hasPendingInteraction
   const visibleResult = canRevealFinalOutput ? availableResult : createEmptyResult()

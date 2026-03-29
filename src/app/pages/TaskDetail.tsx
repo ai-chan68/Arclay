@@ -31,11 +31,12 @@ import { TaskMessageList, type TurnStatusSummary } from '@/components/task-detai
 import { ChatInput } from '@/components/task-detail/ChatInput'
 import type { Artifact } from '@/shared/types/artifacts'
 import {
-  extractFilesFromMessage,
+  filterArtifactsForDisplay,
   pickPrimaryArtifactForPreview,
   shouldPromotePreviewSelection,
   sortArtifactsForPreview,
 } from '@/shared/lib/file-utils'
+import { getApiUrl } from '@/shared/api'
 import { useAgentNew } from '@/shared/hooks/useAgentNew'
 import { useDatabase, dbMessageToAgentMessage } from '@/shared/hooks/useDatabase'
 import type { AgentMessage, TaskStatus, AgentPhase, TaskPlan, MessageAttachment, AgentError } from '@shared-types'
@@ -46,6 +47,7 @@ import {
   resolveTaskStatus,
   getPreferredFailureDetail,
   removeBackgroundTask,
+  resolveSelectedRuntimeTurnId,
   getBackgroundTask,
   updateBackgroundTaskStatus,
   subscribeToBackgroundTasks,
@@ -56,6 +58,29 @@ interface LocationState {
   sessionId?: string
   taskIndex?: number
   attachments?: MessageAttachment[]
+}
+
+interface TurnDetailArtifactPayload {
+  id: string
+  name: string
+  path: string
+  type: string
+  mimeType?: string
+}
+
+interface TurnDetailPayload {
+  detail?: {
+    output?: {
+      text?: string | null
+      artifacts?: TurnDetailArtifactPayload[]
+    }
+  }
+}
+
+interface RuntimeSnapshotPayload {
+  turns?: Array<{
+    id: string
+  }>
 }
 
 const TASK_TURN_SELECTION_STORAGE_KEY = 'easywork-task-turn-selection'
@@ -357,6 +382,8 @@ function TaskDetailContent() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
   const [selectedTurnIndex, setSelectedTurnIndex] = useState(0)
+  const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null)
+  const [selectedTurnDetail, setSelectedTurnDetail] = useState<TurnDetailPayload | null>(null)
   const [selectedTurnMessages, setSelectedTurnMessages] = useState<AgentMessage[]>([])
   const [turnsCount, setTurnsCount] = useState(0)
   const [taskTurnSelections, setTaskTurnSelections] = useState<Record<string, number>>(() => {
@@ -403,6 +430,8 @@ function TaskDetailContent() {
     setCurrentPhase('idle')
     const nextTurnIndex = taskTurnSelectionsRef.current[taskId] ?? 0
     setSelectedTurnIndex(nextTurnIndex)
+    setSelectedTurnId(null)
+    setSelectedTurnDetail(null)
     setSelectedTurnMessages([])
     setTurnsCount(0)
     setArtifacts([])
@@ -581,31 +610,124 @@ function TaskDetailContent() {
     return currentMessages
   }, [turnsCount, selectedTurnMessages, currentMessages])
 
-  // Extract artifacts from currently selected turn
   useEffect(() => {
-    const extractedArtifacts: Artifact[] = []
-    const seenPaths = new Set<string>()
-
-    // Iterate from latest to oldest so newest files are prioritized
-    for (let i = visibleTurnMessages.length - 1; i >= 0; i--) {
-      const msg = visibleTurnMessages[i]
-      const msgArtifacts = extractFilesFromMessage(msg)
-      msgArtifacts.forEach((artifact) => {
-        if (artifact.path && !seenPaths.has(artifact.path)) {
-          seenPaths.add(artifact.path)
-          // Use file path based ID for consistency
-          const artifactId = `artifact-${artifact.path}`
-          extractedArtifacts.push({
-            ...artifact,
-            id: artifactId
-          })
-        }
-      })
+    if (!taskId || !selectedTurnId) {
+      setSelectedTurnDetail(null)
+      return
     }
 
-    setArtifacts(extractedArtifacts)
+    let cancelled = false
 
-    const sortedArtifacts = sortArtifactsForPreview(extractedArtifacts)
+    const loadSelectedTurnDetail = async () => {
+      try {
+        const runtimeApiUrl = await getApiUrl(`/api/v2/agent/runtime/${encodeURIComponent(taskId)}`)
+        const runtimeResponse = await fetch(runtimeApiUrl)
+        if (!runtimeResponse.ok) {
+          if (!cancelled) {
+            setSelectedTurnDetail(null)
+          }
+          return
+        }
+
+        const runtimePayload = await runtimeResponse.json() as RuntimeSnapshotPayload
+        const resolvedTurnId = resolveSelectedRuntimeTurnId({
+          selectedTurnId,
+          selectedTurnIndex,
+          runtimeTurns: Array.isArray(runtimePayload.turns) ? runtimePayload.turns : [],
+        })
+
+        if (!resolvedTurnId) {
+          if (!cancelled) {
+            setSelectedTurnDetail(null)
+          }
+          return
+        }
+
+        const apiUrl = await getApiUrl(`/api/v2/agent/turn/${encodeURIComponent(resolvedTurnId)}/detail`)
+        const response = await fetch(apiUrl)
+        if (!response.ok) {
+          if (!cancelled) {
+            setSelectedTurnDetail(null)
+          }
+          return
+        }
+
+        const payload = await response.json() as TurnDetailPayload
+        if (!cancelled) {
+          setSelectedTurnDetail(payload)
+        }
+      } catch (error) {
+        console.warn('[TaskDetail] Failed to load selected turn detail:', error)
+        if (!cancelled) {
+          setSelectedTurnDetail(null)
+        }
+      }
+    }
+
+    void loadSelectedTurnDetail()
+
+    return () => {
+      cancelled = true
+    }
+  }, [taskId, selectedTurnId, selectedTurnIndex])
+
+  useEffect(() => {
+    if (!taskId || currentPhase !== 'awaiting_approval' || currentPlan) {
+      return
+    }
+
+    let cancelled = false
+
+    const loadPendingPlan = async () => {
+      try {
+        const query = new URLSearchParams()
+        if (turnId) {
+          query.set('turnId', turnId)
+        }
+        const queryString = query.toString()
+        const apiUrl = await getApiUrl(
+          `/api/v2/agent/task/${encodeURIComponent(taskId)}/pending-plan${queryString ? `?${queryString}` : ''}`
+        )
+        const response = await fetch(apiUrl)
+        if (!response.ok) {
+          return
+        }
+
+        const plan = await response.json() as TaskPlan
+        if (!cancelled) {
+          setCurrentPlan(plan)
+        }
+      } catch (error) {
+        console.warn('[TaskDetail] Failed to restore pending plan:', error)
+      }
+    }
+
+    void loadPendingPlan()
+
+    return () => {
+      cancelled = true
+    }
+  }, [taskId, turnId, currentPhase, currentPlan])
+
+  // Extract artifacts from currently selected turn
+  useEffect(() => {
+    const detailArtifacts = Array.isArray(selectedTurnDetail?.detail?.output?.artifacts)
+      ? selectedTurnDetail.detail.output.artifacts
+      : []
+    const explicitArtifacts = filterArtifactsForDisplay(
+      detailArtifacts
+        .filter((artifact): artifact is TurnDetailArtifactPayload => !!artifact.path)
+        .map((artifact) => ({
+          id: artifact.id || `artifact-${artifact.path}`,
+          name: artifact.name,
+          path: artifact.path,
+          type: artifact.type as Artifact['type'],
+        }))
+    )
+
+    setArtifacts(explicitArtifacts)
+
+    const sortedArtifacts = sortArtifactsForPreview(explicitArtifacts)
     const preferredArtifact = pickPrimaryArtifactForPreview(sortedArtifacts)
     const selectedStillExists = !!selectedArtifact &&
       sortedArtifacts.some(a => a.path === selectedArtifact.path)
@@ -636,7 +758,7 @@ function TaskDetailContent() {
     ) {
       setSelectedArtifact(preferredArtifact)
     }
-  }, [visibleTurnMessages, isCurrentTaskRunning]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isCurrentTaskRunning, selectedTurnDetail]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRightResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!isRightSidebarVisible) return
@@ -882,6 +1004,7 @@ function TaskDetailContent() {
   const handleSelectedTurnMessagesChange = useCallback((
     messages: AgentMessage[],
     meta: {
+      selectedTurnId: string | null
       turnsCount: number
       selectedTurnIndex: number
       latestTurnIndex: number
@@ -908,6 +1031,7 @@ function TaskDetailContent() {
     }
 
     setTurnsCount((prev) => (prev === meta.turnsCount ? prev : meta.turnsCount))
+    setSelectedTurnId((prev) => (prev === meta.selectedTurnId ? prev : meta.selectedTurnId))
     setSelectedTurnMessages((prev) => {
       if (prev.length === messages.length && prev.every((msg, index) => msg.id === messages[index]?.id)) {
         return prev
@@ -1063,6 +1187,8 @@ function TaskDetailContent() {
                     isRunning={isCurrentTaskRunning}
                     hasPersistedTask={!!currentTask}
                     fileBaseDir={workingDir || undefined}
+                    persistedOutputText={selectedTurnDetail?.detail?.output?.text || null}
+                    artifacts={artifacts}
                     executionPlan={executionPlan}
                     isAwaitingApproval={currentPhase === 'awaiting_approval'}
                     isAwaitingClarification={currentPhase === 'awaiting_clarification'}

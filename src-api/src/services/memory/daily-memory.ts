@@ -23,7 +23,12 @@ interface SessionSummary {
   endTime: string | null
 }
 
-function extractSessionSummary(records: HistoryRecord[]): SessionSummary {
+function normalizeGoal(value?: string | null): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function extractSessionSummary(records: HistoryRecord[], fallbackGoal?: string | null): SessionSummary {
   const goals: string[] = []
   const fileSet = new Set<string>()
   const errors: string[] = []
@@ -66,6 +71,11 @@ function extractSessionSummary(records: HistoryRecord[]): SessionSummary {
         break
       }
     }
+  }
+
+  const normalizedFallbackGoal = normalizeGoal(fallbackGoal)
+  if (goals.length === 0 && normalizedFallbackGoal) {
+    goals.push(normalizedFallbackGoal)
   }
 
   return {
@@ -113,12 +123,15 @@ function formatDailySummary(sessionId: string, summary: SessionSummary): string 
  */
 export async function generateDailySummary(
   sessionId: string,
-  store: MemoryStore
+  store: MemoryStore,
+  options?: {
+    fallbackGoal?: string | null
+  }
 ): Promise<string> {
   const records = await store.loadHistory(sessionId)
   if (records.length === 0) return ''
 
-  const summary = extractSessionSummary(records)
+  const summary = extractSessionSummary(records, options?.fallbackGoal)
   const text = formatDailySummary(sessionId, summary)
   const today = new Date().toISOString().slice(0, 10)
 

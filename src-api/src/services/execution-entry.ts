@@ -5,6 +5,7 @@ import { isBrowserAutomationIntent } from './browser-intent'
 import { buildExecutionPrompt } from './plan-execution'
 import type { RunExecutionSessionInput } from './execution-session'
 import type { ExecutionCompletionSummary } from './execution-completion'
+import { resolveTurnArtifactsDir, resolveTurnWorkspaceDir } from './workspace-layout'
 
 const DEFAULT_MAX_RUNTIME_REPAIR_ATTEMPTS = 1
 
@@ -82,13 +83,20 @@ function createExecutionSummary(): ExecutionCompletionSummary {
   }
 }
 
+function stripUrls(text: string): string {
+  return text.replace(/https?:\/\/\S+/gi, ' ')
+}
+
 function isRuntimeRunIntent(promptText: string, plan: TaskPlan): boolean {
-  const corpus = [promptText, plan.goal, ...plan.steps.map((step) => step.description)].join('\n').toLowerCase()
   if (isBrowserAutomationIntent(promptText, plan)) {
     return false
   }
-  const runHint = /运行|启动|run|start|dev server|preview|可跑起来|本地启动|serve/.test(corpus)
-  const targetHint = /项目|project|repo|repository|frontend|backend|server|service|web|app|页面|界面|api/.test(corpus)
+
+  const corpus = stripUrls(
+    [promptText, plan.goal, ...plan.steps.map((step) => step.description)].join('\n')
+  ).toLowerCase()
+  const runHint = /运行|启动|可跑起来|本地启动|\brun\b|\bstart\b|\bserve\b|\bpreview\b|\bdev\s+server\b/.test(corpus)
+  const targetHint = /项目|仓库|前端|后端|服务|页面|界面|应用|\bproject\b|\brepo(?:sitory)?\b|\bfrontend\b|\bbackend\b|\bserver\b|\bservice\b|\bweb\b|\bapp\b|\bapi\b/.test(corpus)
   return runHint && targetHint
 }
 
@@ -134,6 +142,38 @@ function buildExecutionContextLogLines(input: {
   return lines
 }
 
+function buildArtifactLayoutInstruction(input: {
+  executionWorkspaceDir: string
+  taskId: string
+  activeTurn: ExecutionEntryPassthrough['activeTurn']
+}): string {
+  if (!input.activeTurn?.id) return ''
+
+  const turnDir = resolveTurnWorkspaceDir(
+    input.executionWorkspaceDir,
+    input.taskId,
+    input.activeTurn.id
+  )
+  const artifactsDir = resolveTurnArtifactsDir(
+    input.executionWorkspaceDir,
+    input.taskId,
+    input.activeTurn.id
+  )
+  const finalDir = `${artifactsDir}/final`
+  const intermediateDir = `${artifactsDir}/intermediate`
+  const scratchDir = `${turnDir}/scratch`
+
+  return `
+## CRITICAL: Turn Artifact Layout
+
+Use the current turn directory for all execution outputs:
+- Final user deliverables MUST go under: ${finalDir}
+- Intermediate drafts that should be preserved MUST go under: ${intermediateDir}
+- Temporary helper scripts or scratch files MUST go under: ${scratchDir}
+- Do NOT leave helper scripts, temporary files, or final deliverables in the task root: ${input.executionWorkspaceDir}
+`
+}
+
 export function resolveExecutionEntry(
   input: ResolveExecutionEntryInput
 ): RunExecutionSessionInput {
@@ -154,12 +194,20 @@ export function resolveExecutionEntry(
   } = input
   const promptText = typeof prompt === 'string' ? prompt : ''
   const executionSummary = createExecutionSummary()
-  const executionPrompt = buildExecutionPrompt(
+  const baseExecutionPrompt = buildExecutionPrompt(
     passthrough.plan,
     promptText,
     passthrough.executionWorkspaceDir,
     formatPlanForExecution
   )
+  const artifactLayoutInstruction = buildArtifactLayoutInstruction({
+    executionWorkspaceDir: passthrough.executionWorkspaceDir,
+    taskId: passthrough.executionTaskId,
+    activeTurn: passthrough.activeTurn,
+  })
+  const executionPrompt = artifactLayoutInstruction
+    ? `${baseExecutionPrompt}\n\n${artifactLayoutInstruction}`
+    : baseExecutionPrompt
   const runtimeGateRequired = isRuntimeRunIntent(promptText, passthrough.plan)
   const browserAutomationIntent = isBrowserAutomationIntent(promptText, passthrough.plan)
   const maxRuntimeRepairAttempts = maxRuntimeRepairAttemptsInput ?? DEFAULT_MAX_RUNTIME_REPAIR_ATTEMPTS

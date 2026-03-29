@@ -260,6 +260,32 @@ export class PlanStore {
     return this.toTaskPlan(record.plan)
   }
 
+  findPendingPlan(taskId: string, turnId?: string): TaskPlan | null {
+    const normalizedTaskId = taskId.trim()
+    if (!normalizedTaskId) return null
+
+    const normalizedTurnId = typeof turnId === 'string' && turnId.trim()
+      ? turnId.trim()
+      : null
+
+    const candidates = this.data.plans
+      .filter((record) => (
+        record.status === 'pending_approval' &&
+        record.taskId === normalizedTaskId
+      ))
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+
+    if (candidates.length === 0) {
+      return null
+    }
+
+    const matchedRecord = normalizedTurnId
+      ? candidates.find((record) => record.turnId === normalizedTurnId) || null
+      : candidates[0] || null
+
+    return matchedRecord ? this.toTaskPlan(matchedRecord.plan) : null
+  }
+
   startExecution(
     planId: string,
     context: { taskId?: string; runId?: string; turnId?: string } = {}

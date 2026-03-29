@@ -31,11 +31,24 @@ const INTERNAL_PLANNING_FILENAMES = new Set([
   'task_plan.md',
   'progress.md',
   'findings.md',
+  'evaluation.md',
 ]);
 
 function isInternalPlanningFile(filePath: string): boolean {
   const filename = filePath.split(/[\/]/).pop() || '';
   return INTERNAL_PLANNING_FILENAMES.has(filename);
+}
+
+function isTurnFinalArtifact(filePath?: string): boolean {
+  return !!filePath && /[\\/]artifacts[\\/]final[\\/]/i.test(filePath);
+}
+
+function isTurnScratchArtifact(filePath?: string): boolean {
+  return !!filePath && /[\\/]artifacts[\\/]scratch[\\/]/i.test(filePath);
+}
+
+export function isTurnArtifactPath(filePath?: string): boolean {
+  return !!filePath && /[\\/]artifacts[\\/]/i.test(filePath);
 }
 
 /**
@@ -278,6 +291,9 @@ export function isReadmeArtifact(artifact: Artifact): boolean {
  * Higher score means more likely to be "final output" for users.
  */
 export function getArtifactPreviewPriority(artifact: Artifact): number {
+  if (isTurnFinalArtifact(artifact.path)) return 200;
+  if (isInternalPlanningFile(artifact.path || artifact.name || '')) return 5;
+  if (isTurnScratchArtifact(artifact.path)) return 8;
   if (isReadmeArtifact(artifact)) return 5;
 
   switch (artifact.type) {
@@ -324,6 +340,16 @@ export function sortArtifactsForPreview(artifacts: Artifact[]): Artifact[] {
     }))
     .sort((a, b) => b.priority - a.priority || a.index - b.index)
     .map((item) => item.artifact);
+}
+
+export function filterArtifactsForDisplay(artifacts: Artifact[]): Artifact[] {
+  const seenPaths = new Set<string>();
+  return artifacts.filter((artifact) => {
+    if (!artifact.path || !isTurnArtifactPath(artifact.path)) return false;
+    if (seenPaths.has(artifact.path)) return false;
+    seenPaths.add(artifact.path);
+    return true;
+  });
 }
 
 /**

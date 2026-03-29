@@ -18,6 +18,33 @@ export interface ConversationTurn {
   plan?: TaskPlan
 }
 
+export function resolveSelectedRuntimeTurnId(input: {
+  selectedTurnId?: string | null
+  selectedTurnIndex?: number | null
+  runtimeTurns: Array<{ id: string }>
+}): string | null {
+  const runtimeTurns = Array.isArray(input.runtimeTurns) ? input.runtimeTurns : []
+  if (runtimeTurns.length === 0) return null
+
+  const selectedTurnId = typeof input.selectedTurnId === 'string' && input.selectedTurnId.trim()
+    ? input.selectedTurnId.trim()
+    : null
+
+  if (selectedTurnId && runtimeTurns.some((turn) => turn.id === selectedTurnId)) {
+    return selectedTurnId
+  }
+
+  const selectedTurnIndex = typeof input.selectedTurnIndex === 'number' && Number.isFinite(input.selectedTurnIndex)
+    ? Math.max(0, Math.floor(input.selectedTurnIndex))
+    : null
+
+  if (selectedTurnIndex !== null && selectedTurnIndex < runtimeTurns.length) {
+    return runtimeTurns[selectedTurnIndex]?.id || null
+  }
+
+  return runtimeTurns[runtimeTurns.length - 1]?.id || null
+}
+
 function hasMeaningfulTurnResult(turn: ConversationTurn): boolean {
   if (turn.thinkingMessages.length > 0) {
     return true

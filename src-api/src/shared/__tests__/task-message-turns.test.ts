@@ -5,6 +5,7 @@ import {
   getLatestRuntimeState,
   getMessagesForTurn,
   groupIntoTurns,
+  resolveSelectedRuntimeTurnId,
 } from '../../../../src/shared/lib/task-message-turns'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
@@ -90,5 +91,26 @@ describe('groupIntoTurns', () => {
     expect(turns).toHaveLength(1)
     expect(turns[0].pendingPermission).toMatchObject({ id: 'perm_hist_1' })
     expect(getMessagesForTurn(turns[0]).some((message) => message.type === 'permission_request')).toBe(true)
+  })
+
+  it('falls back from conversation message id to runtime turn id by selected index', () => {
+    expect(resolveSelectedRuntimeTurnId({
+      selectedTurnId: '3365',
+      selectedTurnIndex: 0,
+      runtimeTurns: [
+        { id: 'turn_runtime_real_1' },
+      ],
+    })).toBe('turn_runtime_real_1')
+  })
+
+  it('keeps the selected turn id when it already matches a runtime turn id', () => {
+    expect(resolveSelectedRuntimeTurnId({
+      selectedTurnId: 'turn_runtime_real_2',
+      selectedTurnIndex: 0,
+      runtimeTurns: [
+        { id: 'turn_runtime_real_1' },
+        { id: 'turn_runtime_real_2' },
+      ],
+    })).toBe('turn_runtime_real_2')
   })
 })

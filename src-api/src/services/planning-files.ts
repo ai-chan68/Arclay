@@ -1,6 +1,11 @@
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
-import { homedir } from 'os'
 import path from 'path'
+import {
+  resolveTaskInputsDir,
+  resolveTaskRunsDir,
+  resolveTaskTurnsDir,
+  resolveTaskWorkspaceDir,
+} from './workspace-layout'
 
 export interface PlanningFilesBootstrapInput {
   workDir: string
@@ -17,10 +22,6 @@ export interface PlanningFilesBootstrapResult {
   repairedFiles?: string[]
   skippedFiles: string[]
   error?: string
-}
-
-function isSessionPath(targetPath: string): boolean {
-  return /[\\/]sessions[\\/]/.test(targetPath)
 }
 
 function summarizeLine(value: string | undefined, maxLength = 260): string {
@@ -46,19 +47,6 @@ function normalizeSteps(rawSteps: string[]): string[] {
     'Execute implementation tasks and collect evidence',
     'Validate outcomes and prepare final delivery',
   ]
-}
-
-function resolveSessionWorkDir(baseWorkDir: string, taskId: string): string {
-  const trimmedWorkDir = baseWorkDir.trim()
-  const resolvedBase = trimmedWorkDir.startsWith('~')
-    ? path.join(homedir(), trimmedWorkDir.slice(1))
-    : trimmedWorkDir
-
-  if (isSessionPath(resolvedBase)) {
-    return resolvedBase
-  }
-
-  return path.join(resolvedBase, 'sessions', taskId)
 }
 
 function renderTaskPlanContent(input: PlanningFilesBootstrapInput, now: Date): string {
@@ -197,7 +185,7 @@ export async function bootstrapPlanningFiles(
   input: PlanningFilesBootstrapInput
 ): Promise<PlanningFilesBootstrapResult> {
   const taskId = input.taskId.trim()
-  const sessionDir = resolveSessionWorkDir(input.workDir, taskId)
+  const sessionDir = resolveTaskWorkspaceDir(input.workDir, taskId)
   const now = new Date()
   const result: PlanningFilesBootstrapResult = {
     sessionDir,
@@ -213,6 +201,11 @@ export async function bootstrapPlanningFiles(
 
   try {
     await mkdir(sessionDir, { recursive: true })
+    await Promise.all([
+      mkdir(resolveTaskTurnsDir(input.workDir, taskId), { recursive: true }),
+      mkdir(resolveTaskRunsDir(input.workDir, taskId), { recursive: true }),
+      mkdir(resolveTaskInputsDir(input.workDir, taskId), { recursive: true }),
+    ])
 
     await Promise.all([
       ensureFile(path.join(sessionDir, 'task_plan.md'), renderTaskPlanContent(input, now), result),

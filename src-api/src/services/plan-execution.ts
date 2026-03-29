@@ -22,12 +22,17 @@ The execution workspace includes these persistent files:
 - findings.md
 - progress.md
 
-You MUST keep them updated during execution:
+You MUST keep the planning files updated during execution:
 1. At the start of each step, update task_plan.md status and current phase.
 2. After meaningful discoveries, append key facts and decisions to findings.md.
 3. After each completed step (and on every error), append progress details to progress.md.
 4. Record every failure and resolution attempt in task_plan.md and progress.md.
 5. Never delete these files.
+
+Turn-level review files are stored separately from task-level planning files:
+- The current turn may persist its own review template at \`turns/<turn_id>/evaluation.md\`.
+- Do NOT create or overwrite a task-level \`evaluation.md\` in the session root.
+- When the user asks whether a task/session met expectations, prefer the current turn's \`evaluation.md\` if it exists.
 
 These files are pre-created before execution starts:
 - Use Read before the first Edit on any of them.

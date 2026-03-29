@@ -75,4 +75,58 @@ describe('AgentService', () => {
     ) as { lastActiveAt?: string }
     expect(typeof savedContext.lastActiveAt).toBe('string')
   })
+
+  it('uses the task workspace as the storage root when taskId is provided', async () => {
+    const sessionId = 'run_123'
+    const taskId = 'task_storage_root'
+    const taskDir = path.join(workDir, 'sessions', taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(taskDir, 'context.json'),
+      JSON.stringify({
+        sessionId,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        lastActiveAt: '2026-01-01T00:00:00.000Z',
+        conversationSummary: 'task scoped summary',
+        activeFiles: ['/tmp/task-scoped.ts'],
+        taskHistory: [taskId],
+      }),
+      'utf8'
+    )
+
+    let capturedOptions: AgentRunOptions | undefined
+    const fakeAgent: IAgent = {
+      async run() {
+        return []
+      },
+      async *stream(_prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage> {
+        capturedOptions = options
+        yield {
+          id: 'done',
+          type: 'done',
+          timestamp: Date.now(),
+        }
+      },
+      abort() {
+        return
+      },
+      getSession() {
+        return null
+      },
+    }
+
+    const service = new AgentService({ provider, workDir })
+    vi.spyOn(service, 'createAgent').mockReturnValue(fakeAgent)
+
+    for await (const _message of service.streamExecution('继续处理这个任务', sessionId, undefined, undefined, {
+      taskId,
+    })) {
+      // noop
+    }
+
+    expect(capturedOptions?.systemPrompt).toContain('task scoped summary')
+    expect(capturedOptions?.systemPrompt).toContain('/tmp/task-scoped.ts')
+    expect(fs.existsSync(path.join(taskDir, 'context.json'))).toBe(true)
+    expect(fs.existsSync(path.join(workDir, 'sessions', sessionId, 'context.json'))).toBe(false)
+  })
 })

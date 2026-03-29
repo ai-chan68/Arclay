@@ -27,7 +27,7 @@ import type { Artifact } from '../../shared/types/artifacts'
 import { apiFetchRaw } from '../../shared/api'
 import { copyToClipboard } from '../../shared/services/clipboard-service'
 import {
-  extractFilesFromMessages,
+  filterArtifactsForDisplay,
   pickPrimaryArtifactForPreview,
   shouldPromotePreviewSelection,
   sortArtifactsForPreview,
@@ -49,27 +49,20 @@ function isHttpUrl(value?: string): boolean {
   return !!value && /^https?:\/\//i.test(value)
 }
 
-function isLocalPreviewUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(url.hostname)
-  } catch {
-    return false
-  }
+const SESSION_DOCUMENT_FILENAMES = new Set([
+  'evaluation.md',
+  'task_plan.md',
+  'findings.md',
+  'progress.md',
+])
+
+function getArtifactBasename(artifact: Artifact | null | undefined): string {
+  const source = artifact?.name || artifact?.path || ''
+  return source.split(/[\\/]/).pop()?.toLowerCase() || ''
 }
 
-function normalizeUrlToken(raw: string): string {
-  return raw.replace(/[),.;!?]+$/g, '')
-}
-
-function getUrlArtifactName(urlText: string): string {
-  try {
-    const url = new URL(urlText)
-    const path = url.pathname && url.pathname !== '/' ? url.pathname : ''
-    return `${url.host}${path}`
-  } catch {
-    return urlText
-  }
+function isSessionDocumentArtifact(artifact: Artifact | null | undefined): boolean {
+  return SESSION_DOCUMENT_FILENAMES.has(getArtifactBasename(artifact))
 }
 
 export function RightSidebar({
@@ -118,71 +111,10 @@ export function RightSidebar({
     return () => clearTimeout(timer)
   }, [exportNotice])
 
-  // Extract artifacts from messages
-  const extractedArtifacts = useMemo(
-    () => extractFilesFromMessages(messages),
-    [messages]
-  )
-
-  const localUrlArtifacts = useMemo(() => {
-    const urlRegex = /https?:\/\/[^\s"'`<>]+/g
-    const seen = new Set<string>()
-    const result: Artifact[] = []
-
-    for (const message of messages) {
-      const chunks = [message.content, message.toolOutput, message.errorMessage]
-      for (const chunk of chunks) {
-        if (!chunk) continue
-        const matches = chunk.match(urlRegex) || []
-        for (const token of matches) {
-          const normalized = normalizeUrlToken(token)
-          if (!isLocalPreviewUrl(normalized)) continue
-          if (seen.has(normalized)) continue
-          seen.add(normalized)
-          result.push({
-            id: `preview-url-${normalized}`,
-            name: getUrlArtifactName(normalized),
-            type: 'html',
-            path: normalized,
-          })
-        }
-      }
-    }
-
-    return result
-  }, [messages])
-
-  // Deduplicate and sort artifacts by preview priority (final deliverables first)
+  // Only show explicit turn artifacts. Do not infer files from message text.
   const allArtifacts = useMemo(() => {
-    const seenPaths = new Set<string>()
-    const result: Artifact[] = []
-
-    // Add artifacts from props first (they have higher priority)
-    for (const artifact of artifacts) {
-      if (artifact.path && !seenPaths.has(artifact.path)) {
-        seenPaths.add(artifact.path)
-        result.push(artifact)
-      }
-    }
-
-    // Add extracted artifacts (skip duplicates)
-    for (const artifact of extractedArtifacts) {
-      if (artifact.path && !seenPaths.has(artifact.path)) {
-        seenPaths.add(artifact.path)
-        result.push(artifact)
-      }
-    }
-
-    // Add local preview URLs discovered in messages
-    for (const artifact of localUrlArtifacts) {
-      if (artifact.path && !seenPaths.has(artifact.path)) {
-        seenPaths.add(artifact.path)
-        result.push(artifact)
-      }
-    }
-
-    return sortArtifactsForPreview(result)
-  }, [artifacts, extractedArtifacts, localUrlArtifacts])
+    return sortArtifactsForPreview(filterArtifactsForDisplay(artifacts))
+  }, [artifacts])
 
   const exportablePaths = useMemo(() => {
     const uniquePaths = new Set<string>()
@@ -192,6 +124,20 @@ export function RightSidebar({
       }
     }
     return Array.from(uniquePaths)
+  }, [allArtifacts])
+
+  const artifactSections = useMemo(() => {
+    const deliverables = allArtifacts.filter((artifact) => !isSessionDocumentArtifact(artifact))
+    const sessionDocs = allArtifacts.filter((artifact) => isSessionDocumentArtifact(artifact))
+
+    return [
+      deliverables.length > 0
+        ? { key: 'deliverables', title: '交付产物', items: deliverables }
+        : null,
+      sessionDocs.length > 0
+        ? { key: 'session-docs', title: '会话文档', items: sessionDocs }
+        : null,
+    ].filter((section): section is { key: string; title: string; items: Artifact[] } => !!section)
   }, [allArtifacts])
 
   // Auto-select artifact with shared preview priority strategy
@@ -499,9 +445,16 @@ export function RightSidebar({
         >
           <div className="flex items-center gap-2">
             {selectedArtifact ? getFileIcon(selectedArtifact.type) : <File className="size-4 text-muted-foreground" />}
-            <span className="truncate text-sm font-medium">
-              {selectedArtifact?.name || '预览'}
-            </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-sm font-medium">
+                {selectedArtifact?.name || '预览'}
+              </span>
+              {isSessionDocumentArtifact(selectedArtifact) && (
+                <span className="shrink-0 rounded-full border border-[color:color-mix(in_oklab,var(--ui-border)_65%,transparent)] bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_64%,transparent)] px-2 py-0.5 text-[10px] font-medium text-[var(--ui-subtext)]">
+                  会话文档
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {allArtifacts.length > 1 && (
@@ -529,28 +482,42 @@ export function RightSidebar({
         {/* 文件下拉列表 */}
         {showFileList && allArtifacts.length > 1 && (
           <div className="ew-card absolute left-1 right-1 top-[calc(100%+8px)] z-10 max-h-64 overflow-auto rounded-2xl p-1.5 shadow-lg">
-            {allArtifacts.map((artifact) => (
-              <button
-                key={artifact.id}
-                className={cn(
-                  'ew-list-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors',
-                  selectedArtifact?.id === artifact.id
-                    ? 'active'
-                    : ''
+            {artifactSections.map((section) => (
+              <div key={section.key} className="mb-1 last:mb-0">
+                {artifactSections.length > 1 && (
+                  <div className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+                    {section.title}
+                  </div>
                 )}
-                onClick={() => {
-                  onSelectArtifact(artifact)
-                  setShowFileList(false)
-                }}
-              >
-                {getFileIcon(artifact.type)}
-                <span className="truncate flex-1">{artifact.name}</span>
-                {artifact.fileSize && (
-                  <span className="text-xs text-muted-foreground">
-                    {Math.round(artifact.fileSize / 1024)}KB
-                  </span>
-                )}
-              </button>
+                {section.items.map((artifact) => (
+                  <button
+                    key={artifact.id}
+                    className={cn(
+                      'ew-list-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+                      selectedArtifact?.id === artifact.id
+                        ? 'active'
+                        : ''
+                    )}
+                    onClick={() => {
+                      onSelectArtifact(artifact)
+                      setShowFileList(false)
+                    }}
+                  >
+                    {getFileIcon(artifact.type)}
+                    <span className="truncate flex-1">{artifact.name}</span>
+                    {isSessionDocumentArtifact(artifact) && (
+                      <span className="shrink-0 rounded-full border border-[color:color-mix(in_oklab,var(--ui-border)_65%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        文档
+                      </span>
+                    )}
+                    {artifact.fileSize && (
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(artifact.fileSize / 1024)}KB
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -642,7 +609,10 @@ export function RightSidebar({
         <div className="flex shrink-0 items-center justify-between rounded-xl border border-[color:color-mix(in_oklab,var(--ui-border)_58%,transparent)] bg-[color:color-mix(in_oklab,var(--ui-panel)_66%,transparent)] px-3 py-1.5 text-xs">
           <div className="flex items-center gap-1.5 text-[var(--ui-subtext)]">
             <Radio className="size-3.5" />
-            <span>{selectedArtifact.type.toUpperCase()} 预览</span>
+            <span>
+              {selectedArtifact.type.toUpperCase()} 预览
+              {isSessionDocumentArtifact(selectedArtifact) ? ' · 会话文档' : ''}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             {exportablePaths.length > 0 && (

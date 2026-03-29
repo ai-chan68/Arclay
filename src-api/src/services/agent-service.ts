@@ -27,6 +27,7 @@ import { intentClassifier } from './intent-classifier'
 import { MemoryStore } from './memory/memory-store'
 import { HistoryLogger } from './memory/history-logger'
 import { generateDailySummary } from './memory/daily-memory'
+import { resolveTaskInputsDir, resolveTaskWorkspaceDir } from './workspace-layout'
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -34,12 +35,8 @@ import { generateDailySummary } from './memory/daily-memory'
  * 注意：此函数必须与 claude.ts 中的 getSessionWorkDir 保持逻辑一致
  * 以确保文件保存路径和执行路径相同
  */
-function getSessionWorkDir(baseWorkDir: string, sessionId: string): string {
-  // Match the logic in claude.ts getSessionWorkDir
-  // ClaudeProvider 使用 taskId 作为文件夹名称（当提供 taskId 时）
-  // 见 claude.ts line 484-485: folderName = taskId
-  const sessionsDir = join(baseWorkDir, 'sessions')
-  return join(sessionsDir, sessionId)
+function getSessionWorkDir(baseWorkDir: string, storageRootId: string): string {
+  return resolveTaskWorkspaceDir(baseWorkDir, storageRootId)
 }
 
 interface RunningSession {
@@ -302,6 +299,7 @@ ${categoryInstructions.join('\n---\n')}
     streamOptions?: StreamExecutionOptions
   ): AsyncIterable<AgentMessage> {
     const effectiveSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+    const storageRootId = streamOptions?.taskId || effectiveSessionId
     const baseWorkDir = streamOptions?.workDir || this.config.workDir
 
     // 调试日志：输出当前使用的配置
@@ -336,11 +334,14 @@ ${categoryInstructions.join('\n---\n')}
     const fileCategories = new Map<string, 'spreadsheet' | 'document' | 'presentation' | 'code' | 'other'>()
 
     // 计算会话工作目录 (与 claude.ts 保持一致)
-    const sessionCwd = getSessionWorkDir(baseWorkDir, effectiveSessionId)
+    const sessionCwd = getSessionWorkDir(baseWorkDir, storageRootId)
     console.log(`[AgentService] Session work directory: ${sessionCwd}`)
+    const attachmentDir = streamOptions?.taskId
+      ? resolveTaskInputsDir(baseWorkDir, streamOptions.taskId)
+      : sessionCwd
 
     if (fileAttachments.length > 0) {
-      await this.ensureDir(sessionCwd)
+      await this.ensureDir(attachmentDir)
 
       for (const file of fileAttachments) {
         try {
@@ -349,7 +350,7 @@ ${categoryInstructions.join('\n---\n')}
           const buffer = Buffer.from(base64Data, 'base64')
 
           // 保存到工作目录
-          const filePath = join(sessionCwd, file.name)
+          const filePath = join(attachmentDir, file.name)
           await writeFile(filePath, buffer)
           savedFilePaths.push(filePath)
           fileCategories.set(filePath, file.category)
@@ -383,8 +384,8 @@ ${categoryInstructions.join('\n---\n')}
     console.log(`[AgentService] Intent: ${classification.primaryIntent} (confidence=${classification.confidence.toFixed(2)}, complexity=${classification.complexity})`)
 
     // --- Context management (Tasks 5.3–5.5) ---
-    const memoryStore = new MemoryStore(baseWorkDir)
-    const contextManager = new ContextManager(baseWorkDir, memoryStore)
+    const memoryStore = new MemoryStore(baseWorkDir, storageRootId)
+    const contextManager = new ContextManager(baseWorkDir, memoryStore, storageRootId)
     await contextManager.load(effectiveSessionId)
     const contextPrompt = await contextManager.buildContextPrompt()
 
@@ -434,7 +435,9 @@ ${categoryInstructions.join('\n---\n')}
       await historyLogger.logCompletion()
       // Generate daily memory from execution history
       try {
-        const dailySummary = await generateDailySummary(effectiveSessionId, memoryStore)
+        const dailySummary = await generateDailySummary(effectiveSessionId, memoryStore, {
+          fallbackGoal: streamOptions?.plan?.goal || prompt,
+        })
         if (dailySummary) {
           const session = contextManager.getSession()
           if (session) {

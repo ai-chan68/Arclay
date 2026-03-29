@@ -13,7 +13,7 @@
 import { Hono } from 'hono'
 import { stream } from 'hono/streaming'
 import path from 'path'
-import type { MessageAttachment } from '@shared-types'
+import type { AgentMessage, MessageAttachment } from '@shared-types'
 import { AgentService, type AgentServiceConfig } from '../services/agent-service'
 import { taskPlanner } from '../services/task-planner'
 import { bootstrapPlanningFiles } from '../services/planning-files'
@@ -70,13 +70,16 @@ import {
   normalizeApprovalKind,
 } from '../services/route-support'
 import { rejectPendingPlan, stopAgentSession } from '../services/runtime-control'
-import { resolvePlanLookupRequest, resolvePlanRejectRequest, resolveRunStatusRequest, resolveStopSessionRequest, resolveTaskRuntimeRequest, resolveTurnLookupRequest } from '../services/runtime-request'
+import { resolvePendingPlanLookupRequest, resolvePlanLookupRequest, resolvePlanRejectRequest, resolveRunStatusRequest, resolveStopSessionRequest, resolveTaskRuntimeRequest, resolveTurnDetailRequest, resolveTurnLookupRequest } from '../services/runtime-request'
 import { runExecutionSession } from '../services/execution-session'
 import { prepareExecutionRequest } from '../services/execution-request'
 import { prepareDirectExecutionRequest, runDirectExecutionStream } from '../services/direct-execution'
 import {
   type ExecutionCompletionSummary,
 } from '../services/execution-completion'
+import { listTaskSessionDocuments } from '../services/session-documents'
+import { TurnDetailStore } from '../services/turn-detail-store'
+import { buildTurnDetailSnapshot } from '../services/turn-detail-builder'
 import { planStore } from '../services/plan-store'
 import { cancelTurnsForExpiredPlans } from '../services/plan-turn-sync'
 import { turnRuntimeStore } from '../services/turn-runtime-store'
@@ -102,6 +105,30 @@ export function clearAgentService(): void {
 
 export function getAgentService(): AgentService | null {
   return agentService
+}
+
+async function persistTurnDetailForRun(input: {
+  workDir: string
+  runId: string
+  taskId?: string
+  fallbackPlan?: import('../types/agent-new').TaskPlan | null
+  messages: AgentMessage[]
+}): Promise<void> {
+  const turn =
+    turnRuntimeStore.findLatestTurnByRun(input.runId) ||
+    (input.taskId ? turnRuntimeStore.findLatestTurnByTask(input.taskId) : null)
+
+  if (!turn) return
+
+  const detailStore = new TurnDetailStore(input.workDir)
+  const snapshot = buildTurnDetailSnapshot({
+    taskId: turn.taskId,
+    turn,
+    messages: input.messages,
+    fallbackPlan: input.fallbackPlan,
+  })
+
+  await detailStore.saveTurnDetail(snapshot)
 }
 
 export const agentNewRoutes = new Hono()
@@ -139,6 +166,7 @@ agentNewRoutes.post('/plan', async (c) => {
   const normalizedTaskId = request.taskId
   const conversation = request.conversation
   const activeTurn = request.activeTurn
+  const planningWorkDir = agentServiceConfig.workDir
 
   c.header('Content-Type', 'text/event-stream; charset=utf-8')
   c.header('Cache-Control', 'no-cache')
@@ -146,6 +174,7 @@ agentNewRoutes.post('/plan', async (c) => {
 
   return stream(c, async (s) => {
     const agent = agentService!.createAgent()
+    const emittedPlanningMessages: AgentMessage[] = []
     const emitTurnState = createTurnStateEmitter({
       stream: s,
       getRuntime: (taskId) => turnRuntimeStore.getRuntime(taskId),
@@ -171,30 +200,36 @@ agentNewRoutes.post('/plan', async (c) => {
       }),
       isAborted: () => run.isAborted,
       emitMessage: async (message) => {
+        emittedPlanningMessages.push(message)
         await emitSseMessage(s, message)
       },
       emitMessages: async (input) => {
+        emittedPlanningMessages.push(...input.messages)
         await emitMessages(s, input)
       },
       emitTurnState: async (result) => {
         await emitTurnState(result)
       },
       emitBlockedTurnAndDone: async (input) => {
+        emittedPlanningMessages.push(input.blockedMessage)
         await emitBlockedTurnAndDone(s, {
           ...input,
           emitTurnState,
         })
       },
       emitMessagesAndDone: async (input) => {
+        emittedPlanningMessages.push(...input.messages)
         await emitMessagesAndDone(s, input)
       },
       emitMessagesTurnTransitionAndDone: async (input) => {
+        emittedPlanningMessages.push(...input.messages)
         await emitMessagesTurnTransitionAndDone(s, {
           ...input,
           emitTurnState,
         })
       },
       emitMessagesAndTurnTransition: async (input) => {
+        emittedPlanningMessages.push(...input.messages)
         await emitMessagesAndTurnTransition(s, {
           ...input,
           emitTurnState,
@@ -297,6 +332,15 @@ agentNewRoutes.post('/plan', async (c) => {
         createId: createRouteMessageId,
       }),
     })
+
+    await persistTurnDetailForRun({
+      workDir: planningWorkDir,
+      runId: run.id,
+      taskId: normalizedTaskId,
+      messages: emittedPlanningMessages,
+    }).catch((error) => {
+      console.warn('[agent-new] Failed to persist planning turn detail:', error)
+    })
   })
 })
 
@@ -347,6 +391,7 @@ agentNewRoutes.post('/execute', async (c) => {
   const executionWorkspaceDir = executionRequestResult.executionWorkspaceDir
   const progressFilePath = executionRequestResult.progressFilePath
   const attachments = executionRequestResult.attachments
+  const executionWorkDir = agentServiceConfig.workDir
   if (executionRequestResult.planningFilesBootstrap.error) {
     console.warn('[agent-new] Failed to bootstrap planning files:', executionRequestResult.planningFilesBootstrap.error)
   }
@@ -356,6 +401,7 @@ agentNewRoutes.post('/execute', async (c) => {
   c.header('Connection', 'keep-alive')
 
   return stream(c, async (s) => {
+    const emittedExecutionMessages: AgentMessage[] = []
     const emitTurnState = createTurnStateEmitter({
       stream: s,
       getRuntime: (taskId) => turnRuntimeStore.getRuntime(taskId),
@@ -401,15 +447,18 @@ agentNewRoutes.post('/execute', async (c) => {
       evaluateRuntimeGate,
       isAborted: () => run.isAborted,
       emitMessage: async (message) => {
+        emittedExecutionMessages.push(message)
         await emitSseMessage(s, message)
       },
       emitMessages: async (messages) => {
+        emittedExecutionMessages.push(...messages)
         await emitMessages(s, { messages })
       },
       emitTurnState: async (result) => {
         await emitTurnState(result)
       },
       emitMessagesAndTurnTransition: async (input) => {
+        emittedExecutionMessages.push(...input.messages)
         await emitMessagesAndTurnTransition(s, {
           messages: input.messages,
           turnTransition: input.turnTransition,
@@ -458,6 +507,16 @@ agentNewRoutes.post('/execute', async (c) => {
     })
 
     await runExecutionSession(executionSessionInput)
+
+    await persistTurnDetailForRun({
+      workDir: executionWorkDir,
+      runId: run.id,
+      taskId: executionTaskId,
+      fallbackPlan: plan,
+      messages: emittedExecutionMessages,
+    }).catch((error) => {
+      console.warn('[agent-new] Failed to persist execution turn detail:', error)
+    })
   })
 })
 
@@ -563,16 +622,30 @@ agentNewRoutes.get('/plan/:id', async (c) => {
   return c.json(result.body, result.statusCode)
 })
 
+agentNewRoutes.get('/task/:taskId/pending-plan', async (c) => {
+  const result = resolvePendingPlanLookupRequest({
+    taskId: c.req.param('taskId'),
+    turnId: c.req.query('turnId'),
+    getPendingPlan: (taskId, turnId) => planStore.findPendingPlan(taskId, turnId),
+  })
+  return c.json(result.body, result.statusCode)
+})
+
 /**
  * GET /agent/runtime/:taskId
  * Get task runtime/turn/artifact snapshot for recovery and dependency inspection.
  */
 agentNewRoutes.get('/runtime/:taskId', async (c) => {
+  const taskId = c.req.param('taskId')
+  const sessionDocs = taskId
+    ? await listTaskSessionDocuments(agentServiceConfig?.workDir || process.cwd(), taskId)
+    : []
   const result = resolveTaskRuntimeRequest({
-    taskId: c.req.param('taskId'),
+    taskId,
     getRuntime: (taskId) => turnRuntimeStore.getRuntime(taskId),
     listTurns: (taskId) => turnRuntimeStore.listTurns(taskId),
     listArtifacts: (taskId) => turnRuntimeStore.listArtifacts(taskId),
+    listSessionDocuments: () => sessionDocs,
   })
   return c.json(result.body, result.statusCode)
 })
@@ -587,6 +660,24 @@ agentNewRoutes.get('/turn/:turnId', async (c) => {
     getTurn: (turnId) => turnRuntimeStore.getTurn(turnId),
     getRuntime: (taskId) => turnRuntimeStore.getRuntime(taskId),
   })
+  return c.json(result.body, result.statusCode)
+})
+
+agentNewRoutes.get('/turn/:turnId/detail', async (c) => {
+  const requestedTurnId = c.req.param('turnId')
+  const turn = turnRuntimeStore.getTurn(requestedTurnId)
+  const detailStore = new TurnDetailStore(agentServiceConfig?.workDir || process.cwd())
+  const detail = turn
+    ? await detailStore.loadTurnDetail(turn.taskId, requestedTurnId)
+    : null
+
+  const result = resolveTurnDetailRequest({
+    turnId: requestedTurnId,
+    getTurn: () => turn,
+    getRuntime: (taskId) => turnRuntimeStore.getRuntime(taskId),
+    loadTurnDetail: () => detail,
+  })
+
   return c.json(result.body, result.statusCode)
 })
 

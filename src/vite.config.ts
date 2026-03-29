@@ -13,6 +13,12 @@ export default defineConfig({
   },
   server: {
     port: 1420,
+    watch: {
+      ignored: [
+        '**/src-api/workspace/**',
+        '**/.easywork/**',
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:2026',

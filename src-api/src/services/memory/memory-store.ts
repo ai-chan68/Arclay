@@ -8,10 +8,11 @@
  *   {workDir}/sessions/{id}/history.jsonl        Per-session execution trace
  */
 
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { readFile, appendFile, mkdir, readdir, rename, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import type { MemoryEntry, HistoryRecord } from './types'
+import { resolveTaskHistoryPath } from '../workspace-layout'
 
 const MEMORY_FILE = 'memory.md'
 const DAILY_DIR = 'memory/daily'
@@ -53,9 +54,11 @@ export function truncateToTokenBudget(content: string, budgetTokens: number): st
 
 export class MemoryStore {
   private readonly workDir: string
+  private readonly historyScopeId?: string
 
-  constructor(workDir: string) {
+  constructor(workDir: string, historyScopeId?: string) {
     this.workDir = workDir
+    this.historyScopeId = historyScopeId?.trim() || undefined
   }
 
   // ---------------------------------------------------------------------------
@@ -147,14 +150,14 @@ export class MemoryStore {
   // ---------------------------------------------------------------------------
 
   private historyPath(sessionId: string): string {
-    return join(this.workDir, 'sessions', sessionId, HISTORY_FILE)
+    return resolveTaskHistoryPath(this.workDir, this.historyScopeId || sessionId)
   }
 
   async appendHistory(sessionId: string, record: HistoryRecord): Promise<void> {
-    const dir = join(this.workDir, 'sessions', sessionId)
-    await this.ensureDir(dir)
+    const targetPath = this.historyPath(sessionId)
+    await this.ensureDir(dirname(targetPath))
     const line = JSON.stringify(record) + '\n'
-    await appendFile(this.historyPath(sessionId), line, 'utf-8')
+    await appendFile(targetPath, line, 'utf-8')
   }
 
   async loadHistory(sessionId: string): Promise<HistoryRecord[]> {

@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import type { AgentMessage, AgentTurnSnapshot, AgentTurnState, TaskPlan, PendingQuestion, PermissionRequest, TaskStatus } from '@shared-types'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
-import { extractFilesFromMessages } from '@/shared/lib/file-utils'
+import type { Artifact } from '@/shared/types/artifacts'
 import { PlanApproval } from '@/components/task-detail/PlanApproval'
 import { buildTurnDisplayModel, getPreferredFailureDetail, isToolResultExecutionError } from '@/shared/lib'
 import {
@@ -87,6 +87,7 @@ interface TaskMessageListProps {
   isRunning: boolean
   isLoadingMessages?: boolean
   showInconsistencyWarning?: boolean
+  persistedOutputText?: string | null
   // Execution plan - for showing plan progress during execution
   executionPlan?: TaskPlan | null
   // When awaiting approval, don't show plan in message list (PlanApproval component handles it)
@@ -106,9 +107,11 @@ interface TaskMessageListProps {
   canOpenPreview?: boolean
   onOpenPreview?: () => void
   fileBaseDir?: string
+  artifacts?: Artifact[]
   selectedTurnIndex?: number
   onSelectedTurnIndexChange?: (index: number) => void
   onSelectedTurnMessagesChange?: (messages: AgentMessage[], meta: {
+    selectedTurnId: string | null
     turnsCount: number
     selectedTurnIndex: number
     latestTurnIndex: number
@@ -137,6 +140,7 @@ export function TaskMessageList({
   isRunning,
   isLoadingMessages = false,
   showInconsistencyWarning = false,
+  persistedOutputText = null,
   executionPlan,
   isAwaitingApproval = false,
   isAwaitingClarification = false,
@@ -153,6 +157,7 @@ export function TaskMessageList({
   canOpenPreview = false,
   onOpenPreview,
   fileBaseDir,
+  artifacts = [],
   selectedTurnIndex: controlledSelectedTurnIndex,
   onSelectedTurnIndexChange,
   onSelectedTurnMessagesChange,
@@ -200,6 +205,7 @@ export function TaskMessageList({
         updateSelectedTurnIndex(0)
       }
       onSelectedTurnMessagesChange?.([], {
+        selectedTurnId: null,
         turnsCount: 0,
         selectedTurnIndex: 0,
         latestTurnIndex: -1,
@@ -227,6 +233,7 @@ export function TaskMessageList({
       latestApprovalTerminal: safeSelectedTurnIndex === latestTurnIndex ? latestApprovalTerminal : null,
     })
     onSelectedTurnMessagesChange?.(selectedTurnMessages, {
+      selectedTurnId: activeTurn.id,
       turnsCount: turns.length,
       selectedTurnIndex: safeSelectedTurnIndex,
       latestTurnIndex,
@@ -261,10 +268,7 @@ export function TaskMessageList({
     () => (activeTurn ? getMessagesForTurn(activeTurn) : []),
     [activeTurn]
   )
-  const activeTurnArtifacts = useMemo(
-    () => extractFilesFromMessages(activeTurnMessages),
-    [activeTurnMessages]
-  )
+  const isSelectedLatestTurn = safeSelectedTurnIndex === latestTurnIndex
   const visibleTimelineStart = showOlderTurns ? 0 : recentTurnStartIndex
   const visibleTurns = turns.slice(visibleTimelineStart)
   const hiddenTurnsCount = visibleTimelineStart
@@ -372,29 +376,30 @@ export function TaskMessageList({
               turn={activeTurn}
               turnIndex={safeSelectedTurnIndex + 1}
               totalTurns={turns.length}
-              isRunning={isRunning && safeSelectedTurnIndex === latestTurnIndex}
-              isLatestTurn={safeSelectedTurnIndex === latestTurnIndex}
+              persistedOutputText={persistedOutputText}
+              isRunning={isRunning && isSelectedLatestTurn}
+              isLatestTurn={isSelectedLatestTurn}
               executionPlan={executionPlan}
-              showPlan={!isAwaitingApproval}
-              isAwaitingApproval={isAwaitingApproval}
-              isAwaitingClarification={isAwaitingClarification}
-              taskStatus={taskStatus}
-              isStopped={taskStatus === 'stopped'}
-              latestApprovalTerminal={safeSelectedTurnIndex === latestTurnIndex ? latestApprovalTerminal : null}
-              artifacts={activeTurnArtifacts}
-              approvalPlan={safeSelectedTurnIndex === latestTurnIndex ? approvalPlan : null}
-              onApprovePlan={safeSelectedTurnIndex === latestTurnIndex ? onApprovePlan : undefined}
-              onRejectPlan={safeSelectedTurnIndex === latestTurnIndex ? onRejectPlan : undefined}
+              showPlan={!isSelectedLatestTurn || !isAwaitingApproval}
+              isAwaitingApproval={isSelectedLatestTurn ? isAwaitingApproval : false}
+              isAwaitingClarification={isSelectedLatestTurn ? isAwaitingClarification : false}
+              taskStatus={isSelectedLatestTurn ? taskStatus : undefined}
+              isStopped={isSelectedLatestTurn && taskStatus === 'stopped'}
+              latestApprovalTerminal={isSelectedLatestTurn ? latestApprovalTerminal : null}
+              artifacts={artifacts}
+              approvalPlan={isSelectedLatestTurn ? approvalPlan : null}
+              onApprovePlan={isSelectedLatestTurn ? onApprovePlan : undefined}
+              onRejectPlan={isSelectedLatestTurn ? onRejectPlan : undefined}
               canOpenPreview={canOpenPreview}
               onOpenPreview={onOpenPreview}
               fileBaseDir={fileBaseDir}
               pendingPermission={
-                safeSelectedTurnIndex === latestTurnIndex
+                isSelectedLatestTurn
                   ? (pendingPermission || activeTurn.pendingPermission || null)
                   : (activeTurn.pendingPermission || null)
               }
               pendingQuestion={
-                safeSelectedTurnIndex === latestTurnIndex
+                isSelectedLatestTurn
                   ? (pendingQuestion || activeTurn.pendingQuestion || null)
                   : (activeTurn.pendingQuestion || null)
               }
@@ -770,6 +775,7 @@ function SelectedTurnWorkspace({
   turnIndex,
   totalTurns,
   turn,
+  persistedOutputText = null,
   isRunning,
   isLatestTurn,
   executionPlan,
@@ -794,6 +800,7 @@ function SelectedTurnWorkspace({
   turnIndex: number
   totalTurns: number
   turn: ConversationTurn
+  persistedOutputText?: string | null
   isRunning: boolean
   isLatestTurn: boolean
   executionPlan?: TaskPlan | null
@@ -803,7 +810,7 @@ function SelectedTurnWorkspace({
   taskStatus?: TaskStatus
   isStopped?: boolean
   latestApprovalTerminal?: ApprovalTerminalRecord | null
-  artifacts: ReturnType<typeof extractFilesFromMessages>
+  artifacts: Artifact[]
   approvalPlan?: TaskPlan | null
   onApprovePlan?: () => void
   onRejectPlan?: () => void
@@ -893,6 +900,7 @@ function SelectedTurnWorkspace({
     hasPlan: !!activePlan,
     isTurnComplete: turn.isComplete,
     resultMessage: turn.resultMessage,
+    persistedOutputText,
   })
   const displayPhase = displayModel.phase
   const visibleResult = displayModel.visibleResult

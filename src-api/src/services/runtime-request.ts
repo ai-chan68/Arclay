@@ -2,6 +2,8 @@ import type { AgentRun, AgentRunStopResult } from './agent-run-store'
 import type { TaskPlan } from '../types/agent-new'
 import type { TurnArtifactRecord, TaskRuntimeRecord, TurnRecord } from '../types/turn-runtime'
 import type { PlanRecord } from '../types/plan-store'
+import type { SessionDocumentRecord } from './session-documents'
+import type { StoredTurnDetail } from './turn-detail-store'
 
 function normalizeOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim()
@@ -80,11 +82,43 @@ export function resolvePlanLookupRequest(input: {
   }
 }
 
+export function resolvePendingPlanLookupRequest(input: {
+  taskId?: string
+  turnId?: string
+  getPendingPlan: (taskId: string, turnId?: string) => TaskPlan | null
+}): {
+  statusCode: 200 | 400 | 404
+  body: Record<string, unknown> | TaskPlan
+} {
+  const taskId = normalizeOptionalString(input.taskId)
+  if (!taskId) {
+    return {
+      statusCode: 400,
+      body: { error: 'taskId is required' },
+    }
+  }
+
+  const turnId = normalizeOptionalString(input.turnId)
+  const plan = input.getPendingPlan(taskId, turnId)
+  if (!plan) {
+    return {
+      statusCode: 404,
+      body: { error: 'Pending plan not found' },
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: plan,
+  }
+}
+
 export function resolveTaskRuntimeRequest(input: {
   taskId?: string
   getRuntime: (taskId: string) => TaskRuntimeRecord | null
   listTurns: (taskId: string) => TurnRecord[]
   listArtifacts: (taskId: string) => TurnArtifactRecord[]
+  listSessionDocuments: (taskId: string) => SessionDocumentRecord[]
 }): {
   statusCode: 200 | 400
   body: Record<string, unknown>
@@ -104,6 +138,7 @@ export function resolveTaskRuntimeRequest(input: {
       runtime: input.getRuntime(taskId),
       turns: input.listTurns(taskId),
       artifacts: input.listArtifacts(taskId),
+      sessionDocs: input.listSessionDocuments(taskId),
     },
   }
 }
@@ -137,6 +172,49 @@ export function resolveTurnLookupRequest(input: {
     body: {
       turn,
       runtime: input.getRuntime(turn.taskId),
+    },
+  }
+}
+
+export function resolveTurnDetailRequest(input: {
+  turnId?: string
+  getTurn: (turnId: string) => TurnRecord | null
+  getRuntime: (taskId: string) => TaskRuntimeRecord | null
+  loadTurnDetail: (taskId: string, turnId: string) => StoredTurnDetail | null
+}): {
+  statusCode: 200 | 400 | 404
+  body: Record<string, unknown>
+} {
+  const turnId = normalizeOptionalString(input.turnId)
+  if (!turnId) {
+    return {
+      statusCode: 400,
+      body: { error: 'turnId is required' },
+    }
+  }
+
+  const turn = input.getTurn(turnId)
+  if (!turn) {
+    return {
+      statusCode: 404,
+      body: { error: 'Turn not found' },
+    }
+  }
+
+  const detail = input.loadTurnDetail(turn.taskId, turnId)
+  if (!detail) {
+    return {
+      statusCode: 404,
+      body: { error: 'Turn detail not found' },
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: {
+      turn,
+      runtime: input.getRuntime(turn.taskId),
+      detail,
     },
   }
 }

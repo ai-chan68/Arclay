@@ -32,6 +32,9 @@ describe('planning-files bootstrap', () => {
     expect(fs.existsSync(path.join(result.sessionDir, 'task_plan.md'))).toBe(true)
     expect(fs.existsSync(path.join(result.sessionDir, 'findings.md'))).toBe(true)
     expect(fs.existsSync(path.join(result.sessionDir, 'progress.md'))).toBe(true)
+    expect(fs.existsSync(path.join(result.sessionDir, 'turns'))).toBe(true)
+    expect(fs.existsSync(path.join(result.sessionDir, 'runs'))).toBe(true)
+    expect(fs.existsSync(path.join(result.sessionDir, 'inputs'))).toBe(true)
   })
 
   it('keeps existing planning files unchanged for resume runs', async () => {
