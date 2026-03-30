@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, writeFile } from 'fs/promises'
+import { appendFile, mkdir } from 'fs/promises'
 import path from 'path'
 import type { AgentMessage } from '@shared-types'
 import type { ApprovalListFilter, ApprovalRequestKind } from '../types/approval'
@@ -9,23 +9,6 @@ import type { Settings } from '../settings-store'
 import { createTurnStateMessage, emitSseMessage } from './agent-stream-events'
 
 const progressWriteQueues = new Map<string, Promise<void>>()
-const EXECUTION_ARTIFACT_BASELINES: Record<string, string> = {
-  'task_plan.md': `# Task Plan
-
-## Recovery
-- Runtime artifact guardrail recreated this file.
-`,
-  'findings.md': `# Findings & Decisions
-
-## Recovery
-- Runtime artifact guardrail recreated this file.
-`,
-  'progress.md': `# Progress Log
-
-## Recovery
-- Runtime artifact guardrail recreated this file before new evidence was appended.
-`,
-}
 
 type ClarificationScope = Pick<ApprovalListFilter, 'taskId' | 'runId'>
 type SseWritable = {
@@ -65,28 +48,9 @@ export async function appendProgressEntry(progressPath: string, lines: string[])
   }
 }
 
-async function ensureArtifactFile(filePath: string, content: string): Promise<void> {
-  try {
-    const existing = await readFile(filePath, 'utf-8')
-    if (existing.trim().length > 0) {
-      return
-    }
-  } catch {
-    // Recreate below when missing or unreadable.
-  }
-
-  await writeFile(filePath, content, 'utf-8')
-}
-
 async function ensureExecutionArtifacts(progressPath: string): Promise<void> {
   const sessionDir = path.dirname(progressPath)
   await mkdir(sessionDir, { recursive: true })
-
-  await Promise.all(
-    Object.entries(EXECUTION_ARTIFACT_BASELINES).map(([filename, content]) =>
-      ensureArtifactFile(path.join(sessionDir, filename), content)
-    )
-  )
 }
 
 export function createRouteMessageId(prefix: string): string {

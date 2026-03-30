@@ -323,8 +323,8 @@ describe('route-support', () => {
     await unlink(progressPath)
   })
 
-  it('recreates missing execution artifact files before appending progress evidence', async () => {
-    const { mkdtemp, readFile, rm } = await import('fs/promises')
+  it('creates session dir and appends progress entry even when workspace is missing', async () => {
+    const { mkdtemp, readFile, rm, stat } = await import('fs/promises')
     const { tmpdir } = await import('os')
     const { join } = await import('path')
 
@@ -336,12 +336,11 @@ describe('route-support', () => {
     await appendProgressEntry(progressPath, ['evidence-line'])
 
     const progressContent = await readFile(progressPath, 'utf-8')
-    const taskPlanContent = await readFile(join(sessionDir, 'task_plan.md'), 'utf-8')
-    const findingsContent = await readFile(join(sessionDir, 'findings.md'), 'utf-8')
-
     expect(progressContent).toContain('evidence-line')
-    expect(taskPlanContent).toContain('# Task Plan')
-    expect(findingsContent).toContain('# Findings & Decisions')
+
+    // planning markdown files are no longer recreated as guardrails
+    await expect(stat(join(sessionDir, 'task_plan.md'))).rejects.toThrow()
+    await expect(stat(join(sessionDir, 'findings.md'))).rejects.toThrow()
 
     await rm(sessionDir, { recursive: true, force: true })
   })

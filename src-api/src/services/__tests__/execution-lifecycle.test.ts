@@ -232,7 +232,7 @@ describe('finalizeExecutionLifecycle', () => {
     ])
   })
 
-  it('preserves failure evidence by recreating execution artifacts when progress workspace is missing', async () => {
+  it('preserves failure evidence by appending to progress path when workspace is missing', async () => {
     const { mkdtemp, readFile, rm } = await import('fs/promises')
     const { tmpdir } = await import('os')
     const { join } = await import('path')
@@ -272,7 +272,6 @@ describe('finalizeExecutionLifecycle', () => {
     expect(result.status).toBe('failed')
 
     const progressContent = await readFile(progressPath, 'utf-8')
-    expect(progressContent).toContain('# Progress Log')
     expect(progressContent).toContain('### Execution End (2026-03-21T12:05:00.000Z)')
     expect(progressContent).toContain('Execution failed after workspace loss.')
 

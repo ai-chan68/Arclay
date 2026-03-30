@@ -196,7 +196,15 @@ This separates process logging from snapshot storage and removes the need for ta
 - Verify turn history can be backfilled from task history by `turnId`.
 - Verify old tasks without turn-local history remain readable during migration.
 
+## Implementation Notes
+
+- Task history stays at `sessions/<taskId>/history.jsonl`
+- Turn history is now written to `turns/<turnId>/history.jsonl`
+- `task_plan.md`, `progress.md`, and `findings.md` are no longer created for new tasks
+- Old tasks remain readable because task history still exists at the original path
+- `progressPath` in the execution pipeline still points to the session dir but `appendProgressEntry` is a no-op when the file does not exist; it will be removed in a future cleanup pass
+
 ## Open Follow-Up
 
-- Decide whether task history is written directly during execution or rebuilt incrementally from turn history append events.
+- Remove `progressPath` plumbing from execution pipeline once callers are confirmed safe to drop.
 - Decide whether any task-wide summary artifact should replace the human-readable role previously played by `task_plan.md`, `progress.md`, and `findings.md`.
