@@ -79,6 +79,8 @@ function extractMetadata(message: AgentMessage): Record<string, unknown> | undef
 }
 
 export class HistoryLogger {
+  private pendingWrite: Promise<void> = Promise.resolve()
+
   constructor(
     private readonly store: MemoryStore,
     private readonly scope: {
@@ -88,6 +90,12 @@ export class HistoryLogger {
       runId: string | null
     }
   ) {}
+
+  private enqueue(work: () => Promise<void>): Promise<void> {
+    const run = this.pendingWrite.then(work, work)
+    this.pendingWrite = run.catch(() => {})
+    return run
+  }
 
   private async append(record: HistoryRecord): Promise<void> {
     await this.store.appendTaskHistory(this.scope.taskId, record)
@@ -116,7 +124,7 @@ export class HistoryLogger {
     }
 
     try {
-      await this.append(record)
+      await this.enqueue(() => this.append(record))
     } catch (err) {
       // Non-critical: log but don't interrupt agent execution
       console.warn('[HistoryLogger] Failed to write history:', err)
@@ -138,7 +146,7 @@ export class HistoryLogger {
     }
 
     try {
-      await this.append(record)
+      await this.enqueue(() => this.append(record))
     } catch (err) {
       console.warn('[HistoryLogger] Failed to write completion:', err)
     }

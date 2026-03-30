@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { TaskPlan } from '../../types/agent-new'
 import type { TurnRecord } from '../../types/turn-runtime'
+import type { ResolveExecutionEntryInput } from '../execution-entry'
 import { resolveExecutionEntry } from '../execution-entry'
 
 function createPlan(): TaskPlan {
@@ -29,86 +30,96 @@ function createTurn(overrides: Partial<TurnRecord> = {}): TurnRecord {
   }
 }
 
+function createExecutionSummary() {
+  return {
+    toolUseCount: 0,
+    toolResultCount: 0,
+    meaningfulToolUseCount: 0,
+    browserToolUseCount: 0,
+    browserNavigationCount: 0,
+    browserInteractionCount: 0,
+    browserSnapshotCount: 0,
+    browserScreenshotCount: 0,
+    browserEvalCount: 0,
+    assistantTextCount: 0,
+    meaningfulAssistantTextCount: 0,
+    preambleAssistantTextCount: 0,
+    resultMessageCount: 0,
+    latestTodoSnapshot: null,
+    pendingInteractionCount: 0,
+    blockerCandidate: null,
+    blockedArtifactPath: null,
+    providerResultSubtype: null,
+    providerStopReason: null,
+  }
+}
+
+function buildExecutionEntryInput(overrides: Partial<ResolveExecutionEntryInput> = {}): ResolveExecutionEntryInput {
+  const base: ResolveExecutionEntryInput = {
+    planId: 'plan_exec_entry',
+    runId: 'run_exec_entry',
+    prompt: '请把最终文件给我下载',
+    plan: createPlan(),
+    activeTurn: createTurn(),
+    executionTaskId: 'task_exec_entry',
+    progressPath: '/tmp/workspace/progress.md',
+    effectiveWorkDir: '/tmp/workspace',
+    executionWorkspaceDir: '/tmp/workspace/sessions/task_exec_entry',
+    isAborted: () => false,
+    appendProgressEntry: vi.fn(async () => {}),
+    captureQuestionRequest: vi.fn(),
+    recountPendingInteractions: () => 0,
+    markTurnAwaitingClarification: vi.fn(),
+    markPlanOrphaned: vi.fn(),
+    markPlanExecuted: vi.fn(),
+    cancelTurn: vi.fn(),
+    failTurn: vi.fn(),
+    completeTurn: vi.fn(),
+    cancelPendingApprovals: vi.fn(),
+    orphanPendingApprovals: vi.fn(),
+    deleteRun: vi.fn(),
+    formatExecutionSummary: vi.fn(() => 'summary'),
+    logInfo: vi.fn(),
+    logWarn: vi.fn(),
+    createId: (prefix) => `${prefix}_id`,
+    now: () => new Date('2026-03-26T00:00:00.000Z'),
+    providerName: 'claude',
+    providerModel: 'test-model',
+    sandboxEnabled: true,
+    runtimeMcpServers: null,
+    settingsMcpServers: null,
+    formatPlanForExecution: (plan, dir) => `PLAN:${plan.goal}@${dir}`,
+    streamAgentExecution: vi.fn(async function* () {}),
+    capturePendingInteraction: vi.fn(),
+    processExecutionStreamMessage: vi.fn(async () => ({
+      executionFailed: false,
+      executionFailureReason: null,
+      shouldForward: true,
+    })),
+    createObservation: vi.fn(),
+    collectObservation: vi.fn(),
+    evaluateRuntimeGate: vi.fn(),
+    emitMessage: vi.fn(async () => {}),
+    emitMessages: vi.fn(async () => {}),
+    emitTurnState: vi.fn(async () => {}),
+    emitMessagesAndTurnTransition: vi.fn(async () => {}),
+    emitTurnTransitionAndDone: vi.fn(async () => {}),
+    contextLogLines: [],
+    streamExecution: vi.fn(),
+    processExecutionMessage: vi.fn(),
+    executionPrompt: '',
+    executionSummary: createExecutionSummary(),
+    runtimeGateRequired: false,
+    browserAutomationIntent: false,
+    maxExecutionAttempts: 1,
+  }
+
+  return { ...base, ...overrides }
+}
+
 describe('resolveExecutionEntry', () => {
   it('appends turn artifact layout guidance to the execution prompt', () => {
-    const result = resolveExecutionEntry({
-      planId: 'plan_exec_entry',
-      runId: 'run_exec_entry',
-      prompt: '请把最终文件给我下载',
-      plan: createPlan(),
-      activeTurn: createTurn(),
-      executionTaskId: 'task_exec_entry',
-      progressPath: '/tmp/workspace/progress.md',
-      effectiveWorkDir: '/tmp/workspace',
-      executionWorkspaceDir: '/tmp/workspace/sessions/task_exec_entry',
-      isAborted: () => false,
-      appendProgressEntry: vi.fn(async () => {}),
-      captureQuestionRequest: vi.fn(),
-      recountPendingInteractions: () => 0,
-      markTurnAwaitingClarification: vi.fn(),
-      markPlanOrphaned: vi.fn(),
-      markPlanExecuted: vi.fn(),
-      cancelTurn: vi.fn(),
-      failTurn: vi.fn(),
-      completeTurn: vi.fn(),
-      cancelPendingApprovals: vi.fn(),
-      orphanPendingApprovals: vi.fn(),
-      deleteRun: vi.fn(),
-      formatExecutionSummary: vi.fn(() => 'summary'),
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-      createId: (prefix) => `${prefix}_id`,
-      now: () => new Date('2026-03-26T00:00:00.000Z'),
-      providerName: 'claude',
-      providerModel: 'test-model',
-      sandboxEnabled: true,
-      runtimeMcpServers: null,
-      settingsMcpServers: null,
-      formatPlanForExecution: (plan, dir) => `PLAN:${plan.goal}@${dir}`,
-      streamAgentExecution: vi.fn(async function* () {}),
-      capturePendingInteraction: vi.fn(),
-      processExecutionStreamMessage: vi.fn(async () => ({
-        executionFailed: false,
-        executionFailureReason: null,
-        shouldForward: true,
-      })),
-      createObservation: vi.fn(),
-      collectObservation: vi.fn(),
-      evaluateRuntimeGate: vi.fn(),
-      emitMessage: vi.fn(async () => {}),
-      emitMessages: vi.fn(async () => {}),
-      emitTurnState: vi.fn(async () => {}),
-      emitMessagesAndTurnTransition: vi.fn(async () => {}),
-      emitTurnTransitionAndDone: vi.fn(async () => {}),
-      contextLogLines: [],
-      streamExecution: vi.fn(),
-      processExecutionMessage: vi.fn(),
-      executionPrompt: '',
-      executionSummary: {
-        toolUseCount: 0,
-        toolResultCount: 0,
-        meaningfulToolUseCount: 0,
-        browserToolUseCount: 0,
-        browserNavigationCount: 0,
-        browserInteractionCount: 0,
-        browserSnapshotCount: 0,
-        browserScreenshotCount: 0,
-        browserEvalCount: 0,
-        assistantTextCount: 0,
-        meaningfulAssistantTextCount: 0,
-        preambleAssistantTextCount: 0,
-        resultMessageCount: 0,
-        latestTodoSnapshot: null,
-        pendingInteractionCount: 0,
-        blockerCandidate: null,
-        blockedArtifactPath: null,
-        providerResultSubtype: null,
-        providerStopReason: null,
-      },
-      runtimeGateRequired: false,
-      browserAutomationIntent: false,
-      maxExecutionAttempts: 1,
-    } as any)
+    const result = resolveExecutionEntry(buildExecutionEntryInput())
 
     expect(result.executionPrompt).toContain('## CRITICAL: Turn Artifact Layout')
     expect(result.executionPrompt).toContain('/tmp/workspace/sessions/task_exec_entry/turns/turn_exec_entry/artifacts/final')
@@ -117,90 +128,49 @@ describe('resolveExecutionEntry', () => {
   })
 
   it('does not require runtime verification for URL summarization tasks', () => {
-    const result = resolveExecutionEntry({
-      planId: 'plan_exec_entry',
-      runId: 'run_exec_entry',
-      prompt: 'https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents https://www.anthropic.com/engineering/harness-design-long-running-apps 这两个链接分别总结下',
-      plan: {
-        ...createPlan(),
-        goal: '总结两个网页链接内容',
-        steps: [{ id: 'step_1', description: '抓取链接内容并输出总结', status: 'pending' }],
-      },
-      activeTurn: createTurn(),
-      executionTaskId: 'task_exec_entry',
-      progressPath: '/tmp/workspace/progress.md',
-      effectiveWorkDir: '/tmp/workspace',
-      executionWorkspaceDir: '/tmp/workspace/sessions/task_exec_entry',
-      isAborted: () => false,
-      appendProgressEntry: vi.fn(async () => {}),
-      captureQuestionRequest: vi.fn(),
-      recountPendingInteractions: () => 0,
-      markTurnAwaitingClarification: vi.fn(),
-      markPlanOrphaned: vi.fn(),
-      markPlanExecuted: vi.fn(),
-      cancelTurn: vi.fn(),
-      failTurn: vi.fn(),
-      completeTurn: vi.fn(),
-      cancelPendingApprovals: vi.fn(),
-      orphanPendingApprovals: vi.fn(),
-      deleteRun: vi.fn(),
-      formatExecutionSummary: vi.fn(() => 'summary'),
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-      createId: (prefix) => `${prefix}_id`,
-      now: () => new Date('2026-03-26T00:00:00.000Z'),
-      providerName: 'claude',
-      providerModel: 'test-model',
-      sandboxEnabled: true,
-      runtimeMcpServers: null,
-      settingsMcpServers: null,
-      formatPlanForExecution: (plan, dir) => `PLAN:${plan.goal}@${dir}`,
-      streamAgentExecution: vi.fn(async function* () {}),
-      capturePendingInteraction: vi.fn(),
-      processExecutionStreamMessage: vi.fn(async () => ({
-        executionFailed: false,
-        executionFailureReason: null,
-        shouldForward: true,
-      })),
-      createObservation: vi.fn(),
-      collectObservation: vi.fn(),
-      evaluateRuntimeGate: vi.fn(),
-      emitMessage: vi.fn(async () => {}),
-      emitMessages: vi.fn(async () => {}),
-      emitTurnState: vi.fn(async () => {}),
-      emitMessagesAndTurnTransition: vi.fn(async () => {}),
-      emitTurnTransitionAndDone: vi.fn(async () => {}),
-      contextLogLines: [],
-      streamExecution: vi.fn(),
-      processExecutionMessage: vi.fn(),
-      executionPrompt: '',
-      executionSummary: {
-        toolUseCount: 0,
-        toolResultCount: 0,
-        meaningfulToolUseCount: 0,
-        browserToolUseCount: 0,
-        browserNavigationCount: 0,
-        browserInteractionCount: 0,
-        browserSnapshotCount: 0,
-        browserScreenshotCount: 0,
-        browserEvalCount: 0,
-        assistantTextCount: 0,
-        meaningfulAssistantTextCount: 0,
-        preambleAssistantTextCount: 0,
-        resultMessageCount: 0,
-        latestTodoSnapshot: null,
-        pendingInteractionCount: 0,
-        blockerCandidate: null,
-        blockedArtifactPath: null,
-        providerResultSubtype: null,
-        providerStopReason: null,
-      },
-      runtimeGateRequired: false,
-      browserAutomationIntent: false,
-      maxExecutionAttempts: 1,
-    } as any)
+    const result = resolveExecutionEntry(
+      buildExecutionEntryInput({
+        prompt: 'https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents https://www.anthropic.com/engineering/harness-design-long-running-apps 这两个链接分别总结下',
+        plan: {
+          ...createPlan(),
+          goal: '总结两个网页链接内容',
+          steps: [{ id: 'step_1', description: '抓取链接内容并输出总结', status: 'pending' }],
+        },
+      })
+    )
 
     expect(result.runtimeGateRequired).toBe(false)
     expect(result.maxExecutionAttempts).toBe(1)
+  })
+
+  it('passes the active turn id into the streamAgentExecution context', async () => {
+    const turnId = 'turn_stream_context'
+    const streamAgentExecution = vi.fn(async function* () {
+      yield {
+        id: 'msg-stream',
+        type: 'done',
+        timestamp: Date.now(),
+      }
+    })
+
+    const result = resolveExecutionEntry(
+      buildExecutionEntryInput({
+        streamAgentExecution,
+        activeTurn: createTurn({ id: turnId }),
+      })
+    )
+
+    for await (const _message of result.streamExecution('run prompt')) {
+      // consume generator
+    }
+
+    expect(streamAgentExecution).toHaveBeenCalledTimes(1)
+    expect(streamAgentExecution).toHaveBeenCalledWith(
+      expect.any(String),
+      'run_exec_entry',
+      undefined,
+      undefined,
+      expect.objectContaining({ turnId })
+    )
   })
 })
