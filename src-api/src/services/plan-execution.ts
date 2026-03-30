@@ -15,29 +15,18 @@ export interface PlanLike {
 
 export function getPlanningFilesProtocolInstruction(): string {
   return `
-## CRITICAL: Planning Files Protocol
+## CRITICAL: History Ledger Protocol
 
-The execution workspace includes these persistent files:
-- task_plan.md
-- findings.md
-- progress.md
+Execution progress is recorded automatically to append-only history ledgers:
+- Task ledger: sessions/<task_id>/history.jsonl
+- Turn ledger: turns/<turn_id>/history.jsonl
 
-You MUST keep the planning files updated during execution:
-1. At the start of each step, update task_plan.md status and current phase.
-2. After meaningful discoveries, append key facts and decisions to findings.md.
-3. After each completed step (and on every error), append progress details to progress.md.
-4. Record every failure and resolution attempt in task_plan.md and progress.md.
-5. Never delete these files.
+Record progress through TodoWrite and normal tool usage. Do not create planning markdown files in the session directory.
 
-Turn-level review files are stored separately from task-level planning files:
+Turn-level review files:
 - The current turn may persist its own review template at \`turns/<turn_id>/evaluation.md\`.
 - Do NOT create or overwrite a task-level \`evaluation.md\` in the session root.
 - When the user asks whether a task/session met expectations, prefer the current turn's \`evaluation.md\` if it exists.
-
-These files are pre-created before execution starts:
-- Use Read before the first Edit on any of them.
-- Do NOT use Write to replace task_plan.md, findings.md, or progress.md.
-- Prefer Edit for targeted updates so concurrent progress logging remains stable.
 `
 }
 

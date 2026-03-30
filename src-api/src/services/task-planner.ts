@@ -82,8 +82,7 @@ ${JSON.stringify(initialTodos, null, 2)}
 \`\`\`
 
 Then update the status as you progress through each step.
-IMPORTANT: Use Read before the first Edit on any of them.
-Do NOT use Write to replace task_plan.md, findings.md, or progress.md - use Edit or TodoWrite first.
+IMPORTANT: Use Read before the first Edit on any existing file.
 
 ## CRITICAL: Completion Verification (MANDATORY BEFORE STOPPING)
 

@@ -186,7 +186,6 @@ export async function bootstrapPlanningFiles(
 ): Promise<PlanningFilesBootstrapResult> {
   const taskId = input.taskId.trim()
   const sessionDir = resolveTaskWorkspaceDir(input.workDir, taskId)
-  const now = new Date()
   const result: PlanningFilesBootstrapResult = {
     sessionDir,
     createdFiles: [],
@@ -205,12 +204,6 @@ export async function bootstrapPlanningFiles(
       mkdir(resolveTaskTurnsDir(input.workDir, taskId), { recursive: true }),
       mkdir(resolveTaskRunsDir(input.workDir, taskId), { recursive: true }),
       mkdir(resolveTaskInputsDir(input.workDir, taskId), { recursive: true }),
-    ])
-
-    await Promise.all([
-      ensureFile(path.join(sessionDir, 'task_plan.md'), renderTaskPlanContent(input, now), result),
-      ensureFile(path.join(sessionDir, 'findings.md'), renderFindingsContent(input, now), result),
-      ensureFile(path.join(sessionDir, 'progress.md'), renderProgressContent(input, now), result),
     ])
   } catch (error) {
     result.error = error instanceof Error ? error.message : 'Unknown bootstrap error'

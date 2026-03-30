@@ -44,8 +44,8 @@ Use **Grep** to search memory for specific topics: \`grep -i "keyword" ${workDir
 
 ### Guidelines
 - Save sparingly — only facts that would be useful in a future session
-- Don't save ephemeral task details (those are in progress.md)
-- Don't duplicate what's already in task_plan.md or findings.md
+- Don't save ephemeral task details (those belong in history ledgers)
+- Don't duplicate what's already recorded in history.jsonl
 - Keep each entry concise (2-5 lines)
 `
 }

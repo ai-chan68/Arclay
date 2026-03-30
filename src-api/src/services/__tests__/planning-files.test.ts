@@ -15,35 +15,35 @@ describe('planning-files bootstrap', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('creates planning files in the session work directory', async () => {
+  it('bootstraps only workspace directories after markdown retirement', async () => {
     const result = await bootstrapPlanningFiles({
       workDir: tmpDir,
-      taskId: 'task_bootstrap',
-      goal: 'Design an order management system',
-      steps: ['Define domain model', 'Design APIs', 'Define test plan'],
-      notes: 'Focus on reliability and auditability',
-      originalPrompt: 'Help me design an order management system',
+      taskId: 'task_history_only',
+      goal: 'collect history',
+      steps: ['write turn history'],
     })
 
     expect(result.error).toBeUndefined()
-    expect(result.createdFiles.sort()).toEqual(['findings.md', 'progress.md', 'task_plan.md'])
-    expect(result.sessionDir).toBe(path.join(tmpDir, 'sessions', 'task_bootstrap'))
+    expect(result.createdFiles).toEqual([])
+    expect(result.sessionDir).toBe(path.join(tmpDir, 'sessions', 'task_history_only'))
 
-    expect(fs.existsSync(path.join(result.sessionDir, 'task_plan.md'))).toBe(true)
-    expect(fs.existsSync(path.join(result.sessionDir, 'findings.md'))).toBe(true)
-    expect(fs.existsSync(path.join(result.sessionDir, 'progress.md'))).toBe(true)
+    expect(fs.existsSync(path.join(result.sessionDir, 'task_plan.md'))).toBe(false)
+    expect(fs.existsSync(path.join(result.sessionDir, 'progress.md'))).toBe(false)
+    expect(fs.existsSync(path.join(result.sessionDir, 'findings.md'))).toBe(false)
     expect(fs.existsSync(path.join(result.sessionDir, 'turns'))).toBe(true)
     expect(fs.existsSync(path.join(result.sessionDir, 'runs'))).toBe(true)
     expect(fs.existsSync(path.join(result.sessionDir, 'inputs'))).toBe(true)
   })
 
-  it('keeps existing planning files unchanged for resume runs', async () => {
-    const sessionDir = path.join(tmpDir, 'sessions', 'task_resume')
-    fs.mkdirSync(sessionDir, { recursive: true })
-    const existingTaskPlan = path.join(sessionDir, 'task_plan.md')
-    fs.writeFileSync(existingTaskPlan, '# Existing task plan marker', 'utf-8')
-
-    const result = await bootstrapPlanningFiles({
+  it('is idempotent on resume runs without markdown files', async () => {
+    const result1 = await bootstrapPlanningFiles({
+      workDir: tmpDir,
+      taskId: 'task_resume',
+      goal: 'Resume order management design',
+      steps: ['Continue architecture review'],
+      originalPrompt: 'Resume the previous task',
+    })
+    const result2 = await bootstrapPlanningFiles({
       workDir: tmpDir,
       taskId: 'task_resume',
       goal: 'Resume order management design',
@@ -51,33 +51,8 @@ describe('planning-files bootstrap', () => {
       originalPrompt: 'Resume the previous task',
     })
 
-    expect(result.error).toBeUndefined()
-    expect(result.createdFiles.sort()).toEqual(['findings.md', 'progress.md'])
-    expect(result.skippedFiles).toContain('task_plan.md')
-    expect(fs.readFileSync(existingTaskPlan, 'utf-8')).toBe('# Existing task plan marker')
-  })
-
-  it('repairs empty mandatory planning files instead of skipping them on resume runs', async () => {
-    const sessionDir = path.join(tmpDir, 'sessions', 'task_repair')
-    fs.mkdirSync(sessionDir, { recursive: true })
-    const emptyTaskPlan = path.join(sessionDir, 'task_plan.md')
-    const findingsPath = path.join(sessionDir, 'findings.md')
-
-    fs.writeFileSync(emptyTaskPlan, '   \n', 'utf-8')
-    fs.writeFileSync(findingsPath, '# Existing findings marker', 'utf-8')
-
-    const result = await bootstrapPlanningFiles({
-      workDir: tmpDir,
-      taskId: 'task_repair',
-      goal: 'Repair planning artifacts',
-      steps: ['Recover workspace guardrails'],
-      originalPrompt: 'Resume after accidental file truncation',
-    })
-
-    expect(result.error).toBeUndefined()
-    expect(result.repairedFiles).toContain('task_plan.md')
-    expect(result.skippedFiles).toContain('findings.md')
-    expect(fs.readFileSync(emptyTaskPlan, 'utf-8')).toContain('# Task Plan')
-    expect(fs.readFileSync(findingsPath, 'utf-8')).toBe('# Existing findings marker')
+    expect(result1.error).toBeUndefined()
+    expect(result2.error).toBeUndefined()
+    expect(result2.createdFiles).toEqual([])
   })
 })

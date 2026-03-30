@@ -59,9 +59,8 @@ describe('Claude MCP execution guidance', () => {
     expect(prompt).toContain('Do NOT inspect other applications')
     expect(prompt).toContain('Do NOT scan the home directory')
     expect(prompt).toContain('If the required MCP server is unavailable, report that it is not configured for the current application')
-    expect(prompt).toContain('These files are pre-created before execution starts')
-    expect(prompt).toContain('Use Read before the first Edit on any of them')
-    expect(prompt).toContain('Do NOT use Write to replace task_plan.md, findings.md, or progress.md')
+    expect(prompt).toContain('history.jsonl')
+    expect(prompt).toContain('Use Read before the first Edit on any existing file')
   })
 
   it('guides information retrieval runs to choose screenshots by information value', () => {

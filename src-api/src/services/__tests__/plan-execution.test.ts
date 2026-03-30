@@ -6,7 +6,16 @@ import {
 } from '../plan-execution'
 
 describe('plan-execution', () => {
-  it('mentions turn-level evaluation guidance in the planning files protocol', () => {
+  it('references history ledger in the protocol instruction', () => {
+    const instruction = getPlanningFilesProtocolInstruction()
+
+    expect(instruction).toContain('history.jsonl')
+    expect(instruction).not.toContain('task_plan.md')
+    expect(instruction).not.toContain('progress.md')
+    expect(instruction).not.toContain('findings.md')
+  })
+
+  it('mentions turn-level evaluation guidance in the protocol instruction', () => {
     const instruction = getPlanningFilesProtocolInstruction()
 
     expect(instruction).toContain('turns/<turn_id>/evaluation.md')
@@ -14,15 +23,15 @@ describe('plan-execution', () => {
     expect(instruction).toContain("prefer the current turn's `evaluation.md`")
   })
 
-  it('includes evaluation guidance in the fallback execution prompt', () => {
+  it('includes history ledger guidance in the fallback execution prompt', () => {
     const prompt = formatPlanForExecutionFallback({
       goal: 'Audit session quality',
       steps: [{ description: 'Review the session artifacts' }],
       notes: 'Focus on execution path and artifacts',
     }, '/workspace')
 
-    expect(prompt).toContain('turns/<turn_id>/evaluation.md')
-    expect(prompt).toContain('Planning Files Protocol')
+    expect(prompt).toContain('history.jsonl')
+    expect(prompt).toContain('History Ledger Protocol')
   })
 
   it('preserves original request when building the final execution prompt', () => {
