@@ -202,19 +202,39 @@ describe('runtime-request', () => {
         createdAt: 1,
       },
     ]
+    const sessionDocs = [
+      {
+        id: 'session-doc-history-jsonl',
+        name: 'history.jsonl',
+        path: '/tmp/task_runtime_request/history.jsonl',
+        type: 'text',
+      },
+      {
+        id: 'session-doc-task-plan-md',
+        name: 'task_plan.md',
+        path: '/tmp/task_runtime_request/task_plan.md',
+        type: 'markdown',
+      },
+      {
+        id: 'session-doc-progress-md',
+        name: 'progress.md',
+        path: '/tmp/task_runtime_request/progress.md',
+        type: 'markdown',
+      },
+      {
+        id: 'session-doc-findings-md',
+        name: 'findings.md',
+        path: '/tmp/task_runtime_request/findings.md',
+        type: 'markdown',
+      },
+    ]
+
     const ready = resolveTaskRuntimeRequest({
       taskId: 'task_runtime_request',
       getRuntime: vi.fn(() => createRuntime()),
       listTurns: vi.fn(() => [createTurn()]),
       listArtifacts: vi.fn(() => artifacts),
-      listSessionDocuments: vi.fn(() => [
-        {
-          id: 'session-doc-task-plan-md',
-          name: 'task_plan.md',
-          path: '/tmp/task_runtime_request/task_plan.md',
-          type: 'markdown',
-        },
-      ]),
+      listSessionDocuments: vi.fn(() => sessionDocs),
     })
     expect(ready).toEqual({
       statusCode: 200,
@@ -223,14 +243,7 @@ describe('runtime-request', () => {
         runtime: createRuntime(),
         turns: [createTurn()],
         artifacts,
-        sessionDocs: [
-          {
-            id: 'session-doc-task-plan-md',
-            name: 'task_plan.md',
-            path: '/tmp/task_runtime_request/task_plan.md',
-            type: 'markdown',
-          },
-        ],
+        sessionDocs,
       },
     })
 

@@ -6,13 +6,14 @@ export interface SessionDocumentRecord {
   id: string
   name: string
   path: string
-  type: 'markdown'
+  type: 'markdown' | 'text'
 }
 
 const SESSION_DOCUMENT_FILENAMES = [
-  'task_plan.md',
-  'findings.md',
-  'progress.md',
+  { name: 'history.jsonl', type: 'text' as const },
+  { name: 'task_plan.md', type: 'markdown' as const },
+  { name: 'progress.md', type: 'markdown' as const },
+  { name: 'findings.md', type: 'markdown' as const },
 ] as const
 
 export async function listTaskSessionDocuments(
@@ -22,15 +23,15 @@ export async function listTaskSessionDocuments(
   const sessionDir = resolveTaskWorkspaceDir(workDir, taskId)
   const result: SessionDocumentRecord[] = []
 
-  for (const filename of SESSION_DOCUMENT_FILENAMES) {
-    const filePath = path.join(sessionDir, filename)
+  for (const entry of SESSION_DOCUMENT_FILENAMES) {
+    const filePath = path.join(sessionDir, entry.name)
     try {
       await access(filePath)
       result.push({
-        id: `session-doc-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`,
-        name: filename,
+        id: `session-doc-${entry.name.replace(/[^a-zA-Z0-9]/g, '-')}`,
+        name: entry.name,
         path: filePath,
-        type: 'markdown',
+        type: entry.type,
       })
     } catch {
       // Ignore missing session docs so the runtime API stays resilient.

@@ -33,6 +33,12 @@ describe('filterArtifactsForDisplay', () => {
         path: '/tmp/sessions/task_1/turns/turn_1/artifacts/final/claude-code-tips-chinese.md',
         type: 'markdown',
       },
+      {
+        id: 'turn-evaluation',
+        name: 'evaluation.md',
+        path: '/tmp/sessions/task_1/turns/turn_1/evaluation.md',
+        type: 'markdown',
+      },
     ])
   })
 
@@ -52,6 +58,32 @@ describe('filterArtifactsForDisplay', () => {
       },
     ]
 
-    expect(filterArtifactsForDisplay(artifacts)).toEqual([])
+    expect(filterArtifactsForDisplay(artifacts)).toEqual([
+      {
+        id: 'turn-evaluation',
+        name: 'evaluation.md',
+        path: '/tmp/sessions/task_1/turns/turn_1/evaluation.md',
+        type: 'markdown',
+      },
+    ])
+  })
+
+  it('shows planning documents as session artifacts', () => {
+    const artifacts: Artifact[] = [
+      {
+        id: 'task-plan',
+        name: 'task_plan.md',
+        path: '/tmp/sessions/task_1/task_plan.md',
+        type: 'markdown',
+      },
+      {
+        id: 'progress-log',
+        name: 'progress.md',
+        path: '/tmp/sessions/task_1/progress.md',
+        type: 'markdown',
+      },
+    ]
+
+    expect(filterArtifactsForDisplay(artifacts)).toEqual(artifacts)
   })
 })

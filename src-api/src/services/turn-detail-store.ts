@@ -4,6 +4,7 @@ import type { TaskPlan } from '../types/agent-new'
 import type { TurnRecord } from '../types/turn-runtime'
 import {
   resolveTurnArtifactsDir,
+  resolveTurnHistoryPath,
   resolveTurnWorkspaceDir,
 } from './workspace-layout'
 
@@ -61,9 +62,7 @@ const SCRIPT_EXTENSIONS = new Set([
 
 const SESSION_DOCUMENT_FILENAMES = new Set([
   'evaluation.md',
-  'task_plan.md',
-  'findings.md',
-  'progress.md',
+  'history.jsonl',
 ])
 
 const LOCAL_FILE_PATH_REGEX = /(?:^|[\s"'`:：])((?:\/|~\/|\.\/|\.\.\/|[A-Za-z]:[\\/])[^\s"'`<>]+?\.[a-zA-Z0-9]{1,12})(?=$|[\s"'`<>])/g
@@ -443,15 +442,29 @@ export class TurnDetailStore {
     })
     await writeFile(evaluationPath, evaluationContent, 'utf-8')
 
-    const outputArtifacts = dedupeArtifacts([
+    const evaluationArtifact: TurnDetailArtifactRecord = {
+      id: `session-doc-${TURN_EVALUATION_FILENAME.replace(/[^a-zA-Z0-9]/g, '-')}`,
+      name: TURN_EVALUATION_FILENAME,
+      path: evaluationPath,
+      type: 'markdown',
+    }
+
+    const outputArtifacts: TurnDetailArtifactRecord[] = [
       ...canonicalized.artifacts,
-      {
-        id: `session-doc-${TURN_EVALUATION_FILENAME.replace(/[^a-zA-Z0-9]/g, '-')}`,
-        name: TURN_EVALUATION_FILENAME,
-        path: evaluationPath,
-        type: 'markdown',
-      },
-    ])
+      evaluationArtifact,
+    ]
+
+    const historyPath = resolveTurnHistoryPath(this.workDir, taskId, turnId)
+    if (await pathExists(historyPath)) {
+      outputArtifacts.push({
+        id: 'turn-history-jsonl',
+        name: 'history.jsonl',
+        path: historyPath,
+        type: 'text',
+      })
+    }
+
+    const dedupedOutputArtifacts = dedupeArtifacts(outputArtifacts)
 
     const detail: StoredTurnDetail = {
       taskId,
@@ -461,7 +474,7 @@ export class TurnDetailStore {
       output: {
         textPath: outputText ? this.outputFilePath(taskId, turnId) : null,
         text: outputText,
-        artifacts: outputArtifacts,
+        artifacts: dedupedOutputArtifacts,
         primaryArtifactId: canonicalized.primaryArtifact?.id || null,
       },
       updatedAt: new Date().toISOString(),

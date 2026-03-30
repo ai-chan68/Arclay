@@ -28,11 +28,22 @@ import {
  * These should not appear as user-facing artifacts in the UI.
  */
 const INTERNAL_PLANNING_FILENAMES = new Set([
+  'evaluation.md',
+]);
+
+const SESSION_DOCUMENT_FILENAMES = new Set([
+  'evaluation.md',
+  'history.jsonl',
   'task_plan.md',
   'progress.md',
   'findings.md',
-  'evaluation.md',
 ]);
+
+export function isSessionDocumentFile(filePath?: string): boolean {
+  if (!filePath) return false;
+  const filename = filePath.split(/[\\/]/).pop()?.toLowerCase() || '';
+  return SESSION_DOCUMENT_FILENAMES.has(filename);
+}
 
 function isInternalPlanningFile(filePath: string): boolean {
   const filename = filePath.split(/[\/]/).pop() || '';
@@ -345,9 +356,13 @@ export function sortArtifactsForPreview(artifacts: Artifact[]): Artifact[] {
 export function filterArtifactsForDisplay(artifacts: Artifact[]): Artifact[] {
   const seenPaths = new Set<string>();
   return artifacts.filter((artifact) => {
-    if (!artifact.path || !isTurnArtifactPath(artifact.path)) return false;
-    if (seenPaths.has(artifact.path)) return false;
-    seenPaths.add(artifact.path);
+    const filePath = artifact.path || artifact.name;
+    if (!filePath) return false;
+    if (seenPaths.has(filePath)) return false;
+    const isCanonical = isTurnArtifactPath(filePath);
+    const isSessionDoc = isSessionDocumentFile(filePath);
+    if (!isCanonical && !isSessionDoc) return false;
+    seenPaths.add(filePath);
     return true;
   });
 }

@@ -28,6 +28,7 @@ import { apiFetchRaw } from '../../shared/api'
 import { copyToClipboard } from '../../shared/services/clipboard-service'
 import {
   filterArtifactsForDisplay,
+  isSessionDocumentFile,
   pickPrimaryArtifactForPreview,
   shouldPromotePreviewSelection,
   sortArtifactsForPreview,
@@ -49,20 +50,8 @@ function isHttpUrl(value?: string): boolean {
   return !!value && /^https?:\/\//i.test(value)
 }
 
-const SESSION_DOCUMENT_FILENAMES = new Set([
-  'evaluation.md',
-  'task_plan.md',
-  'findings.md',
-  'progress.md',
-])
-
-function getArtifactBasename(artifact: Artifact | null | undefined): string {
-  const source = artifact?.name || artifact?.path || ''
-  return source.split(/[\\/]/).pop()?.toLowerCase() || ''
-}
-
-function isSessionDocumentArtifact(artifact: Artifact | null | undefined): boolean {
-  return SESSION_DOCUMENT_FILENAMES.has(getArtifactBasename(artifact))
+function isSessionDocumentArtifact(artifact?: Artifact | null): boolean {
+  return isSessionDocumentFile(artifact?.path || artifact?.name)
 }
 
 export function RightSidebar({
