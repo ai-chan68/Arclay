@@ -85,9 +85,16 @@ export class HistoryLogger {
       sessionId: string
       taskId: string
       turnId: string | null
-      runId: string
+      runId: string | null
     }
   ) {}
+
+  private async append(record: HistoryRecord): Promise<void> {
+    await this.store.appendTaskHistory(this.scope.taskId, record)
+    if (this.scope.turnId) {
+      await this.store.appendTurnHistory(this.scope.taskId, this.scope.turnId, record)
+    }
+  }
 
   /**
    * Log an AgentMessage as a HistoryRecord.
@@ -109,7 +116,7 @@ export class HistoryLogger {
     }
 
     try {
-      await this.store.appendHistory(this.scope.sessionId, record)
+      await this.append(record)
     } catch (err) {
       // Non-critical: log but don't interrupt agent execution
       console.warn('[HistoryLogger] Failed to write history:', err)
@@ -131,7 +138,7 @@ export class HistoryLogger {
     }
 
     try {
-      await this.store.appendHistory(this.scope.sessionId, record)
+      await this.append(record)
     } catch (err) {
       console.warn('[HistoryLogger] Failed to write completion:', err)
     }

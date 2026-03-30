@@ -56,6 +56,7 @@ export interface AgentServiceConfig {
 export interface StreamExecutionOptions {
   workDir?: string
   taskId?: string
+  turnId?: string
   systemPrompt?: string
   plan?: import('../types/agent-new').TaskPlan
 
@@ -417,7 +418,7 @@ ${categoryInstructions.join('\n---\n')}
     const historyScope = {
       sessionId: effectiveSessionId,
       taskId: streamOptions?.taskId || effectiveSessionId,
-      turnId: null,
+      turnId: streamOptions?.turnId || null,
       runId: effectiveSessionId,
     }
     const historyLogger = new HistoryLogger(memoryStore, historyScope)

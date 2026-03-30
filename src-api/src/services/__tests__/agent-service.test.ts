@@ -129,4 +129,60 @@ describe('AgentService', () => {
     expect(fs.existsSync(path.join(taskDir, 'context.json'))).toBe(true)
     expect(fs.existsSync(path.join(workDir, 'sessions', sessionId, 'context.json'))).toBe(false)
   })
+
+  it('records history in both task and turn ledgers when turnId is provided', async () => {
+    const sessionId = 'session-with-turn-history'
+    const taskId = 'task_turn_history'
+    const turnId = 'turn_dual_write'
+
+    const fakeAgent: IAgent = {
+      async run() {
+        return []
+      },
+      async *stream() {
+        yield {
+          id: 'msg-turn',
+          type: 'text',
+          role: 'assistant',
+          content: 'turn complete',
+          timestamp: Date.now(),
+        }
+      },
+      abort() {
+        return
+      },
+      getSession() {
+        return null
+      },
+    }
+
+    const service = new AgentService({ provider, workDir })
+    vi.spyOn(service, 'createAgent').mockReturnValue(fakeAgent)
+
+    for await (const _message of service.streamExecution('test turn history', sessionId, undefined, undefined, {
+      taskId,
+      turnId,
+    })) {
+      // noop
+    }
+
+    const taskLines = fs
+      .readFileSync(path.join(workDir, 'sessions', taskId, 'history.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+    const turnLines = fs
+      .readFileSync(
+        path.join(workDir, 'sessions', taskId, 'turns', turnId, 'history.jsonl'),
+        'utf8'
+      )
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+
+    expect(taskLines).toHaveLength(turnLines.length)
+    const taskRecords = taskLines.map((line) => JSON.parse(line))
+    const turnRecords = turnLines.map((line) => JSON.parse(line))
+    expect(taskRecords).toEqual(turnRecords)
+  })
 })
