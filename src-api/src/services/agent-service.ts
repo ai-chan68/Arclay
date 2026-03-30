@@ -414,7 +414,13 @@ ${categoryInstructions.join('\n---\n')}
       plan: streamOptions?.plan,
     }
 
-    const historyLogger = new HistoryLogger(memoryStore, effectiveSessionId)
+    const historyScope = {
+      sessionId: effectiveSessionId,
+      taskId: streamOptions?.taskId || effectiveSessionId,
+      turnId: null,
+      runId: effectiveSessionId,
+    }
+    const historyLogger = new HistoryLogger(memoryStore, historyScope)
 
     try {
       for await (const message of agent.stream(enhancedPrompt, options)) {

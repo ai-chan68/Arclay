@@ -81,7 +81,12 @@ function extractMetadata(message: AgentMessage): Record<string, unknown> | undef
 export class HistoryLogger {
   constructor(
     private readonly store: MemoryStore,
-    private readonly sessionId: string
+    private readonly scope: {
+      sessionId: string
+      taskId: string
+      turnId: string | null
+      runId: string
+    }
   ) {}
 
   /**
@@ -94,14 +99,17 @@ export class HistoryLogger {
 
     const record: HistoryRecord = {
       timestamp: new Date().toISOString(),
-      sessionId: this.sessionId,
+      sessionId: this.scope.sessionId,
+      taskId: this.scope.taskId,
+      turnId: this.scope.turnId,
+      runId: this.scope.runId,
       type,
       content: extractContent(message),
       metadata: extractMetadata(message),
     }
 
     try {
-      await this.store.appendHistory(this.sessionId, record)
+      await this.store.appendHistory(this.scope.sessionId, record)
     } catch (err) {
       // Non-critical: log but don't interrupt agent execution
       console.warn('[HistoryLogger] Failed to write history:', err)
@@ -114,13 +122,16 @@ export class HistoryLogger {
   async logCompletion(summary?: string): Promise<void> {
     const record: HistoryRecord = {
       timestamp: new Date().toISOString(),
-      sessionId: this.sessionId,
+      sessionId: this.scope.sessionId,
+      taskId: this.scope.taskId,
+      turnId: this.scope.turnId,
+      runId: this.scope.runId,
       type: 'done',
       content: summary || 'turn completed',
     }
 
     try {
-      await this.store.appendHistory(this.sessionId, record)
+      await this.store.appendHistory(this.scope.sessionId, record)
     } catch (err) {
       console.warn('[HistoryLogger] Failed to write completion:', err)
     }
