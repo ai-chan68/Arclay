@@ -2249,11 +2249,13 @@ You MUST use sandbox tools for running scripts.
 
     let totalTokens = 0;
     const selectedMessages: string[] = [];
-    const startIndex = Math.max(0, messageTokens.length - minMessagesToKeep);
 
-    for (let i = messageTokens.length - 1; i >= startIndex; i--) {
+    // 从最新往最旧遍历，用 token 预算控制截止点
+    // mustInclude 保证最近 minMessagesToKeep 条无论预算都保留
+    for (let i = messageTokens.length - 1; i >= 0; i--) {
       const message = messageTokens[i];
-      if (totalTokens + message.tokens <= maxHistoryTokens) {
+      const mustInclude = i >= messageTokens.length - minMessagesToKeep;
+      if (mustInclude || totalTokens + message.tokens <= maxHistoryTokens) {
         selectedMessages.unshift(message.content);
         totalTokens += message.tokens;
       } else {
