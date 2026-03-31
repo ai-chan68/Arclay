@@ -21,7 +21,12 @@ export abstract class BaseAgent implements IAgent {
   /** 当前会话 */
   protected session: AgentSessionInfo | null = null;
 
-  /** 对话历史 */
+  /**
+   * 对话历史（供继承类使用）
+   * NOTE: ClaudeAgent 不使用此字段——它通过 options.conversation 传入历史，
+   * 并在 formatConversationHistory() 中处理截断。
+   * 此字段保留供其他 provider 实现使用。
+   */
   protected conversationHistory: ConversationMessage[] = [];
 
   /** 中止控制器 */
