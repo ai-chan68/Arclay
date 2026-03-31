@@ -50,20 +50,22 @@ export class BashTool implements ITool {
         signal: context?.signal
       })
 
-      const output = result.stdout + (result.stderr ? `\nstderr:\n${result.stderr}` : '')
+      const stderrValue = result.stderr || undefined
 
       if (result.timedOut) {
         return {
           success: false,
-          output,
-          error: `Command timed out after ${timeout}ms`
+          output: result.stdout || '(no output)',
+          error: stderrValue ?? `Command timed out after ${timeout}ms`,
+          exitCode: result.exitCode,
         }
       }
 
       return {
         success: result.exitCode === 0,
-        output: output || '(no output)',
-        exitCode: result.exitCode
+        output: result.stdout || '(no output)',
+        error: stderrValue,
+        exitCode: result.exitCode,
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
