@@ -2259,6 +2259,8 @@ You MUST use sandbox tools for running scripts.
         selectedMessages.unshift(message.content);
         totalTokens += message.tokens;
       } else {
+        // Greedy truncation: stop at first message that exceeds budget.
+        // Messages older than this point are dropped even if individually small.
         break;
       }
     }
