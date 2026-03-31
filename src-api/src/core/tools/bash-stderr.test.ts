@@ -47,4 +47,19 @@ describe('BashTool stderr handling', () => {
     const result = await tool.execute({ command: 'echo hi' })
     expect(result.error).toBeUndefined()
   })
+
+  it('includes timeout message in error when timedOut is true and stderr is empty', async () => {
+    const tool = new BashTool(makeSandbox({ stdout: '', stderr: '', exitCode: -1, timedOut: true }))
+    const result = await tool.execute({ command: 'sleep 999', timeout: 5000 } as Record<string, unknown>)
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('timed out after 5000ms')
+  })
+
+  it('includes both timeout message and stderr when timedOut is true and stderr is non-empty', async () => {
+    const tool = new BashTool(makeSandbox({ stdout: '', stderr: 'partial output', exitCode: -1, timedOut: true }))
+    const result = await tool.execute({ command: 'sleep 999', timeout: 5000 } as Record<string, unknown>)
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('timed out after 5000ms')
+    expect(result.error).toContain('partial output')
+  })
 })

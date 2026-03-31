@@ -56,7 +56,7 @@ export class BashTool implements ITool {
         return {
           success: false,
           output: result.stdout || '(no output)',
-          error: stderrValue ?? `Command timed out after ${timeout}ms`,
+          error: `Command timed out after ${timeout}ms${stderrValue ? `\nStderr: ${stderrValue}` : ''}`,
           exitCode: result.exitCode,
         }
       }
