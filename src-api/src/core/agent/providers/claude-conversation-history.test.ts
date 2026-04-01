@@ -57,4 +57,36 @@ describe('formatConversationHistory', () => {
     expect(result).toContain('first')
     expect(result).toContain('third')
   })
+
+  it('uses a more conservative token estimate for chinese-heavy content', () => {
+    const agent = makeAgent(40)
+    const conversation = [
+      { role: 'user' as const, content: '这是第一条中文消息这是第一条中文消息这是第一条中文消息' },
+      { role: 'assistant' as const, content: 'short english reply' },
+      { role: 'user' as const, content: 'tail' },
+    ]
+    const result = callFormat(agent, conversation)
+    // With 1 char = 2 tokens, the 30-char chinese message is 60 tokens, exceeding the 40 limit.
+    // Since it's within the 3 minMessagesToKeep, it MUST be included even if it exceeds budget.
+    expect(result).toContain('这是第一条中文消息')
+    expect(result).toContain('tail')
+  })
+
+  it('skips an oversized old message and keeps smaller later messages when budget allows', () => {
+    const agent = makeAgent(30)
+    const conversation = [
+      { role: 'user' as const, content: 'A'.repeat(200) },
+      { role: 'assistant' as const, content: 'small-1' },
+      { role: 'user' as const, content: 'small-2' },
+      { role: 'assistant' as const, content: 'small-3' },
+      { role: 'user' as const, content: 'small-4' },
+    ]
+    const result = callFormat(agent, conversation)
+    // small-4, small-3, small-2 are kept because minMessagesToKeep = 3.
+    // small-1 fits in the remaining budget (30 - 3*2 = 24 roughly).
+    // A.repeat(200) exceeds budget and is NOT in min 3, so it should be skipped.
+    expect(result).toContain('small-4')
+    expect(result).toContain('small-1')
+    expect(result).not.toContain('A'.repeat(200))
+  })
 })

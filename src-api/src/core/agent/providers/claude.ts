@@ -2189,10 +2189,16 @@ You MUST use sandbox tools for running scripts.
     });
 
     // 简单的 token 估算
-    const messageTokens = allFormattedMessages.map((msg) => ({
-      content: msg,
-      tokens: Math.ceil(msg.length / 4),
-    }));
+    const messageTokens = allFormattedMessages.map((msg) => {
+      // 中文环境下 1 个字符约等于 2 个 token（保守估算）
+      // 英文环境下 4 个字符约等于 1 个 token
+      const hasChinese = /[\u4e00-\u9fa5]/.test(msg);
+      const tokens = hasChinese ? msg.length * 2 : Math.ceil(msg.length / 4);
+      return {
+        content: msg,
+        tokens,
+      };
+    });
 
     let totalTokens = 0;
     const selectedMessages: string[] = [];
@@ -2205,10 +2211,6 @@ You MUST use sandbox tools for running scripts.
       if (mustInclude || totalTokens + message.tokens <= maxHistoryTokens) {
         selectedMessages.unshift(message.content);
         totalTokens += message.tokens;
-      } else {
-        // Greedy truncation: stop at first message that exceeds budget.
-        // Messages older than this point are dropped even if individually small.
-        break;
       }
     }
 
