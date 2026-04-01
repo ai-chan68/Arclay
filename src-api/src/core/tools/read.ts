@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool, ToolContext } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'read',
   description: 'Read the contents of a file. Returns the file content as a string.',
@@ -46,14 +50,23 @@ export class ReadTool implements ITool {
     const limit = params.limit as number | undefined
 
     if (!filePath) {
-      return { success: false, status: 'error', error: 'file_path is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('file_path is required', 'provide absolute path', 'immediately')
+      }
     }
 
     try {
       // Check if file exists
       const exists = await this.sandbox.exists(filePath)
       if (!exists) {
-        return { success: false, status: 'error', error: `File not found: ${filePath}` }
+        return {
+          success: false,
+          status: 'error',
+          error: buildErrorContract(`file not found: ${filePath}`, 'check path or use glob', 'after verifying existence'),
+          next_actions: ['use glob to find files', 'check parent directory']
+        }
       }
 
       // Read file content
@@ -76,10 +89,15 @@ export class ReadTool implements ITool {
         output: content,
         summary: `Read ${lineCount} ${lineLabel} from ${filePath}`,
         artifacts: [filePath],
+        next_actions: ['edit file', 'search content', 'analyze code']
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, status: 'error', error: `Failed to read file: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`failed to read file: ${message}`, 'check permissions or path', 'if persistent')
+      }
     }
   }
 }

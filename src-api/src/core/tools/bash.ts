@@ -110,6 +110,8 @@ export class BashTool implements ITool {
         }
       }
 
+      const commonNextActions = ['check output', 'run next command', 'verify results']
+
       return {
         success: true,
         status: 'success',
@@ -117,6 +119,7 @@ export class BashTool implements ITool {
         error: undefined,
         exitCode,
         summary: `Command succeeded with exit code ${exitCode}`,
+        next_actions: commonNextActions
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'

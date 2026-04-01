@@ -24,6 +24,7 @@ export interface ToolResult {
   exitCode?: number
   summary?: string
   artifacts?: string[]
+  next_actions?: string[]
 }
 
 /**

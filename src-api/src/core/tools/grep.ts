@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'grep',
   description: `Search for patterns in file contents using ripgrep. Supports full regex syntax. Returns matching lines with file paths and line numbers.`,
@@ -56,7 +60,11 @@ export class GrepTool implements ITool {
     const showLineNumbers = params['-n'] !== false // default true
 
     if (!pattern) {
-      return { success: false, error: 'pattern is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('pattern is required', 'provide regex pattern', 'immediately')
+      }
     }
 
     try {
@@ -69,22 +77,41 @@ export class GrepTool implements ITool {
       const result = await this.sandbox.execute(command)
 
       if (result.exitCode !== 0 && !result.stdout) {
-        return { success: true, output: 'No matches found' }
+        return {
+          success: true,
+          status: 'success',
+          output: 'No matches found',
+          summary: 'No matches found',
+          next_actions: ['try a different pattern', 'broaden search path']
+        }
       }
 
       const output = result.stdout.trim()
       if (!output) {
-        return { success: true, output: 'No matches found' }
+        return {
+          success: true,
+          status: 'success',
+          output: 'No matches found',
+          summary: 'No matches found',
+          next_actions: ['try a different pattern', 'broaden search path']
+        }
       }
 
       const matchCount = output.split('\n').length
       return {
         success: true,
-        output: `Found ${matchCount} match${matchCount > 1 ? 'es' : ''}:\n${output}`
+        status: 'success',
+        output: `Found ${matchCount} match${matchCount > 1 ? 'es' : ''}:\n${output}`,
+        summary: `Found ${matchCount} matches`,
+        next_actions: ['read file', 'edit file', 'analyze matches']
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Grep search failed: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`grep search failed: ${message}`, 'check regex syntax or path', 'if persistent')
+      }
     }
   }
 

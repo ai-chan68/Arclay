@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'glob',
   description: `Find files matching a glob pattern. Supports **, *, ? wildcards. Returns matching file paths sorted by modification time.`,
@@ -41,7 +45,11 @@ export class GlobTool implements ITool {
     const searchPath = (params.path as string) || '.'
 
     if (!pattern) {
-      return { success: false, error: 'pattern is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('pattern is required', 'provide glob pattern', 'immediately')
+      }
     }
 
     try {
@@ -50,7 +58,12 @@ export class GlobTool implements ITool {
       const result = await this.sandbox.execute(command)
 
       if (result.exitCode !== 0 && !result.stdout) {
-        return { success: false, error: result.stderr || 'Glob search failed' }
+        return {
+          success: false,
+          status: 'error',
+          error: buildErrorContract(result.stderr || 'glob search failed', 'check pattern or path', 'if same error repeats'),
+          next_actions: ['check directory existence', 'try a simpler pattern']
+        }
       }
 
       const files = result.stdout
@@ -60,16 +73,29 @@ export class GlobTool implements ITool {
         .sort()
 
       if (files.length === 0) {
-        return { success: true, output: 'No files found matching the pattern' }
+        return {
+          success: true,
+          status: 'success',
+          output: 'No files found matching the pattern',
+          summary: 'No matches found',
+          next_actions: ['try a broader pattern', 'check current directory']
+        }
       }
 
       return {
         success: true,
-        output: `Found ${files.length} file${files.length > 1 ? 's' : ''}:\n${files.join('\n')}`
+        status: 'success',
+        output: `Found ${files.length} file${files.length > 1 ? 's' : ''}:\n${files.join('\n')}`,
+        summary: `Found ${files.length} matches`,
+        next_actions: ['read file', 'search content with grep']
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Glob search failed: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`glob search failed: ${message}`, 'check path permissions', 'if persistent')
+      }
     }
   }
 

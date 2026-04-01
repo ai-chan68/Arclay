@@ -84,7 +84,21 @@ function extractArtifacts(messages: AgentMessage[]): TurnDetailArtifactRecord[] 
   const artifacts: TurnDetailArtifactRecord[] = []
 
   for (const message of messages) {
-    if (message.type === 'tool_use' && message.toolUseId && message.toolName === 'Write') {
+    if (message.type === 'tool_result' && message.artifacts && Array.isArray(message.artifacts)) {
+      for (const filePath of message.artifacts) {
+        if (typeof filePath !== 'string' || !filePath.trim()) continue
+        const path = filePath.trim()
+        artifacts.push({
+          id: `artifact-${path.replace(/[^a-zA-Z0-9]/g, '-')}`,
+          name: path.split(/[\\/]/).pop() || path,
+          path: path,
+          type: getArtifactType(path),
+          mimeType: path.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined,
+        })
+      }
+    }
+
+    if (message.type === 'tool_use' && message.toolUseId && (message.toolName === 'Write' || message.toolName === 'write')) {
       const pathValue = message.toolInput?.file_path ?? message.toolInput?.path
       if (typeof pathValue === 'string' && pathValue.trim()) {
         pendingPaths.set(message.toolUseId, pathValue.trim())

@@ -315,7 +315,7 @@ export async function processExecutionStreamMessage(
     await appendExecutionAudit(
       progressPath,
       'tool_result',
-      message.toolOutput || '',
+      message.toolSummary || message.toolOutput || '',
       appendProgressEntry,
       now
     )

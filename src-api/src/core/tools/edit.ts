@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool, ToolContext } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'edit',
   description: `Performs exact string replacements in files. Use this to edit files by replacing specific text. The old_string MUST match exactly, including whitespace. Will fail if old_string appears multiple times.`,
@@ -51,22 +55,39 @@ export class EditTool implements ITool {
     const replaceAll = params.replace_all as boolean
 
     if (!filePath) {
-      return { success: false, status: 'error', error: 'file_path is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('file_path is required', 'provide absolute path', 'immediately')
+      }
     }
 
     if (oldString === undefined) {
-      return { success: false, status: 'error', error: 'old_string is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('old_string is required', 'provide text to replace', 'immediately')
+      }
     }
 
     if (newString === undefined) {
-      return { success: false, status: 'error', error: 'new_string is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('new_string is required', 'provide replacement text', 'immediately')
+      }
     }
 
     try {
       // Check if file exists
       const exists = await this.sandbox.exists(filePath)
       if (!exists) {
-        return { success: false, status: 'error', error: `File not found: ${filePath}` }
+        return {
+          success: false,
+          status: 'error',
+          error: buildErrorContract(`file not found: ${filePath}`, 'check path or use glob', 'after verifying existence'),
+          next_actions: ['use glob to find files', 'check parent directory']
+        }
       }
 
       // Read current content
@@ -77,7 +98,8 @@ export class EditTool implements ITool {
         return {
           success: false,
           status: 'error',
-          error: `old_string not found in file. Make sure it matches exactly, including whitespace.`
+          error: buildErrorContract(`old_string not found in file`, 'check exact string or use read to verify content', 'after verifying content'),
+          next_actions: ['read file to verify content', 'use a different old_string']
         }
       }
 
@@ -87,7 +109,8 @@ export class EditTool implements ITool {
         return {
           success: false,
           status: 'error',
-          error: `old_string appears ${occurrences} times in the file. Use replace_all=true to replace all occurrences, or provide a more specific old_string.`
+          error: buildErrorContract(`old_string appears ${occurrences} times in the file`, 'use replace_all=true or provide unique context', 'if multiple matches are unintended'),
+          next_actions: ['read file to find unique context', 'set replace_all: true']
         }
       }
 
@@ -108,10 +131,15 @@ export class EditTool implements ITool {
         output: `Successfully edited ${filePath} (${replaceAll ? occurrences : 1} replacement${replaceAll && occurrences > 1 ? 's' : ''})`,
         summary: `Edited ${filePath} (${replaceAll ? occurrences : 1} replacement${replaceAll && occurrences > 1 ? 's' : ''})`,
         artifacts: [filePath],
+        next_actions: ['run tests', 'commit changes', 'verify modification with read']
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, status: 'error', error: `Failed to edit file: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`failed to edit file: ${message}`, 'check file state or permissions', 'if persistent')
+      }
     }
   }
 }

@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'append',
   description:
@@ -39,19 +43,39 @@ export class AppendTool implements ITool {
     const content = params.content as string
 
     if (!filePath) {
-      return { success: false, error: 'file_path is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('file_path is required', 'provide absolute path', 'immediately')
+      }
     }
 
     if (content === undefined || content === null) {
-      return { success: false, error: 'content is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('content is required', 'provide string content', 'immediately')
+      }
     }
 
     try {
-      await this.sandbox.appendFile(filePath, String(content))
-      return { success: true, output: `Successfully appended to ${filePath}` }
+      const text = String(content)
+      await this.sandbox.appendFile(filePath, text)
+      return {
+        success: true,
+        status: 'success',
+        output: `Successfully appended to ${filePath}`,
+        summary: `Appended ${text.length} characters to ${filePath}`,
+        artifacts: [filePath],
+        next_actions: ['read file to verify', 'append more content', 'commit changes']
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Failed to append to file: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`failed to append to file: ${message}`, 'check permissions or path', 'if persistent')
+      }
     }
   }
 }

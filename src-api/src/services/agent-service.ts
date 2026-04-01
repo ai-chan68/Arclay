@@ -500,8 +500,18 @@ ${categoryInstructions.join('\n---\n')}
     try {
       for await (const message of agent.stream(enhancedPrompt, options)) {
         if (message.type === 'tool_result') {
-          for (const artifactPath of collectArtifactsFromToolOutput(message.toolOutput)) {
-            observedArtifacts.add(artifactPath)
+          // Prefer structured artifacts metadata
+          if (message.artifacts && Array.isArray(message.artifacts)) {
+            for (const artifactPath of message.artifacts) {
+              if (typeof artifactPath === 'string' && artifactPath.length > 0) {
+                observedArtifacts.add(artifactPath)
+              }
+            }
+          } else {
+            // Fallback to parsing legacy toolOutput string
+            for (const artifactPath of collectArtifactsFromToolOutput(message.toolOutput)) {
+              observedArtifacts.add(artifactPath)
+            }
           }
         }
         if (message.type === 'done') {

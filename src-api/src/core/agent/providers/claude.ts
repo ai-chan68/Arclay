@@ -2135,6 +2135,15 @@ For authenticated or internal web applications, prefer browser automation tools/
 - Do NOT use generic web-search skills to operate interactive internal pages.
 - If a web-search skill is only a placeholder, skip it and use browser automation directly.
 
+## Observation & Error Recovery
+Most tools now provide structured metadata in their response:
+- \`summary\`: A concise one-sentence result of the tool execution.
+- \`next_actions\`: Suggested next steps based on the outcome.
+- \`artifacts\`: List of modified or relevant files.
+
+Errors follow a strict recovery contract: \`[root] cause | [retry] instruction | [stop] condition\`.
+Use these structured observations to guide your next turns without excessive re-planning.
+
 `;
 
     if (sandbox?.enabled) {
@@ -2612,6 +2621,10 @@ ${formattedMessages}${truncationNotice}
             toolUseId as string,
             typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
           );
+          const toolResult = typeof block.content === 'string'
+            ? (() => { try { return JSON.parse(block.content); } catch { return null; } })()
+            : block.content;
+
           yield {
             id: this.generateMessageId(),
             type: 'tool_result' as AgentMessageType,
@@ -2620,6 +2633,9 @@ ${formattedMessages}${truncationNotice}
               typeof block.content === 'string'
                 ? block.content
                 : JSON.stringify(block.content),
+            toolSummary: toolResult?.summary,
+            nextActions: toolResult?.next_actions,
+            artifacts: toolResult?.artifacts,
             timestamp: Date.now(),
           };
         }

@@ -6,6 +6,10 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool, ToolContext } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
 const definition: ToolDefinition = {
   name: 'write',
   description: 'Write content to a file. Creates the file if it does not exist, overwrites it if it does. Will create directories if they do not exist.',
@@ -41,11 +45,19 @@ export class WriteTool implements ITool {
     const content = params.content as string
 
     if (!filePath) {
-      return { success: false, status: 'error', error: 'file_path is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('file_path is required', 'provide absolute path', 'immediately')
+      }
     }
 
     if (content === undefined || content === null) {
-      return { success: false, status: 'error', error: 'content is required' }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract('content is required', 'provide string content', 'immediately')
+      }
     }
 
     try {
@@ -57,10 +69,15 @@ export class WriteTool implements ITool {
         output: `Successfully wrote to ${filePath}`,
         summary: `Wrote ${text.length} characters to ${filePath}`,
         artifacts: [filePath],
+        next_actions: ['read file to verify', 'run tests', 'commit changes']
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, status: 'error', error: `Failed to write file: ${message}` }
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(`failed to write file: ${message}`, 'check permissions or disk space', 'if persistent')
+      }
     }
   }
 }

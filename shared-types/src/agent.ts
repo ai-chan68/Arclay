@@ -29,6 +29,9 @@ export interface AgentMessage {
   toolInput?: Record<string, unknown>;
   toolOutput?: string;
   toolUseId?: string;
+  toolSummary?: string;
+  nextActions?: string[];
+  artifacts?: string[];
   errorMessage?: string;
   timestamp: number;
   // Plan fields (supports both old Plan and new TaskPlan)
