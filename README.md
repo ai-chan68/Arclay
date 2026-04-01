@@ -1,13 +1,13 @@
 # EasyWork
 
-EasyWork 是一个桌面优先的开源 AI 工作台，面向“真实执行”而不是“更长的聊天”。  
-它把自然语言任务落成一个可规划、可审批、可执行、可恢复、可沉淀产物的完整流程。
+EasyWork 是一个基于 **Harness Engineering（装备工程）** 理念构建的开源 AI 工作台。它专注于“真实执行”而非简单的聊天，将自然语言任务转化为可规划、可审批、可执行、可恢复的自动化流程。
 
-你可以把它理解为一个面向“执行”的 AI 桌面环境：
-- 先规划，再审批，再执行
-- 支持多 Provider / Sandbox / Skills
-- 支持任务历史、文件预览、定时任务与产物沉淀
-- 面向本地工作目录与真实项目，而不是纯对话窗口
+在 EasyWork 中，我们认为 **Agent 是训练出来的模型，而 Harness（工具、观测、权限、知识）才是工程师编写的代码**。本项目即为这一理念的完整实践。
+
+核心定位：
+- **Harness 驱动**：不仅是对话，更是对本地环境（文件、命令、API）的深度装备与控制
+- **确定的执行流**：遵循 `Planning -> Approval -> Execution` 范式，拒绝黑盒操作
+- **专业开发者工作台**：深度集成 Sandbox、MCP 与 Skills 路由器，面向本地项目真实产出
 
 - English README：[`README_EN.md`](./README_EN.md)
 
@@ -23,14 +23,24 @@ EasyWork 关注的是另一件事：
 
 如果你也在做 Agent、桌面 AI、任务编排、审批流、工具调用或本地工作区集成，EasyWork 希望能成为一个可运行、可参考、可扩展的开源基础项目。
 
+## Harness Engineering 理念
+
+EasyWork 的核心是 **Harness（装备）**，我们为模型提供专业、稳定且受控的工作环境：
+
+- **精细化 Action Space**：按需设计 Micro/Medium/Macro 不同粒度的工具，确保职责唯一且安全受控。
+- **结构化 Observation**：所有工具响应符合统一协议（Success/Warning/Error），包含 Root Cause 与下一步操作建议，确保 Agent 能自主决策与恢复。
+- **Error Recovery Contract**：遵循 `root_cause_hint + safe_retry_instruction + stop_condition` 契约，避免任务陷入静默失败或无限循环。
+- **隔离与并行**：支持子 Agent 消息隔离与基于 Git Worktree 的任务并行，确保环境整洁与安全边界。
+
 ## 核心特性
 
-- 两阶段执行：`Planning -> Approval -> Execution`，支持澄清后继续规划
-- 意图感知执行：区分信息获取、交互操作与混合型网页任务，并按任务类型选择执行策略
-- 任务工作台：时间线、过程/结果查看与文件产物预览一体化
-- 可扩展运行时：支持 `Provider / Sandbox / MCP / Skills`
-- 恢复与可观测性：支持审批回传、等待用户、执行中断恢复、历史回看与执行审计
-- 调度与桌面体验：支持定时任务，以及 `Light / Dark / System` 外观模式
+- **两阶段执行流**：遵循 `Planning -> Approval -> Execution` 范式，支持任务分解预览与审批后执行。
+- **任务工作台**：一体化的 Timeline、过程追溯、结果对比与文件产物实时预览。
+- **本地生态系统**：
+  - **Sandbox**：原生命令执行沙箱，支持 stdout/stderr 显式分离与权限管控。
+  - **MCP 集成**：深度支持 Model Context Protocol，实现资源与工具的动态注入。
+  - **Skills 路由器**：高效的任务路由机制，优化 Context Budgeting 并提升长任务稳定性。
+- **运行时可观测性**：支持任务全生命周期的执行审计、断点续传与自动化调度。
 
 ## 快速开始
 
@@ -80,13 +90,13 @@ pnpm dev
 4. 输入任务，进入 `计划 -> 审批 -> 执行`
 5. 在任务详情页查看 timeline、过程、结果和产物
 
-运行时设置默认保存在：
+运行时设置与持久化数据：
 
-- `~/.easywork/settings.json`
-- `~/.easywork/plans.json`
-- `~/.easywork/approval-requests.json`
-- `~/.easywork/scheduled-tasks.json`
-- `~/.easywork/turn-runtime.json`
+- 配置：`~/.easywork/settings.json`（模型 Provider、沙箱偏好等）
+- 任务与规划：`~/.easywork/plans.json` & `~/.easywork/tasks.json`
+- 审批队列：`~/.easywork/approval-requests.json`
+- 调度记录：`~/.easywork/scheduled-tasks.json`
+- 运行时上下文：`~/.easywork/turn-runtime.json`（Agent 内部状态持久化）
 
 ## 常用命令
 
