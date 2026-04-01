@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentMessage, ProviderConfig } from '@shared-types'
 import type { AgentRunOptions, IAgent } from '../../core/agent/interface'
 import { AgentService } from '../agent-service'
@@ -9,6 +9,7 @@ import { AgentService } from '../agent-service'
 describe('AgentService', () => {
   let workDir: string
   let provider: ProviderConfig
+  let originalEasyWorkHome: string | undefined
 
   beforeEach(() => {
     workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-service-'))
@@ -17,6 +18,16 @@ describe('AgentService', () => {
       apiKey: 'test-key',
       model: 'test-model',
     } as ProviderConfig
+    originalEasyWorkHome = process.env.EASYWORK_HOME
+  })
+
+  afterEach(() => {
+    if (originalEasyWorkHome === undefined) {
+      delete process.env.EASYWORK_HOME
+      return
+    }
+
+    process.env.EASYWORK_HOME = originalEasyWorkHome
   })
 
   it('loads and saves session context, and injects it into system prompt', async () => {
@@ -184,5 +195,78 @@ describe('AgentService', () => {
     const taskRecords = taskLines.map((line) => JSON.parse(line))
     const turnRecords = turnLines.map((line) => JSON.parse(line))
     expect(taskRecords).toEqual(turnRecords)
+  })
+
+  it('writes append-only metrics with artifacts and attempt numbers when a task run completes', async () => {
+    const sessionId = 'session-metrics'
+    const taskId = 'task_metrics'
+    const metricsHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-home-'))
+    process.env.EASYWORK_HOME = metricsHome
+
+    const fakeAgent: IAgent = {
+      async run() {
+        return []
+      },
+      async *stream(): AsyncIterable<AgentMessage> {
+        yield {
+          id: 'tool-result-1',
+          type: 'tool_result',
+          toolOutput: JSON.stringify({
+            artifacts: ['/tmp/output/report.md'],
+          }),
+          timestamp: Date.now(),
+        }
+        yield {
+          id: 'done-1',
+          type: 'done',
+          timestamp: Date.now(),
+        }
+      },
+      abort() {
+        return
+      },
+      getSession() {
+        return null
+      },
+    }
+
+    const service = new AgentService({ provider, workDir })
+    vi.spyOn(service, 'createAgent').mockReturnValue(fakeAgent)
+
+    for await (const _message of service.streamExecution('记录 metrics', sessionId, undefined, undefined, {
+      taskId,
+    })) {
+      // noop
+    }
+
+    for await (const _message of service.streamExecution('再次记录 metrics', sessionId, undefined, undefined, {
+      taskId,
+    })) {
+      // noop
+    }
+
+    const month = new Date().toISOString().slice(0, 7)
+    const metricsPath = path.join(metricsHome, 'metrics', `${month}.jsonl`)
+    const lines = fs.readFileSync(metricsPath, 'utf8').trim().split('\n').filter(Boolean)
+    const records = lines.map((line) => JSON.parse(line))
+
+    expect(records).toHaveLength(2)
+    expect(records[0]).toMatchObject({
+      taskId,
+      runId: sessionId,
+      attempt: 1,
+      success: true,
+      provider: 'claude',
+      model: 'test-model',
+      artifacts: ['/tmp/output/report.md'],
+    })
+    expect(records[1]).toMatchObject({
+      taskId,
+      runId: sessionId,
+      attempt: 2,
+      success: true,
+    })
+    expect(typeof records[0].durationMs).toBe('number')
+    expect(typeof records[0].ts).toBe('string')
   })
 })

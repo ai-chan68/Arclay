@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { getDefaultSystemPrompt, getPlanningInstruction } from './system-prompt'
 
 describe('agent language instructions', () => {
-  it('requires simplified Chinese for normal agent dialogue', () => {
+  it('keeps only the business-specific default system prompt guidance', () => {
     const prompt = getDefaultSystemPrompt('/tmp/easywork-session')
 
     expect(prompt).toContain('Simplified Chinese')
+    expect(prompt).toContain('MANDATORY OUTPUT DIRECTORY: /tmp/easywork-session')
+    expect(prompt).toContain('Use the append tool to write each item one at a time')
+    expect(prompt).toContain('.xlsx')
+    expect(prompt).toContain('pandas')
     expect(prompt).toContain('unless the user explicitly requests another language')
+    expect(prompt).not.toContain('## Available Tools')
+    expect(prompt).not.toContain('YOU MUST USE TOOL CALLS')
   })
 
   it('requires simplified Chinese for planning outputs', () => {

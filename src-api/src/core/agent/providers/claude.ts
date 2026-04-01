@@ -50,20 +50,6 @@ import {
 import { looksLikeBrowserAutomationIntentInText } from '../../../services/browser-intent';
 import { taskPlanner } from '../../../services/task-planner';
 
-/**
- * Task complexity levels for dynamic maxTurns configuration
- */
-const TASK_COMPLEXITY = {
-  /** Simple tasks: file read, single command, quick checks */
-  SIMPLE: { maxTurns: 15, patterns: [/\bread\b/i, /\bclone\b/i, /\bls\b/i, /\bstatus\b/i] },
-  /** Medium tasks: code edits, multi-file operations */
-  MEDIUM: { maxTurns: 50, patterns: [/\bedit\b/i, /\bwrite\b/i, /\bcreate\b/i, /\bfix\b/i] },
-  /** Complex tasks: project setup, refactoring, analysis */
-  COMPLEX: { maxTurns: 100, patterns: [/\brefactor\b/i, /\bimplement\b/i, /\bsetup\b/i, /\bbuild\b/i] },
-  /** Maximum for open-ended tasks */
-  MAX: { maxTurns: 200, patterns: [] },
-} as const;
-
 const DEFAULT_AUTO_ALLOW_TOOLS = [
   'Read',
   'Glob',
@@ -92,37 +78,6 @@ async function appendProviderDiagnostics(
   } catch (error) {
     console.warn('[ClaudeAgent] Failed to append provider diagnostics:', error);
   }
-}
-
-/**
- * Detect task complexity based on prompt content
- */
-function detectTaskComplexity(prompt: string): number {
-  const lowerPrompt = prompt.toLowerCase();
-
-  // Check for simple task patterns
-  for (const pattern of TASK_COMPLEXITY.SIMPLE.patterns) {
-    if (pattern.test(lowerPrompt)) {
-      return TASK_COMPLEXITY.SIMPLE.maxTurns;
-    }
-  }
-
-  // Check for medium task patterns
-  for (const pattern of TASK_COMPLEXITY.MEDIUM.patterns) {
-    if (pattern.test(lowerPrompt)) {
-      return TASK_COMPLEXITY.MEDIUM.maxTurns;
-    }
-  }
-
-  // Check for complex task patterns
-  for (const pattern of TASK_COMPLEXITY.COMPLEX.patterns) {
-    if (pattern.test(lowerPrompt)) {
-      return TASK_COMPLEXITY.COMPLEX.maxTurns;
-    }
-  }
-
-  // Default to max for open-ended tasks
-  return TASK_COMPLEXITY.MAX.maxTurns;
 }
 
 function classifyWebTaskIntent(
@@ -1657,25 +1612,8 @@ IMPORTANT:
     // 加载 MCP Servers
     const mcpServers = await this.loadMcpServers(options?.mcpConfig, options?.sandbox);
 
-    // 动态计算 maxTurns：优先使用 IntentClassifier 的 complexityHint，否则 fallback 到正则匹配
-    const COMPLEXITY_MAX_TURNS = { simple: 30, medium: 60, complex: 120 } as const;
-    const TURNS_PER_STEP = 15;
-    const MAX_TURNS_HARD_CAP = 300;
-    let maxTurns = options?.complexityHint
-      ? COMPLEXITY_MAX_TURNS[options.complexityHint]
-      : (prompt ? detectTaskComplexity(prompt) : TASK_COMPLEXITY.MAX.maxTurns);
-    // Plan-aware maxTurns: scale up based on number of steps or estimated iterations
-    if (options?.plan) {
-      const plan = options.plan;
-      const iterationBased = plan.estimatedIterations
-        ? Math.ceil(plan.estimatedIterations / 10) * TURNS_PER_STEP
-        : plan.steps.length * TURNS_PER_STEP;
-      const planBasedTurns = Math.min(iterationBased, MAX_TURNS_HARD_CAP);
-      if (planBasedTurns > maxTurns) {
-        maxTurns = planBasedTurns;
-      }
-    }
-    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (hint=${options?.complexityHint || 'none'}, planSteps=${options?.plan?.steps.length ?? 'n/a'}, estimatedIterations=${options?.plan?.estimatedIterations ?? 'n/a'})`);
+    const maxTurns = 200;
+    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (fixed safety cap)`);
 
     const queryOptions: Options = {
       cwd,

@@ -6,6 +6,22 @@ import type { ToolDefinition, ToolResult } from '@shared-types'
 import type { ITool, ToolContext } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
+function buildErrorContract(root: string, retry: string, stop: string): string {
+  return `[root] ${root} | [retry] ${retry} | [stop] ${stop}`
+}
+
+function getCommandName(command: string): string {
+  return command.trim().split(/\s+/)[0] || 'command'
+}
+
+function getFirstErrorLine(stderr?: string): string {
+  if (!stderr) return 'command failed'
+  return stderr
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.length > 0) || 'command failed'
+}
+
 const definition: ToolDefinition = {
   name: 'bash',
   description: `Execute a bash shell command. Use for running shell commands, scripts, or system operations. Commands run in the sandbox environment with a timeout.`,
@@ -41,7 +57,7 @@ export class BashTool implements ITool {
     const timeout = (params.timeout as number) || 60000
 
     if (!command) {
-      return { success: false, error: 'command is required' }
+      return { success: false, status: 'error', error: 'command is required' }
     }
 
     try {
@@ -51,25 +67,83 @@ export class BashTool implements ITool {
       })
 
       const stderrValue = result.stderr || undefined
+      const exitCode = result.exitCode ?? 1
 
       if (result.timedOut) {
         return {
           success: false,
+          status: 'error',
           output: result.stdout || '(no output)',
-          error: `Command timed out after ${timeout}ms${stderrValue ? `\nStderr: ${stderrValue}` : ''}`,
-          exitCode: result.exitCode,
+          error: buildErrorContract(
+            `timed out after ${timeout}ms`,
+            'reduce scope or increase timeout',
+            'after 3 retries'
+          ),
+          exitCode,
+          summary: `Command timed out after ${timeout}ms`,
+        }
+      }
+
+      if (exitCode !== 0) {
+        return {
+          success: false,
+          status: 'error',
+          output: result.stdout || '(no output)',
+          error: buildErrorContract(
+            `exit code ${exitCode}: ${getFirstErrorLine(stderrValue)}`,
+            'check command syntax',
+            'if same error repeats'
+          ),
+          exitCode,
+          summary: `Command failed with exit code ${exitCode}`,
+        }
+      }
+
+      if (stderrValue) {
+        return {
+          success: true,
+          status: 'warning',
+          output: result.stdout || '(no output)',
+          error: stderrValue,
+          exitCode,
+          summary: `Command completed with warnings (exit code ${exitCode})`,
         }
       }
 
       return {
-        success: result.exitCode === 0,
+        success: true,
+        status: 'success',
         output: result.stdout || '(no output)',
-        error: stderrValue,
-        exitCode: result.exitCode,
+        error: undefined,
+        exitCode,
+        summary: `Command succeeded with exit code ${exitCode}`,
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Command failed: ${message}` }
+      if (/ENOENT/i.test(message)) {
+        const commandName = getCommandName(command)
+        return {
+          success: false,
+          status: 'error',
+          error: buildErrorContract(
+            `command not found: ${commandName}`,
+            'install via brew/apt',
+            'immediately'
+          ),
+          summary: `Command failed: ${commandName} is not installed`,
+        }
+      }
+
+      return {
+        success: false,
+        status: 'error',
+        error: buildErrorContract(
+          message,
+          'inspect command and environment',
+          'if same error repeats'
+        ),
+        summary: 'Command execution failed',
+      }
     }
   }
 }

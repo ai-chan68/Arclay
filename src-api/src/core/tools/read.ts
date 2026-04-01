@@ -40,20 +40,20 @@ export class ReadTool implements ITool {
     this.sandbox = sandbox
   }
 
-  async execute(params: Record<string, unknown>): Promise<ToolResult> {
+  async execute(params: Record<string, unknown>, _context?: ToolContext): Promise<ToolResult> {
     const filePath = params.file_path as string
     const offset = params.offset as number | undefined
     const limit = params.limit as number | undefined
 
     if (!filePath) {
-      return { success: false, error: 'file_path is required' }
+      return { success: false, status: 'error', error: 'file_path is required' }
     }
 
     try {
       // Check if file exists
       const exists = await this.sandbox.exists(filePath)
       if (!exists) {
-        return { success: false, error: `File not found: ${filePath}` }
+        return { success: false, status: 'error', error: `File not found: ${filePath}` }
       }
 
       // Read file content
@@ -67,10 +67,19 @@ export class ReadTool implements ITool {
         content = lines.slice(startLine, endLine).join('\n')
       }
 
-      return { success: true, output: content }
+      const lineCount = content === '' ? 0 : content.split('\n').length
+      const lineLabel = lineCount === 1 ? 'line' : 'lines'
+
+      return {
+        success: true,
+        status: 'success',
+        output: content,
+        summary: `Read ${lineCount} ${lineLabel} from ${filePath}`,
+        artifacts: [filePath],
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Failed to read file: ${message}` }
+      return { success: false, status: 'error', error: `Failed to read file: ${message}` }
     }
   }
 }

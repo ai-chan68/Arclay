@@ -16,7 +16,7 @@ export interface ITool {
   /**
    * Execute the tool with given parameters
    */
-  execute(params: Record<string, unknown>): Promise<ToolResult>
+  execute(params: Record<string, unknown>, context?: ToolContext): Promise<ToolResult>
 }
 
 /**

@@ -11,7 +11,8 @@
  */
 
 import { join } from 'path'
-import { writeFile, mkdir } from 'fs/promises'
+import { homedir } from 'os'
+import { writeFile, mkdir, appendFile, readFile } from 'fs/promises'
 import type {
   AgentMessage,
   ProviderConfig,
@@ -37,6 +38,75 @@ import { resolveTaskInputsDir, resolveTaskWorkspaceDir } from './workspace-layou
  */
 function getSessionWorkDir(baseWorkDir: string, storageRootId: string): string {
   return resolveTaskWorkspaceDir(baseWorkDir, storageRootId)
+}
+
+function resolveEasyWorkHome(): string {
+  const configuredHome = process.env.EASYWORK_HOME?.trim()
+  if (configuredHome) {
+    return configuredHome
+  }
+  return join(homedir(), '.easywork')
+}
+
+function collectArtifactsFromToolOutput(toolOutput?: string): string[] {
+  if (!toolOutput) return []
+
+  try {
+    const parsed = JSON.parse(toolOutput) as { artifacts?: unknown }
+    if (!Array.isArray(parsed.artifacts)) return []
+    return parsed.artifacts.filter((value): value is string => typeof value === 'string' && value.length > 0)
+  } catch {
+    return []
+  }
+}
+
+async function appendTaskMetricsRecord(input: {
+  taskId: string
+  runId: string
+  success: boolean
+  durationMs: number
+  model: string
+  provider: string
+  artifacts: string[]
+  timestamp: Date
+}): Promise<void> {
+  const metricsDir = join(resolveEasyWorkHome(), 'metrics')
+  const month = input.timestamp.toISOString().slice(0, 7)
+  const metricsPath = join(metricsDir, `${month}.jsonl`)
+
+  await mkdir(metricsDir, { recursive: true })
+
+  let attempt = 1
+  try {
+    const existing = await readFile(metricsPath, 'utf8')
+    const lines = existing.split('\n').filter(Boolean)
+    attempt += lines
+      .map((line) => {
+        try {
+          return JSON.parse(line) as { runId?: string }
+        } catch {
+          return null
+        }
+      })
+      .filter((record): record is { runId?: string } => record !== null && record.runId === input.runId)
+      .length
+  } catch {
+    attempt = 1
+  }
+
+  const record = {
+    ts: input.timestamp.toISOString(),
+    taskId: input.taskId,
+    runId: input.runId,
+    attempt,
+    success: input.success,
+    durationMs: input.durationMs,
+    model: input.model,
+    provider: input.provider,
+    artifacts: input.artifacts,
+  }
+
+  await appendFile(metricsPath, `${JSON.stringify(record)}\n`, 'utf8')
 }
 
 interface RunningSession {
@@ -302,6 +372,10 @@ ${categoryInstructions.join('\n---\n')}
     const effectiveSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
     const storageRootId = streamOptions?.taskId || effectiveSessionId
     const baseWorkDir = streamOptions?.workDir || this.config.workDir
+    const startedAt = Date.now()
+    const observedArtifacts = new Set<string>()
+    let sawDone = false
+    let sawError = false
 
     // 调试日志：输出当前使用的配置
     const maskedApiKey = this.config.provider.apiKey
@@ -425,11 +499,23 @@ ${categoryInstructions.join('\n---\n')}
 
     try {
       for await (const message of agent.stream(enhancedPrompt, options)) {
+        if (message.type === 'tool_result') {
+          for (const artifactPath of collectArtifactsFromToolOutput(message.toolOutput)) {
+            observedArtifacts.add(artifactPath)
+          }
+        }
+        if (message.type === 'done') {
+          sawDone = true
+        }
+        if (message.type === 'error') {
+          sawError = true
+        }
         yield message
         // Record execution trace to JSONL (non-blocking, errors logged not thrown)
         historyLogger.logAgentMessage(message).catch(() => {})
       }
     } catch (error) {
+      sawError = true
       yield {
         id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         type: 'error',
@@ -457,6 +543,22 @@ ${categoryInstructions.join('\n---\n')}
         }
       } catch (err) {
         console.warn('[AgentService] Failed to generate daily memory:', err)
+      }
+      if (streamOptions?.taskId && (sawDone || sawError)) {
+        try {
+          await appendTaskMetricsRecord({
+            taskId: streamOptions.taskId,
+            runId: effectiveSessionId,
+            success: sawDone && !sawError,
+            durationMs: Date.now() - startedAt,
+            model: this.config.provider.model,
+            provider: this.config.provider.provider,
+            artifacts: Array.from(observedArtifacts),
+            timestamp: new Date(),
+          })
+        } catch (err) {
+          console.warn('[AgentService] Failed to append metrics record:', err)
+        }
       }
       this.runningSessions.delete(effectiveSessionId)
     }

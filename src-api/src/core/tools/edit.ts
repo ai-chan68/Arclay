@@ -3,7 +3,7 @@
  */
 
 import type { ToolDefinition, ToolResult } from '@shared-types'
-import type { ITool } from './interface'
+import type { ITool, ToolContext } from './interface'
 import { SandboxService } from '../sandbox/sandbox-service'
 
 const definition: ToolDefinition = {
@@ -44,29 +44,29 @@ export class EditTool implements ITool {
     this.sandbox = sandbox
   }
 
-  async execute(params: Record<string, unknown>): Promise<ToolResult> {
+  async execute(params: Record<string, unknown>, _context?: ToolContext): Promise<ToolResult> {
     const filePath = params.file_path as string
     const oldString = params.old_string as string
     const newString = params.new_string as string
     const replaceAll = params.replace_all as boolean
 
     if (!filePath) {
-      return { success: false, error: 'file_path is required' }
+      return { success: false, status: 'error', error: 'file_path is required' }
     }
 
     if (oldString === undefined) {
-      return { success: false, error: 'old_string is required' }
+      return { success: false, status: 'error', error: 'old_string is required' }
     }
 
     if (newString === undefined) {
-      return { success: false, error: 'new_string is required' }
+      return { success: false, status: 'error', error: 'new_string is required' }
     }
 
     try {
       // Check if file exists
       const exists = await this.sandbox.exists(filePath)
       if (!exists) {
-        return { success: false, error: `File not found: ${filePath}` }
+        return { success: false, status: 'error', error: `File not found: ${filePath}` }
       }
 
       // Read current content
@@ -76,6 +76,7 @@ export class EditTool implements ITool {
       if (!content.includes(oldString)) {
         return {
           success: false,
+          status: 'error',
           error: `old_string not found in file. Make sure it matches exactly, including whitespace.`
         }
       }
@@ -85,6 +86,7 @@ export class EditTool implements ITool {
       if (occurrences > 1 && !replaceAll) {
         return {
           success: false,
+          status: 'error',
           error: `old_string appears ${occurrences} times in the file. Use replace_all=true to replace all occurrences, or provide a more specific old_string.`
         }
       }
@@ -102,11 +104,14 @@ export class EditTool implements ITool {
 
       return {
         success: true,
-        output: `Successfully edited ${filePath} (${replaceAll ? occurrences : 1} replacement${replaceAll && occurrences > 1 ? 's' : ''})`
+        status: 'success',
+        output: `Successfully edited ${filePath} (${replaceAll ? occurrences : 1} replacement${replaceAll && occurrences > 1 ? 's' : ''})`,
+        summary: `Edited ${filePath} (${replaceAll ? occurrences : 1} replacement${replaceAll && occurrences > 1 ? 's' : ''})`,
+        artifacts: [filePath],
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Failed to edit file: ${message}` }
+      return { success: false, status: 'error', error: `Failed to edit file: ${message}` }
     }
   }
 }

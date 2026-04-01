@@ -36,24 +36,31 @@ export class WriteTool implements ITool {
     this.sandbox = sandbox
   }
 
-  async execute(params: Record<string, unknown>): Promise<ToolResult> {
+  async execute(params: Record<string, unknown>, _context?: ToolContext): Promise<ToolResult> {
     const filePath = params.file_path as string
     const content = params.content as string
 
     if (!filePath) {
-      return { success: false, error: 'file_path is required' }
+      return { success: false, status: 'error', error: 'file_path is required' }
     }
 
     if (content === undefined || content === null) {
-      return { success: false, error: 'content is required' }
+      return { success: false, status: 'error', error: 'content is required' }
     }
 
     try {
-      await this.sandbox.writeFile(filePath, String(content))
-      return { success: true, output: `Successfully wrote to ${filePath}` }
+      const text = String(content)
+      await this.sandbox.writeFile(filePath, text)
+      return {
+        success: true,
+        status: 'success',
+        output: `Successfully wrote to ${filePath}`,
+        summary: `Wrote ${text.length} characters to ${filePath}`,
+        artifacts: [filePath],
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return { success: false, error: `Failed to write file: ${message}` }
+      return { success: false, status: 'error', error: `Failed to write file: ${message}` }
     }
   }
 }

@@ -18,9 +18,12 @@ export interface ToolDefinition {
  */
 export interface ToolResult {
   success: boolean
+  status?: 'success' | 'warning' | 'error'
   output?: string
   error?: string
   exitCode?: number
+  summary?: string
+  artifacts?: string[]
 }
 
 /**

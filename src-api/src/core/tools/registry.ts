@@ -38,7 +38,7 @@ export class ToolRegistry {
       const tool = definitionOrTool as ITool
       this.tools.set(tool.definition.name, {
         definition: tool.definition,
-        executor: (params) => tool.execute(params)
+        executor: (params, context) => tool.execute(params, context)
       })
     } else if (executor) {
       // Definition + executor
