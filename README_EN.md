@@ -1,18 +1,45 @@
 # EasyWork
 
-EasyWork is a desktop-first open-source AI workbench focused on real task execution rather than longer chat sessions.
-It turns a natural-language request into a workflow that can be planned, approved, executed, resumed, and inspected.
+EasyWork is an open-source AI workbench built on the philosophy of **Harness Engineering**. It focuses on "real execution" rather than simple chat, transforming natural language tasks into automated workflows that can be planned, approved, executed, and recovered.
 
-[Chinese README](./README.md)
+In EasyWork, we believe that **the Agent is the trained model, while the Harness (tools, observations, permissions, knowledge) is the code written by engineers**. This project is a complete practice of this philosophy.
 
-## What It Does
+Core Positioning:
+- **Harness Driven**: Deeply integrated with the **Claude Agent SDK**, it's not just conversation but deep equipment and control of the local environment (files, commands, APIs).
+- **Deterministic Execution Flow**: Follows the `Planning -> Approval -> Execution` paradigm, rejecting black-box operations.
+- **Professional Developer Workbench**: Deeply integrated with Sandbox, MCP, and Skills router, targeting real output for local projects.
 
-- Two-phase execution: `Planning -> Approval -> Execution`, with clarification before planning when needed
-- Intent-aware execution: distinguishes information retrieval, interaction, and hybrid web tasks, then adapts execution strategy
-- Unified task workspace: turn timeline, process/result review, and artifact preview
-- Extensible runtime: supports `Provider / Sandbox / MCP / Skills`
-- Recovery and observability: approval callbacks, waiting-for-user pauses, interruption-aware recovery, history replay, and execution audit logs
-- Scheduling and desktop experience: recurring tasks plus `Light / Dark / System` appearance modes
+- [Chinese README](./README.md)
+
+## Why This Project
+
+Many AI products are good at answering questions but not good at stably completing tasks. EasyWork focuses on:
+
+- How to give AI tasks clear stages and states.
+- How to let users see the plan before execution and decide whether to continue.
+- How to put tool calls, approvals, clarifications, files, and results into a unified workbench.
+- How to make tasks reviewable, resumable, recoverable, and schedulable, rather than ending with a one-off chat.
+
+If you are also working on Agents, desktop AI, task orchestration, approval flows, tool calling, or local workspace integration, EasyWork aims to be a runnable, referable, and extensible open-source foundation.
+
+## Harness Engineering Philosophy
+
+The core of EasyWork is the **Harness**. We provide the model with a professional, stable, and controlled work environment:
+
+- **Granular Action Space**: Micro/Medium/Macro tools designed on demand, ensuring single responsibility and security control.
+- **Structured Observation**: All tool responses follow a unified protocol (Success/Warning/Error), containing Root Cause and next action suggestions, ensuring the Agent can make autonomous decisions and recover.
+- **Error Recovery Contract**: Follows the `root_cause_hint + safe_retry_instruction + stop_condition` contract to avoid tasks falling into silent failures or infinite loops.
+- **Isolation and Parallelism**: Supports sub-Agent message isolation and Git Worktree-based task parallelism, ensuring environment cleanliness and security boundaries.
+
+## Core Features
+
+- **Two-phase Execution Flow**: Follows the `Planning -> Approval -> Execution` paradigm, supporting task decomposition preview and execution after approval.
+- **Task Workbench**: Integrated Timeline, process tracing, result comparison, and real-time artifact preview.
+- **Local Ecosystem**:
+  - **Sandbox**: Native command execution sandbox, supporting explicit stdout/stderr separation and permission control. A clear **Error Contract** has been established for the Bash Tool, which can identify and autonomously handle exceptions such as "Timeouts" and "Missing Binaries," ensuring continuous execution.
+  - **MCP Integration**: Deep support for Model Context Protocol, enabling dynamic injection of resources and tools.
+  - **Skills Router**: Efficient task routing mechanism, optimizing Context Budgeting and enhancing long-task stability.
+- **Runtime Observability**: Supports execution auditing, breakpoint resumption, and automated scheduling throughout the task lifecycle.
 
 ## Quick Start
 
@@ -21,8 +48,8 @@ It turns a natural-language request into a workflow that can be planned, approve
 - Node.js `>= 20`
 - pnpm `>= 9`
 - Git
-- Rust stable for desktop mode
-- Tauri prerequisites for desktop mode: <https://v2.tauri.app/start/prerequisites/>
+- Rust stable (desktop mode only)
+- Tauri prerequisites (desktop mode only): <https://v2.tauri.app/start/prerequisites/>
 
 ### Install
 
@@ -38,16 +65,14 @@ pnpm install
 ### Run
 
 ```bash
-# API + Web
+# Web joint debugging (recommended)
 pnpm dev:all
 
-# API only
+# Start separately
 pnpm dev:api
-
-# Web only
 pnpm dev:web
 
-# Desktop app (Tauri)
+# Desktop debug (Tauri)
 pnpm dev
 ```
 
@@ -56,15 +81,21 @@ Default ports:
 - API: `http://localhost:2026`
 - Web: `http://localhost:1420`
 
-On first run, configure at least one model provider in Settings and activate it.
+### After First Run
 
-Runtime settings are stored locally on your machine:
+1. Open the app and enter `/welcome`.
+2. Configure at least one Provider in Settings.
+3. Activate the Provider.
+4. Enter a task and enter the `Plan -> Approval -> Execution` flow.
+5. View the timeline, process, results, and artifacts on the task detail page.
 
-- `~/.easywork/settings.json`
-- `~/.easywork/plans.json`
-- `~/.easywork/approval-requests.json`
-- `~/.easywork/scheduled-tasks.json`
-- `~/.easywork/turn-runtime.json`
+Runtime settings and persistence data:
+
+- Config: `~/.easywork/settings.json` (Model Providers, Sandbox preferences, etc.)
+- Plans & Tasks: `~/.easywork/plans.json` & `~/.easywork/tasks.json`
+- Approval Queue: `~/.easywork/approval-requests.json`
+- Scheduled Records: `~/.easywork/scheduled-tasks.json`
+- Runtime Context: `~/.easywork/turn-runtime.json` (Agent internal state persistence)
 
 ## Common Commands
 
@@ -79,6 +110,7 @@ pnpm dev
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm smoke:desktop:with-api
 pnpm pre-release
 
 # Build
@@ -90,13 +122,13 @@ pnpm build:desktop
 ## Project Structure
 
 ```text
-src/           Frontend (React + Vite)
-src-api/       Backend (Hono + Agent Runtime)
-src-tauri/     Desktop shell (Tauri 2 + Rust)
-shared-types/  Shared TypeScript types
-scripts/       Build, release, and quality scripts
-openspec/      Specs and change workflow
-SKILLs/        Project-level skills
+src/            Frontend (React + Vite)
+src-api/        Backend (Hono + Claude Agent SDK)
+src-tauri/      Desktop shell (Tauri 2 + Rust)
+shared-types/   Shared types across frontend and backend
+scripts/        Build, quality gate, and release scripts
+openspec/       OpenSpec specifications and change management
+SKILLs/         Project-level Skill definitions
 ```
 
 ## License
