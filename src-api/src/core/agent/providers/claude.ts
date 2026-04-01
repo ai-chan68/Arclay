@@ -49,6 +49,7 @@ import {
 } from '../../../services/plan-execution';
 import { looksLikeBrowserAutomationIntentInText } from '../../../services/browser-intent';
 import { taskPlanner } from '../../../services/task-planner';
+import { evaluateToolExecutionPolicy } from '../policy/tool-execution-policy';
 
 const DEFAULT_AUTO_ALLOW_TOOLS = [
   'Read',
@@ -1465,29 +1466,20 @@ IMPORTANT:
    */
   private createPermissionHandler(options?: AgentRunOptions, providerSessionId?: string): CanUseTool {
     return async (toolName, input, permissionOptions): Promise<PermissionResult> => {
-      // Enforce sandbox execution path: when sandbox is enabled, host Bash is never allowed.
-      if (options?.sandbox?.enabled && toolName === 'Bash') {
-        return {
-          behavior: 'deny',
-          message: 'Sandbox mode requires sandbox_run_command or sandbox_run_script. Bash is disabled.',
-          interrupt: false,
-          toolUseID: permissionOptions.toolUseID,
-        };
-      }
+      const approvalPolicy = this.getApprovalPolicy();
+      const sessionDir = this.getSessionWorkDir(options?.cwd || this.config.workDir, undefined, options?.taskId);
 
-      const writeScope = this.validateWriteScope(toolName, input, options);
-      if (!writeScope.allowed) {
-        return {
-          behavior: 'deny',
-          message: writeScope.message,
-          interrupt: false,
-          toolUseID: permissionOptions.toolUseID,
-        };
-      }
+      const evaluation = evaluateToolExecutionPolicy({
+        toolName,
+        input: input as Record<string, unknown>,
+        sandboxEnabled: !!options?.sandbox?.enabled,
+        sessionDir,
+        approvalEnabled: approvalPolicy.enabled,
+        autoAllowTools: approvalPolicy.autoAllowTools,
+        configuredMcpServers: options?.mcpConfig?.mcpServers ? Object.keys(options.mcpConfig.mcpServers) : [],
+      });
 
-      const policy = this.getApprovalPolicy();
-
-      if (!policy.enabled) {
+      if (evaluation.decision === 'allow') {
         return {
           behavior: 'allow',
           updatedInput: input,
@@ -1495,22 +1487,19 @@ IMPORTANT:
         };
       }
 
-      if (
-        this.shouldBypassApproval(toolName, options?.mcpConfig) ||
-        this.shouldAutoAllowTool(toolName, policy.autoAllowTools) ||
-        this.matchesConfiguredMcpTool(toolName, options?.mcpConfig)
-      ) {
+      if (evaluation.decision === 'deny') {
         return {
-          behavior: 'allow',
-          updatedInput: input,
+          behavior: 'deny',
+          message: evaluation.reason,
+          interrupt: false,
           toolUseID: permissionOptions.toolUseID,
         };
       }
 
-      const timeoutMs = policy.timeoutMs;
+      const timeoutMs = approvalPolicy.timeoutMs;
       const permission = this.buildPermissionRequest(toolName, input, {
-        blockedPath: permissionOptions.blockedPath,
-        decisionReason: permissionOptions.decisionReason,
+        blockedPath: evaluation.blockedPath || permissionOptions.blockedPath,
+        decisionReason: evaluation.reason || permissionOptions.decisionReason,
         toolUseID: permissionOptions.toolUseID,
         sessionId: this.session?.id,
         taskId: options?.taskId,

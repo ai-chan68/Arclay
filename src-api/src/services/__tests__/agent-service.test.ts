@@ -217,9 +217,20 @@ describe('AgentService', () => {
           timestamp: Date.now(),
         }
         yield {
+          id: 'warning-1',
+          type: 'text',
+          role: 'assistant',
+          content: 'Warning: something is off',
+          isTemporary: true,
+          timestamp: Date.now(),
+        }
+        yield {
           id: 'done-1',
           type: 'done',
           timestamp: Date.now(),
+          providerResultSubtype: 'max_turns',
+          providerDurationMs: 1200,
+          providerTotalCostUsd: 0.42,
         }
       },
       abort() {
@@ -259,6 +270,11 @@ describe('AgentService', () => {
       provider: 'claude',
       model: 'test-model',
       artifacts: ['/tmp/output/report.md'],
+      providerResultSubtype: 'max_turns',
+      providerDurationMs: 1200,
+      providerTotalCostUsd: 0.42,
+      warningCount: 1,
+      errorCount: 0,
     })
     expect(records[1]).toMatchObject({
       taskId,

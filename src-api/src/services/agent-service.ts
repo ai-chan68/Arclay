@@ -69,6 +69,11 @@ async function appendTaskMetricsRecord(input: {
   provider: string
   artifacts: string[]
   timestamp: Date
+  providerResultSubtype?: string
+  providerDurationMs?: number
+  providerTotalCostUsd?: number
+  warningCount?: number
+  errorCount?: number
 }): Promise<void> {
   const metricsDir = join(resolveEasyWorkHome(), 'metrics')
   const month = input.timestamp.toISOString().slice(0, 7)
@@ -104,6 +109,11 @@ async function appendTaskMetricsRecord(input: {
     model: input.model,
     provider: input.provider,
     artifacts: input.artifacts,
+    providerResultSubtype: input.providerResultSubtype,
+    providerDurationMs: input.providerDurationMs,
+    providerTotalCostUsd: input.providerTotalCostUsd,
+    warningCount: input.warningCount,
+    errorCount: input.errorCount,
   }
 
   await appendFile(metricsPath, `${JSON.stringify(record)}\n`, 'utf8')
@@ -376,6 +386,13 @@ ${categoryInstructions.join('\n---\n')}
     const observedArtifacts = new Set<string>()
     let sawDone = false
     let sawError = false
+    let warningCount = 0
+    let errorCount = 0
+    let providerMetadata: {
+      subtype?: string
+      durationMs?: number
+      totalCostUsd?: number
+    } = {}
 
     // 调试日志：输出当前使用的配置
     const maskedApiKey = this.config.provider.apiKey
@@ -516,9 +533,21 @@ ${categoryInstructions.join('\n---\n')}
         }
         if (message.type === 'done') {
           sawDone = true
+          providerMetadata = {
+            subtype: (message as any).providerResultSubtype,
+            durationMs: (message as any).providerDurationMs,
+            totalCostUsd: (message as any).providerTotalCostUsd,
+          }
         }
         if (message.type === 'error') {
           sawError = true
+          errorCount++
+        }
+        if (message.type === 'text' && message.isTemporary) {
+          // In our harness, temporary text messages from assistant often represent warnings
+          if (message.content?.toLowerCase().includes('warning')) {
+            warningCount++
+          }
         }
         yield message
         // Record execution trace to JSONL (non-blocking, errors logged not thrown)
@@ -565,6 +594,11 @@ ${categoryInstructions.join('\n---\n')}
             provider: this.config.provider.provider,
             artifacts: Array.from(observedArtifacts),
             timestamp: new Date(),
+            providerResultSubtype: providerMetadata.subtype,
+            providerDurationMs: providerMetadata.durationMs,
+            providerTotalCostUsd: providerMetadata.totalCostUsd,
+            warningCount,
+            errorCount,
           })
         } catch (err) {
           console.warn('[AgentService] Failed to append metrics record:', err)
