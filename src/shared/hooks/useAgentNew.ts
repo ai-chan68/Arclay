@@ -225,7 +225,7 @@ function summarizePlanMessage(message: AgentMessage): string {
   return lines.join('\n')
 }
 
-function buildPlanningConversation(messages: AgentMessage[], limit = 16): PlanningConversationMessage[] {
+function buildPlanningConversation(messages: AgentMessage[], limit = 50): PlanningConversationMessage[] {
   const normalized: PlanningConversationMessage[] = []
 
   for (const message of messages) {

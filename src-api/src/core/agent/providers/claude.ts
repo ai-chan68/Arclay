@@ -2154,14 +2154,16 @@ You MUST use sandbox tools for running scripts.
    * 格式化对话历史
    */
   private formatConversationHistory(
-    conversation?: ConversationMessage[]
+    conversation?: ConversationMessage[],
+    options?: { maxTokens?: number }
   ): string {
     if (!conversation || conversation.length === 0) {
       return '';
     }
 
-    const maxHistoryTokens = (this.config.providerConfig?.maxHistoryTokens as number) || 2000;
-    const minMessagesToKeep = 3;
+    const maxHistoryTokens = options?.maxTokens
+      ?? ((this.config.providerConfig?.maxHistoryTokens as number) || 4000);
+    const minMessagesToKeep = 5;
 
     const allFormattedMessages = conversation.map((msg) => {
       const role = msg.role === 'user' ? 'User' : 'Assistant';

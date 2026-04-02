@@ -80,13 +80,40 @@ describe('formatConversationHistory', () => {
       { role: 'user' as const, content: 'small-2' },
       { role: 'assistant' as const, content: 'small-3' },
       { role: 'user' as const, content: 'small-4' },
+      { role: 'assistant' as const, content: 'small-5' },
+      { role: 'user' as const, content: 'small-6' },
     ]
     const result = callFormat(agent, conversation)
-    // small-4, small-3, small-2 are kept because minMessagesToKeep = 3.
-    // small-1 fits in the remaining budget (30 - 3*2 = 24 roughly).
-    // A.repeat(200) exceeds budget and is NOT in min 3, so it should be skipped.
-    expect(result).toContain('small-4')
-    expect(result).toContain('small-1')
+    // With minMessagesToKeep = 5, the last 5 messages are kept (small-2 through small-6).
+    // A.repeat(200) and small-1 are outside the minimum 5, so they can be dropped if budget is tight.
+    expect(result).toContain('small-6')
+    expect(result).toContain('small-2')
     expect(result).not.toContain('A'.repeat(200))
+  })
+
+  it('respects configurable maxHistoryTokens up to 8000', () => {
+    const agent = makeAgent(8000)
+    // 30 messages, each ~100 chars Chinese = ~200 tokens = ~6000 total
+    const conversation = Array.from({ length: 30 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `这是第${i}条消息，包含一些中文内容用于测试token估算的准确性`,
+    }))
+    const result = callFormat(agent, conversation)
+    // With 8000 budget, all 30 messages should fit (~6000 tokens)
+    expect(result).toContain('这是第0条消息')
+    expect(result).toContain('这是第29条消息')
+    expect(result).not.toContain('[Note: Conversation history truncated')
+  })
+
+  it('keeps at least 5 most recent messages with new minimum', () => {
+    const agent = makeAgent(1) // tiny budget
+    const conversation = Array.from({ length: 8 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `msg${i}`,
+    }))
+    const result = callFormat(agent, conversation)
+    // Last 5 must survive regardless of budget
+    expect(result).toContain('msg3')
+    expect(result).toContain('msg7')
   })
 })
