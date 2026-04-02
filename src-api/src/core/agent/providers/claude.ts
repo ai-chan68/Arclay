@@ -442,15 +442,27 @@ User's request (answer this AFTER reading the images):
       const availableSkills = selectedSkillIds.size > 0
         ? allSkills.filter((skill) => selectedSkillIds.has(skill.id))
         : enabledSkills;
-      const conversationContext = this.formatConversationHistory(options?.conversation);
+      // Budget-aware prompt assembly
+      const CONTEXT_LIMIT = 200_000; // Claude model context window
+      const OUTPUT_RESERVE = 8_000;
 
-      // Get planning response from LLM with skills context
-      const planningPrompt =
-        getPlanningInstructionWithSkills(availableSkills) +
-        '\n\n' +
-        this.buildRoutedSkillsContext(routed) +
-        conversationContext +
-        prompt;
+      const planningInstruction = getPlanningInstructionWithSkills(availableSkills)
+        + '\n\n'
+        + this.buildRoutedSkillsContext(routed);
+
+      const instructionTokens = this.estimateTokens(planningInstruction);
+      const promptTokens = this.estimateTokens(prompt);
+      const historyBudget = Math.max(
+        CONTEXT_LIMIT - OUTPUT_RESERVE - instructionTokens - promptTokens,
+        1000
+      );
+
+      const conversationContext = this.formatConversationHistory(
+        options?.conversation,
+        { maxTokens: Math.min(historyBudget, 8000) }  // cap at 8000 to avoid over-stuffing
+      );
+
+      const planningPrompt = planningInstruction + conversationContext + prompt;
 
       // Use a simple query to get the plan - NO TOOLS for planning phase
       const claudeCodePath = await this.ensureClaudeCode();
@@ -2220,6 +2232,18 @@ ${formattedMessages}${truncationNotice}
 ---
 ## Current Request
 `;
+  }
+
+  private estimateTokens(text: string): number {
+    let tokens = 0;
+    for (const char of text) {
+      if (char.charCodeAt(0) > 0x2e80) {
+        tokens += 2;
+      } else {
+        tokens += 0.25;
+      }
+    }
+    return Math.ceil(tokens);
   }
 
   /**
