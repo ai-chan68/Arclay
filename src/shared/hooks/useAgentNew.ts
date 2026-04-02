@@ -442,6 +442,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
   const attachmentsRef = useRef<MessageAttachment[] | undefined>(undefined)
   const turnIdRef = useRef<string | null>(turnId)
   const taskVersionRef = useRef<number>(taskVersion)
+  const receivedPlanOrAnswerRef = useRef(false)
 
   messagesRef.current = messages
   isRunningRef.current = isRunning
@@ -606,6 +607,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         }
 
         if (message.type === 'plan' && message.plan) {
+          receivedPlanOrAnswerRef.current = true
           if (backgroundTask?.isRunning) {
             updateBackgroundTaskPhase(currentTaskId, 'awaiting_approval')
           }
@@ -623,16 +625,22 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         }
 
         if (message.type === 'user' && message.question && !isDetachedBackgroundTask) {
+          receivedPlanOrAnswerRef.current = true
           setPendingQuestion(message.question)
           updatePhase('awaiting_clarification')
         }
 
         if (message.type === 'clarification_request' && !isDetachedBackgroundTask) {
+          receivedPlanOrAnswerRef.current = true
           const clarification = message.clarification || message.question
           if (clarification) {
             setPendingQuestion(clarification)
             updatePhase('awaiting_clarification')
           }
+        }
+
+        if (message.type === 'text' && message.content && !isDetachedBackgroundTask) {
+          receivedPlanOrAnswerRef.current = true
         }
 
         if (message.type === 'error' && !isDetachedBackgroundTask) {
@@ -704,6 +712,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
     initialPromptRef.current = prompt
     attachmentsRef.current = attachments
     const planningConversation = buildPlanningConversation(messagesRef.current)
+    receivedPlanOrAnswerRef.current = false
 
     if (!options?.reuseCurrentTurn) {
       setTurnId(null)
@@ -777,6 +786,13 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         }
 
         const timeoutId = setTimeout(() => {
+          if (receivedPlanOrAnswerRef.current) {
+            // We already got a usable response — just let the stream finish gracefully
+            // No abort needed; the stream will close naturally
+            console.warn('[useAgentNew] Planning stream slow but response received, allowing completion')
+            return
+          }
+          // No usable response after 90s — abort and fall back
           planningTimedOut = true
           abortControllerRef.current?.abort()
         }, PLAN_STREAM_TIMEOUT_MS)
@@ -788,7 +804,22 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         }
 
         if (planningTimedOut && phaseRef.current !== 'awaiting_approval' && phaseRef.current !== 'awaiting_clarification') {
-          throw new Error('规划阶段超时，请检查模型配置或网络连接后重试。')
+          // Planning timed out with no response, fall back to direct execution
+          console.warn('[useAgentNew] Planning timed out with no response, falling back to direct execution')
+
+          const fallbackMessage: AgentMessage = {
+            id: generateId('msg'),
+            type: 'text',
+            role: 'assistant',
+            content: '规划阶段响应超时，将直接执行任务。',
+            timestamp: Date.now(),
+          }
+          updateMessages(prev => [...prev, fallbackMessage])
+          await onMessageReceivedRef.current?.(fallbackMessage, effectiveTaskId)
+
+          // Trigger direct execution (skip planning)
+          updatePhase('executing')
+          await executeDirect(effectiveTaskId, prompt, attachments)
         }
       }
 
@@ -801,23 +832,10 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
       )
 
       if (err instanceof Error && err.name === 'AbortError') {
-        if (planningTimedOut) {
-          const timeoutMessage = '规划阶段超时，请检查模型配置或网络连接后重试。'
-          const errorEvent: AgentMessage = {
-            id: generateId('msg'),
-            type: 'error',
-            errorMessage: timeoutMessage,
-            timestamp: Date.now(),
-          }
-          if (!isDetachedBackgroundTask) {
-            setError({
-              code: 'TIMEOUT',
-              message: timeoutMessage,
-              details: { phase: 'planning' },
-            })
-          }
-          updateMessages(prev => [...prev, errorEvent])
-          await onMessageReceivedRef.current?.(errorEvent, effectiveTaskId)
+        if (planningTimedOut && phaseRef.current !== 'awaiting_approval' && phaseRef.current !== 'awaiting_clarification') {
+          // Timeout was already handled above with fallback to direct execution
+          // Just return the taskId
+          return effectiveTaskId
         }
         return effectiveTaskId
       }
