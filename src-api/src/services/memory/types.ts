@@ -34,6 +34,7 @@ export type HistoryRecordType =
   | 'error'
   | 'plan'
   | 'done'
+  | 'turn_state'
 
 export interface HistoryRecord {
   readonly timestamp: string          // ISO 8601

@@ -35,7 +35,9 @@ function mapMessageType(message: AgentMessage): HistoryRecordType | null {
     case 'done':
     case 'result':
       return 'done'
-    // Skip session, turn_state, permission_request, etc.
+    case 'turn_state':
+      return 'turn_state'
+    // Skip session, permission_request, etc.
     default:
       return null
   }
@@ -57,6 +59,11 @@ function extractContent(message: AgentMessage): string {
     const plan = message.plan
     const goalOrSummary = 'goal' in plan ? plan.goal : ('summary' in plan ? plan.summary : '')
     return truncateContent(`goal: ${goalOrSummary}`)
+  }
+
+  // For turn_state messages
+  if (message.type === 'turn_state' && message.turn) {
+    return truncateContent(JSON.stringify(message.turn))
   }
 
   if (message.errorMessage) return truncateContent(message.errorMessage)
