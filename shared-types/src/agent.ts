@@ -163,6 +163,7 @@ export interface TaskPlan {
   steps: PlanStep[];
   notes?: string;
   createdAt: Date;
+  skipPlanning?: boolean; // true when plan was auto-generated due to parse failure
 }
 
 export interface PlanStep {

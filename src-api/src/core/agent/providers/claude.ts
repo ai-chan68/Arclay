@@ -964,25 +964,24 @@ IMPORTANT:
     hasToolUse: boolean
   ): TaskPlan {
     const trimmed = rawResponse.trim();
-    const summarized = trimmed.length > 120
-      ? `${trimmed.slice(0, 120)}...`
+    const summarized = trimmed.length > 200
+      ? `${trimmed.slice(0, 200)}...`
       : trimmed;
     const notesParts = [
-      '规划阶段未返回可解析 JSON，已自动切换为通用执行计划。',
+      '规划阶段未返回结构化计划，将直接执行任务。',
       hasToolUse ? '检测到规划阶段出现工具调用迹象。' : '',
-      summarized ? `原始回复摘要：${summarized}` : '',
+      summarized ? `模型原始回复：${summarized}` : '',
     ].filter(Boolean);
 
     return {
       id: nanoid(),
       goal: prompt,
       steps: [
-        { id: 'step_0', description: '分析任务需求并确认目标范围', status: 'pending' },
-        { id: 'step_1', description: '执行具体操作并记录关键结果', status: 'pending' },
-        { id: 'step_2', description: '验证结果并输出最终说明', status: 'pending' },
+        { id: 'step_0', description: '执行用户请求', status: 'pending' },
       ],
       notes: notesParts.join(' '),
       createdAt: new Date(),
+      skipPlanning: true,
     };
   }
 
