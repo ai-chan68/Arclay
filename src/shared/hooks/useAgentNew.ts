@@ -608,12 +608,30 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
         if (message.type === 'plan' && message.plan) {
           receivedPlanOrAnswerRef.current = true
+          const plan = message.plan as TaskPlan
+
+          // Auto-approve fallback plans (skipPlanning: true)
+          // These are generated when planning times out or detects tool_use pollution
+          if (plan.skipPlanning) {
+            console.log('[useAgentNew] Auto-approving fallback plan (skipPlanning: true)')
+            if (!isDetachedBackgroundTask) {
+              updatePlan(plan)
+              // Transition directly to execution phase
+              updatePhase('execution')
+              setPendingQuestion(null)
+              setLatestApprovalTerminal(null)
+            }
+            // Note: The plan is already approved, no need to wait for user action
+            return
+          }
+
+          // Normal plan: require user approval
           if (backgroundTask?.isRunning) {
             updateBackgroundTaskPhase(currentTaskId, 'awaiting_approval')
           }
 
           if (!isDetachedBackgroundTask) {
-            updatePlan(message.plan as TaskPlan)
+            updatePlan(plan)
             updatePhase('awaiting_approval')
             setPendingQuestion(null)
             setLatestApprovalTerminal(null)

@@ -445,6 +445,9 @@ User's request (answer this AFTER reading the images):
       // Budget-aware prompt assembly
       const CONTEXT_LIMIT = 200_000; // Claude model context window
       const OUTPUT_RESERVE = 8_000;
+      // Cap history at 8000 tokens to maintain prompt quality and avoid diluting
+      // planning instructions with excessive context that may confuse the model
+      const HISTORY_TOKEN_CAP = 8_000;
 
       const planningInstruction = getPlanningInstructionWithSkills(availableSkills)
         + '\n\n'
@@ -459,7 +462,7 @@ User's request (answer this AFTER reading the images):
 
       const conversationContext = this.formatConversationHistory(
         options?.conversation,
-        { maxTokens: Math.min(historyBudget, 8000) }  // cap at 8000 to avoid over-stuffing
+        { maxTokens: Math.min(historyBudget, HISTORY_TOKEN_CAP) }
       );
 
       const planningPrompt = planningInstruction + conversationContext + prompt;
@@ -2256,10 +2259,27 @@ ${formattedMessages}${truncationNotice}
 `;
   }
 
+  /**
+   * Estimate token count for text.
+   *
+   * Uses a simple heuristic:
+   * - CJK characters (Chinese, Japanese, Korean): ~2 tokens each
+   * - ASCII/Latin characters: ~0.25 tokens each (4 chars = 1 token)
+   *
+   * This is an approximation. Actual tokenization may vary.
+   */
   private estimateTokens(text: string): number {
     let tokens = 0;
     for (const char of text) {
-      if (char.charCodeAt(0) > 0x2e80) {
+      const code = char.charCodeAt(0);
+      // CJK Unified Ideographs, Extensions, Japanese Kana, Korean Hangul
+      if (
+        (code >= 0x2e80 && code <= 0x9fff) ||   // CJK & Radicals
+        (code >= 0x3040 && code <= 0x30ff) ||   // Hiragana & Katakana
+        (code >= 0xac00 && code <= 0xd7af) ||   // Hangul
+        (code >= 0xf900 && code <= 0xfaff) ||   // CJK Compatibility
+        (code >= 0x20000 && code <= 0x2fa1f)    // CJK Extension B-F
+      ) {
         tokens += 2;
       } else {
         tokens += 0.25;
