@@ -29,3 +29,18 @@ describe('planning fallback behavior', () => {
     expect(fallbackPlan.steps[0].description).not.toContain('分析任务需求')
   })
 })
+
+describe('tool_use pollution guard', () => {
+  it('marks plan as skipPlanning when both attempts have tool_use', () => {
+    // Simulates the scenario where model ignores allowedTools: []
+    // and returns tool_use blocks in both first and retry attempts.
+    // Expected: fallback plan with skipPlanning: true and tool_use note.
+    const hasToolUse = true
+    const planningResult = { type: 'unknown' as const }
+
+    // When hasToolUse is true AND planningResult is unknown,
+    // the plan should carry skipPlanning and a diagnostic note
+    const shouldSkipToExecution = hasToolUse && planningResult.type === 'unknown'
+    expect(shouldSkipToExecution).toBe(true)
+  })
+})

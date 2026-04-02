@@ -530,6 +530,28 @@ IMPORTANT:
         }
       }
 
+      // Fast path: if model returned tool_use AND we couldn't parse a plan,
+      // skip further attempts and go straight to execution fallback.
+      // Retrying won't help — the model is ignoring the no-tools constraint.
+      if (hasToolUse && planningResult.type === 'unknown') {
+        console.warn('[ClaudeAgent] Tool-use pollution detected in planning, skipping to direct execution');
+        const taskPlan = this.createFallbackExecutionPlan(prompt, fullResponse, true);
+        yield {
+          id: this.generateMessageId(),
+          type: 'plan' as AgentMessageType,
+          role: 'assistant',
+          content: '规划阶段检测到异常，将直接执行任务。',
+          timestamp: Date.now(),
+          plan: taskPlan,
+        };
+        yield {
+          id: this.generateMessageId(),
+          type: 'done' as AgentMessageType,
+          timestamp: Date.now(),
+        };
+        return;
+      }
+
       const forceExecutionPlan = this.shouldForceExecutionPlan(prompt);
 
       if (planningResult.type === 'clarification_request' && planningResult.clarification) {
