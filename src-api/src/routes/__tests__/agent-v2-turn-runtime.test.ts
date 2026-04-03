@@ -78,7 +78,7 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     process.env.EASYWORK_HOME = path.join(tempHome, '.easywork')
 
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
     const storeModule = await import('../../services/plan-store')
     const coordinatorModule = await import('../../services/approval-coordinator')
     planStore = storeModule.planStore
@@ -113,20 +113,21 @@ describe('V2 Agent Turn Runtime Dependency', () => {
       },
     }
 
-    routesModule.setAgentService(
-      fakeAgentService as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: tempHome,
-      }
-    )
-
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: fakeAgentService as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: tempHome,
+        },
+      }),
+    }))
   })
 
   afterAll(() => {
@@ -351,39 +352,41 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     vi.resetModules()
     const refreshedPlanStoreModule = await import('../../services/plan-store')
     const refreshedTurnStoreModule = await import('../../services/turn-runtime-store')
-    const refreshedRoutesModule = await import('../agent-new')
-    refreshedRoutesModule.setAgentService(
-      {
-        createAgent() {
-          return {
-            async *plan(): AsyncIterable<AgentMessage> {
-              yield {
-                id: `unused_${Date.now()}`,
-                type: 'done',
-                timestamp: Date.now(),
-              }
-            },
-          }
-        },
-        async *streamExecution(): AsyncIterable<AgentMessage> {
-          yield {
-            id: `done_${Date.now()}`,
-            type: 'done',
-            timestamp: Date.now(),
-          }
-        },
-      } as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: tempHome,
-      }
-    )
+    const { createAgentNewRoutes } = await import('../agent-new')
     const refreshedApp = new Hono()
-    refreshedApp.route('/api/v2/agent', refreshedRoutesModule.agentNewRoutes)
+    refreshedApp.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: {
+          createAgent() {
+            return {
+              async *plan(): AsyncIterable<AgentMessage> {
+                yield {
+                  id: `unused_${Date.now()}`,
+                  type: 'done',
+                  timestamp: Date.now(),
+                }
+              },
+            }
+          },
+          async *streamExecution(): AsyncIterable<AgentMessage> {
+            yield {
+              id: `done_${Date.now()}`,
+              type: 'done',
+              timestamp: Date.now(),
+            }
+          },
+        } as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: tempHome,
+        },
+      }),
+    }))
 
     const executeRes = await refreshedApp.request('/api/v2/agent/execute', {
       method: 'POST',

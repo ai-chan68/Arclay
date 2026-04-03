@@ -17,7 +17,7 @@ describe('V2 Agent Plan Conversation Context', () => {
     process.env.HOME = tempHome
 
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
 
     const fakeAgentService = {
       createAgent() {
@@ -41,20 +41,21 @@ describe('V2 Agent Plan Conversation Context', () => {
       },
     }
 
-    routesModule.setAgentService(
-      fakeAgentService as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: tempHome,
-      }
-    )
-
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: fakeAgentService as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: tempHome,
+        },
+      }),
+    }))
   })
 
   afterAll(() => {

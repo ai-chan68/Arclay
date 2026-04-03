@@ -1,24 +1,20 @@
 import { Hono } from 'hono'
-import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
-import { routes } from './routes'
-import { setAgentService as setNewAgentService } from './routes/agent-new'
+import { createRoutes } from './routes'
 import { setSandboxService } from './routes/sandbox'
 import { setPreviewSandboxService } from './routes/preview'
-import { AgentService, createAgentService, type AgentServiceConfig } from './services/agent-service'
-import { getProviderConfig, getWorkDir, getFrontendUrl, logConfig, validateConfig } from './config'
-import { createSandboxService } from './core/sandbox/sandbox-service'
+import { getFrontendUrl, logConfig } from './config'
 import { createServer as createHttpServer } from 'node:http'
-import { getSettings, getActiveProviderConfig, normalizeSandboxSettings } from './settings-store'
-import type { SkillsConfig, SandboxConfig, McpConfig } from './core/agent/types'
+import { getActiveProviderConfig } from './settings-store'
 import { initializeProviders } from './core/agent/providers'
 import { providerManager } from './shared/provider/manager'
-import { scheduledTaskScheduler } from './services/scheduled-task-scheduler'
+import { ScheduledTaskScheduler } from './services/scheduled-task-scheduler'
 import { approvalCoordinator } from './services/approval-coordinator'
 import { planStore } from './services/plan-store'
 import { cancelTurnsForExpiredPlans } from './services/plan-turn-sync'
 import { bootstrapRuntimeRecovery } from './services/runtime-recovery-bootstrap'
 import { turnRuntimeStore } from './services/turn-runtime-store'
+import { createAppRuntime } from './runtime/app-runtime'
 
 // Detect if running as Tauri sidecar
 const isTauriSidecar = process.env.TAURI_FAMILY === 'sidecar'
@@ -27,7 +23,29 @@ const isTauriSidecar = process.env.TAURI_FAMILY === 'sidecar'
 initializeProviders()
 void providerManager.initialize()
 
+const runtime = createAppRuntime()
+const scheduledTaskScheduler = new ScheduledTaskScheduler({
+  getAgentRuntimeState: runtime.getAgentRuntimeState,
+  workDir: runtime.workDir,
+})
+
 const app = new Hono()
+const routes = createRoutes({
+  agentNew: {
+    getAgentRuntimeState: runtime.getAgentRuntimeState,
+    workDir: runtime.workDir,
+  },
+  settings: {
+    getAgentRuntimeState: runtime.getAgentRuntimeState,
+    setAgentRuntimeState: runtime.setAgentRuntimeState,
+    workDir: runtime.workDir,
+  },
+  scheduledTasks: {
+    getAgentRuntimeState: runtime.getAgentRuntimeState,
+    scheduler: scheduledTaskScheduler,
+    workDir: runtime.workDir,
+  },
+})
 
 bootstrapRuntimeRecovery({
   approvalCoordinator,
@@ -39,145 +57,18 @@ bootstrapRuntimeRecovery({
   logInfo: console.log,
 })
 
-// Initialize sandbox service (doesn't require API key)
-const workDir = getWorkDir()
-let sandboxServicePromise: Promise<void> | null = null
-
 function initializeSandboxServices(): Promise<void> {
-  if (!sandboxServicePromise) {
-    sandboxServicePromise = createSandboxService(workDir).then((sandboxService) => {
+  return runtime.initializeSandboxServices().then((sandboxService) => {
       setSandboxService(sandboxService)
       setPreviewSandboxService(sandboxService)
-    })
-  }
-
-  return sandboxServicePromise
+  })
 }
 
 void initializeSandboxServices().catch((error) => {
   console.error('Failed to initialize sandbox service:', error)
 })
 
-// Get skills config from settings
-function getSkillsConfig(): SkillsConfig {
-  const settings = getSettings()
-  // Skills are enabled by default if not explicitly disabled
-  const enabled = settings?.skills?.enabled !== false
-  return {
-    enabled,
-    userDirEnabled: false,  // 不使用用户目录的 skills
-    appDirEnabled: true,    // 使用项目目录的 skills
-  }
-}
-
-function getMcpConfig(): McpConfig | undefined {
-  const settings = getSettings()
-  if (!settings?.mcp?.enabled) {
-    return undefined
-  }
-
-  // 转换 settings-store 的 McpServerConfig 到 agent types 的 McpServerConfig
-  const mcpServers: Record<string, import('./core/agent/types').McpServerConfig> = {}
-  if (settings.mcp.mcpServers) {
-    for (const [name, config] of Object.entries(settings.mcp.mcpServers)) {
-      // 支持 stdio、sse、http 三种传输类型
-      if (config.type === 'stdio' || config.type === 'sse' || config.type === 'http') {
-        mcpServers[name] = {
-          type: config.type,
-          command: config.command,
-          args: config.args,
-          env: config.env,
-          url: config.url,
-          headers: config.headers,
-        }
-      }
-    }
-  }
-
-  return {
-    enabled: true,
-    userDirEnabled: false,
-    appDirEnabled: false,
-    mcpServers,
-  }
-}
-
-function getSandboxConfig(): SandboxConfig | undefined {
-  const settings = getSettings()
-  const sandbox = normalizeSandboxSettings(settings?.sandbox)
-  if (!sandbox.enabled) {
-    return undefined
-  }
-
-  return {
-    enabled: true,
-    provider: sandbox.provider,
-    image: sandbox.image,
-    apiEndpoint: sandbox.apiEndpoint,
-  }
-}
-
-// Try to initialize agent service
-// Priority: 1. Saved settings from file (active provider), 2. Environment variables
-let agentService: AgentService | null = null
-let agentServiceConfig: AgentServiceConfig | null = null
-
-try {
-  // First check for active provider in saved settings
-  const activeProvider = getActiveProviderConfig()
-  const skillsConfig = getSkillsConfig()
-  const mcpConfig = getMcpConfig()
-  const sandboxConfig = getSandboxConfig()
-
-  if (activeProvider && activeProvider.apiKey) {
-    console.log('[API] Using active provider from saved settings')
-    agentServiceConfig = {
-      provider: {
-        provider: activeProvider.provider as 'claude' | 'glm' | 'openai' | 'openrouter' | 'kimi' | 'deepseek',
-        apiKey: activeProvider.apiKey,
-        model: activeProvider.model,
-        baseUrl: activeProvider.baseUrl,
-      },
-      workDir,
-      skills: skillsConfig,
-      mcp: mcpConfig,
-      sandbox: sandboxConfig,
-    }
-    agentService = createAgentService(
-      agentServiceConfig.provider,
-      workDir,
-      skillsConfig,
-      mcpConfig,
-      sandboxConfig
-    )
-    setNewAgentService(agentService, agentServiceConfig)
-    console.log(`[API] Agent service initialized with provider: ${activeProvider.provider}, model: ${activeProvider.model}, skills: ${skillsConfig.enabled ? 'enabled' : 'disabled'}, mcp: ${mcpConfig ? 'enabled' : 'disabled'}\n`)
-  } else {
-    // Fall back to environment config
-    const providerConfig = getProviderConfig()
-
-    // Only create agent service if API key is configured
-    if (providerConfig.apiKey && providerConfig.apiKey !== '') {
-      agentServiceConfig = {
-        provider: providerConfig,
-        workDir,
-        skills: skillsConfig,
-        mcp: mcpConfig,
-        sandbox: sandboxConfig,
-      }
-      agentService = createAgentService(providerConfig, workDir, skillsConfig, mcpConfig, sandboxConfig)
-      setNewAgentService(agentService, agentServiceConfig)
-      logConfig()
-      console.log(`[API] Skills: ${skillsConfig.enabled ? 'enabled' : 'disabled'}, mcp: ${mcpConfig ? 'enabled' : 'disabled'}\n`)
-    } else {
-      console.log('[API] No API key configured. Agent service will be available after settings are saved.')
-      console.log('[API] Please configure your API key in the Settings page.\n')
-    }
-  }
-} catch (error) {
-  console.error('Failed to initialize agent service:', error)
-  console.log('[API] Agent service will be available after settings are saved.\n')
-}
+logInitialAgentRuntime()
 
 // Middleware
 app.use('*', cors({
@@ -329,3 +220,23 @@ if (typeof process !== 'undefined' && !process.env.VITEST) {
 }
 
 export { app }
+
+function logInitialAgentRuntime(): void {
+  const { agentService, agentServiceConfig } = runtime.getAgentRuntimeState()
+  if (!agentService || !agentServiceConfig) {
+    console.log('[API] No API key configured. Agent service will be available after settings are saved.')
+    console.log('[API] Please configure your API key in the Settings page.\n')
+    return
+  }
+
+  if (getActiveProviderConfig()?.apiKey) {
+    console.log('[API] Using active provider from saved settings')
+  } else {
+    logConfig()
+  }
+
+  const skillsEnabled = agentServiceConfig.skills?.enabled !== false
+  console.log(
+    `[API] Agent service initialized with provider: ${agentServiceConfig.provider.provider}, model: ${agentServiceConfig.provider.model}, skills: ${skillsEnabled ? 'enabled' : 'disabled'}, mcp: ${agentServiceConfig.mcp ? 'enabled' : 'disabled'}\n`
+  )
+}

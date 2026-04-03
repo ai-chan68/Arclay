@@ -26,7 +26,7 @@ describe('V2 Agent Permission Auto Allow', () => {
     process.env.HOME = tempHome
 
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
     const coordinatorModule = await import('../../services/approval-coordinator')
     const settingsModule = await import('../../settings-store')
 
@@ -34,7 +34,13 @@ describe('V2 Agent Permission Auto Allow', () => {
     getSettings = settingsModule.getSettings
 
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: null,
+        agentServiceConfig: null,
+      }),
+    }))
   })
 
   afterAll(() => {

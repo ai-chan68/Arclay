@@ -32,7 +32,7 @@ describe('V2 Agent Direct Execution Compatibility', () => {
 
   beforeAll(async () => {
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
     const fakeAgentService = {
       createAgent() {
         return {}
@@ -52,20 +52,21 @@ describe('V2 Agent Direct Execution Compatibility', () => {
       },
     }
 
-    routesModule.setAgentService(
-      fakeAgentService as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: process.cwd(),
-      }
-    )
-
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: process.cwd(),
+      getAgentRuntimeState: () => ({
+        agentService: fakeAgentService as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: process.cwd(),
+        },
+      }),
+    }))
   })
 
   it('streams direct execution messages with legacy session binding', async () => {

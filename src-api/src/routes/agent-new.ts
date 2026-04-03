@@ -90,21 +90,11 @@ import {
   setSettings,
 } from '../settings-store'
 import type { TurnTransitionResult } from '../types/turn-runtime'
-let agentService: AgentService | null = null
-let agentServiceConfig: AgentServiceConfig | null = null
+import type { AgentRuntimeState } from '../runtime/app-runtime'
 
-export function setAgentService(service: AgentService, config: AgentServiceConfig): void {
-  agentService = service
-  agentServiceConfig = config
-}
-
-export function clearAgentService(): void {
-  agentService = null
-  agentServiceConfig = null
-}
-
-export function getAgentService(): AgentService | null {
-  return agentService
+export interface AgentRouteDeps {
+  getAgentRuntimeState: () => AgentRuntimeState
+  workDir: string
 }
 
 async function persistTurnDetailForRun(input: {
@@ -131,7 +121,12 @@ async function persistTurnDetailForRun(input: {
   await detailStore.saveTurnDetail(snapshot)
 }
 
-export const agentNewRoutes = new Hono()
+function getAgentRuntimeState(deps: AgentRouteDeps): AgentRuntimeState {
+  return deps.getAgentRuntimeState()
+}
+
+export function createAgentNewRoutes(deps: AgentRouteDeps): Hono {
+  const agentNewRoutes = new Hono()
 
 /**
  * POST /agent/plan
@@ -146,6 +141,7 @@ export const agentNewRoutes = new Hono()
  * Response: SSE stream of AgentMessage (including plan)
  */
 agentNewRoutes.post('/plan', async (c) => {
+  const { agentService, agentServiceConfig } = getAgentRuntimeState(deps)
   if (!agentService || !agentServiceConfig) {
     return c.json(buildAgentServiceUnavailableBody(), 500)
   }
@@ -173,7 +169,7 @@ agentNewRoutes.post('/plan', async (c) => {
   c.header('Connection', 'keep-alive')
 
   return stream(c, async (s) => {
-    const agent = agentService!.createAgent()
+    const agent = agentService.createAgent()
     const emittedPlanningMessages: AgentMessage[] = []
     const emitTurnState = createTurnStateEmitter({
       stream: s,
@@ -195,7 +191,7 @@ agentNewRoutes.post('/plan', async (c) => {
       activeTurn,
       streamPlanning: () => agent.plan!(planningPrompt, {
         sessionId: run.id,
-        cwd: agentServiceConfig?.workDir,
+        cwd: agentServiceConfig.workDir,
         conversation,
       }),
       isAborted: () => run.isAborted,
@@ -351,6 +347,7 @@ agentNewRoutes.post('/plan', async (c) => {
  * Response: SSE stream of AgentMessage
  */
 agentNewRoutes.post('/execute', async (c) => {
+  const { agentService, agentServiceConfig } = getAgentRuntimeState(deps)
   if (!agentService || !agentServiceConfig) {
     return c.json(buildAgentServiceUnavailableBody(), 500)
   }
@@ -359,7 +356,7 @@ agentNewRoutes.post('/execute', async (c) => {
 
   const executionRequestResult = await prepareExecutionRequest({
     body,
-    defaultWorkDir: agentServiceConfig?.workDir || process.cwd(),
+    defaultWorkDir: agentServiceConfig.workDir,
     createRun: (phase, preferredId) => agentRunStore.createRun(phase, preferredId),
     deleteRun: (runId) => agentRunStore.deleteRun(runId),
     executionStartDeps: {
@@ -418,12 +415,12 @@ agentNewRoutes.post('/execute', async (c) => {
       effectiveWorkDir,
       executionWorkspaceDir,
       attachments: attachments as MessageAttachment[] | undefined,
-      providerName: agentServiceConfig?.provider?.provider,
-      providerModel: agentServiceConfig?.provider?.model,
-      sandboxEnabled: agentServiceConfig?.sandbox?.enabled === true,
-      runtimeMcpServers: agentServiceConfig?.mcp?.mcpServers as Record<string, unknown> | undefined,
+      providerName: agentServiceConfig.provider.provider,
+      providerModel: agentServiceConfig.provider.model,
+      sandboxEnabled: agentServiceConfig.sandbox?.enabled === true,
+      runtimeMcpServers: agentServiceConfig.mcp?.mcpServers as Record<string, unknown> | undefined,
       settingsMcpServers: getSettings()?.mcp?.mcpServers as Record<string, unknown> | undefined,
-      streamAgentExecution: (promptForAttempt, sessionId, messageAttachments, conversation, context) => agentService!.streamExecution(
+      streamAgentExecution: (promptForAttempt, sessionId, messageAttachments, conversation, context) => agentService.streamExecution(
         promptForAttempt,
         sessionId,
         messageAttachments,
@@ -527,6 +524,7 @@ agentNewRoutes.post('/execute', async (c) => {
  * Response: SSE stream of AgentMessage
  */
 agentNewRoutes.post('/', async (c) => {
+  const { agentService } = getAgentRuntimeState(deps)
   if (!agentService) {
     return c.json(buildAgentServiceUnavailableBody(), 500)
   }
@@ -547,7 +545,7 @@ agentNewRoutes.post('/', async (c) => {
       sessionId: request.sessionId,
       attachments: request.attachments,
       conversation: request.conversation,
-      streamExecution: (prompt, sessionId, attachments, conversation) => agentService!.streamExecution(
+      streamExecution: (prompt, sessionId, attachments, conversation) => agentService.streamExecution(
         prompt,
         sessionId,
         attachments,
@@ -579,6 +577,7 @@ agentNewRoutes.post('/', async (c) => {
  * Stop a running run
  */
 agentNewRoutes.post('/stop/:id', async (c) => {
+  const { agentService } = getAgentRuntimeState(deps)
   const result = resolveStopSessionRequest({
     sessionId: c.req.param('id'),
     stopAgentSession: (sessionId) => stopAgentSession({
@@ -636,9 +635,10 @@ agentNewRoutes.get('/task/:taskId/pending-plan', async (c) => {
  * Get task runtime/turn/artifact snapshot for recovery and dependency inspection.
  */
 agentNewRoutes.get('/runtime/:taskId', async (c) => {
+  const { agentServiceConfig } = getAgentRuntimeState(deps)
   const taskId = c.req.param('taskId')
   const sessionDocs = taskId
-    ? await listTaskSessionDocuments(agentServiceConfig?.workDir || process.cwd(), taskId)
+    ? await listTaskSessionDocuments(agentServiceConfig?.workDir || deps.workDir, taskId)
     : []
   const result = resolveTaskRuntimeRequest({
     taskId,
@@ -664,9 +664,10 @@ agentNewRoutes.get('/turn/:turnId', async (c) => {
 })
 
 agentNewRoutes.get('/turn/:turnId/detail', async (c) => {
+  const { agentServiceConfig } = getAgentRuntimeState(deps)
   const requestedTurnId = c.req.param('turnId')
   const turn = turnRuntimeStore.getTurn(requestedTurnId)
-  const detailStore = new TurnDetailStore(agentServiceConfig?.workDir || process.cwd())
+  const detailStore = new TurnDetailStore(agentServiceConfig?.workDir || deps.workDir)
   const detail = turn
     ? await detailStore.loadTurnDetail(turn.taskId, requestedTurnId)
     : null
@@ -770,3 +771,6 @@ agentNewRoutes.post('/question', async (c) => {
 
   return c.json(result.body, result.statusCode)
 })
+
+  return agentNewRoutes
+}

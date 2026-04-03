@@ -46,7 +46,7 @@ describe('V2 Agent Preflight Clarification Guard', () => {
     process.env.HOME = tempHome
 
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
 
     planSpy = vi.fn((_prompt?: string) => (async function* (): AsyncIterable<AgentMessage> {
       yield {
@@ -79,20 +79,21 @@ describe('V2 Agent Preflight Clarification Guard', () => {
       },
     }
 
-    routesModule.setAgentService(
-      fakeAgentService as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: tempHome,
-      }
-    )
-
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: fakeAgentService as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: tempHome,
+        },
+      }),
+    }))
   })
 
   beforeEach(() => {

@@ -62,7 +62,7 @@ describe('V2 Agent Clarification Flow', () => {
     process.env.HOME = tempHome
 
     vi.resetModules()
-    const routesModule = await import('../agent-new')
+    const { createAgentNewRoutes } = await import('../agent-new')
     const coordinatorModule = await import('../../services/approval-coordinator')
     const turnStoreModule = await import('../../services/turn-runtime-store')
     approvalCoordinator = coordinatorModule.approvalCoordinator
@@ -103,20 +103,21 @@ describe('V2 Agent Clarification Flow', () => {
       },
     }
 
-    routesModule.setAgentService(
-      fakeAgentService as any,
-      {
-        provider: {
-          provider: 'claude',
-          apiKey: 'test',
-          model: 'test-model',
-        } as any,
-        workDir: tempHome,
-      }
-    )
-
     app = new Hono()
-    app.route('/api/v2/agent', routesModule.agentNewRoutes)
+    app.route('/api/v2/agent', createAgentNewRoutes({
+      workDir: tempHome,
+      getAgentRuntimeState: () => ({
+        agentService: fakeAgentService as any,
+        agentServiceConfig: {
+          provider: {
+            provider: 'claude',
+            apiKey: 'test',
+            model: 'test-model',
+          } as any,
+          workDir: tempHome,
+        },
+      }),
+    }))
   })
 
   afterAll(() => {
