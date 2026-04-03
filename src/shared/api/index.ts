@@ -1,4 +1,5 @@
 import { isTauri } from 'shared-types';
+import { getDesktopApiPort } from '../tauri/commands';
 
 // API client that adapts to the running environment
 
@@ -20,18 +21,14 @@ async function getApiPort(): Promise<number> {
   }
 
   if (isTauri()) {
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      cachedPort = await invoke<number>('get_api_port');
-      if (cachedPort === 0) {
-        cachedPort = null; // Reset if not ready
-        return 2026; // Fallback
-      }
-      return cachedPort;
-    } catch {
-      // Fallback to default port
-      return 2026;
+    const port = await getDesktopApiPort();
+    if (port === 0) {
+      cachedPort = null; // Reset if not ready
+      return 2026; // Fallback
     }
+
+    cachedPort = port;
+    return cachedPort;
   }
 
   // Web environment - use same origin or configured port

@@ -1,3 +1,5 @@
+import type { ComponentType } from 'react';
+
 /**
  * Artifact Types and Interfaces
  * 
@@ -91,7 +93,7 @@ export interface DocxParagraph {
 export interface FileTooLargeProps {
   artifact: Artifact;
   fileSize: number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   onOpenExternal: () => void;
 }
 

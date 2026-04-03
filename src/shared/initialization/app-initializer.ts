@@ -1,6 +1,7 @@
 import { isTauri } from 'shared-types';
 import { getApiConfig } from '../config/app-config';
 import { setCachedPort, resetCachedPort } from '../api';
+import { getDesktopApiPort } from '../tauri/commands';
 
 /**
  * Initialization phase
@@ -204,14 +205,9 @@ export class AppInitializer {
       }
 
       let preferredPort = config.defaultPort;
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const port = await invoke<number>('get_api_port');
-        if (port > 0) {
-          preferredPort = port;
-        }
-      } catch {
-        // API not ready yet, keep default port
+      const port = await getDesktopApiPort();
+      if (port > 0) {
+        preferredPort = port;
       }
 
       const foundPort = await this.findHealthyApiPort(preferredPort, signal);
