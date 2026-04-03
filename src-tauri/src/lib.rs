@@ -1,8 +1,11 @@
+mod db;
+
 use serde_json::Value;
 use sqlx::{Row, Column};
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::SqlitePool;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::OnceLock;
+#[cfg(debug_assertions)]
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
@@ -43,13 +46,12 @@ pub fn run() {
                 }
             }
 
-            // Initialize database pool
+            // Initialize database pool before startup completes so schema errors
+            // fail loudly instead of surfacing later as generic runtime failures.
             let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = init_database(&app_handle).await {
-                    eprintln!("[DB] Failed to initialize database: {}", e);
-                }
-            });
+            tauri::async_runtime::block_on(async {
+                init_database(&app_handle).await
+            })?;
 
             let spawn_sidecar_in_dev = std::env::var("EASYWORK_SPAWN_SIDECAR_IN_DEV")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -140,172 +142,12 @@ async fn init_database(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error:
     let database_url = format!("sqlite:{}?mode=rwc", db_path);
     println!("[DB] Connecting to: {}", database_url);
 
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await?;
-
-    // Enable WAL mode
-    sqlx::query("PRAGMA journal_mode = WAL")
-        .execute(&pool)
-        .await?;
-
-    // Initialize schema
-    init_schema(&pool).await?;
+    let pool = db::initialize_database(&database_url).await?;
 
     // Store pool globally
     DB_POOL.set(pool).map_err(|_| "Database pool already initialized")?;
 
     println!("[DB] Database initialized successfully");
-    Ok(())
-}
-
-/// Initialize database schema
-async fn init_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS sessions (
-            id TEXT PRIMARY KEY,
-            prompt TEXT NOT NULL,
-            task_count INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS tasks (
-            id TEXT PRIMARY KEY,
-            session_id TEXT,
-            task_index INTEGER,
-            prompt TEXT NOT NULL,
-            title TEXT,
-            status TEXT DEFAULT 'running',
-            phase TEXT DEFAULT 'idle',
-            cost REAL,
-            duration INTEGER,
-            favorite INTEGER DEFAULT 0,
-            selected_artifact_id TEXT,
-            preview_mode TEXT DEFAULT 'static',
-            is_right_sidebar_visible INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            role TEXT,
-            content TEXT,
-            tool_name TEXT,
-            tool_input TEXT,
-            tool_output TEXT,
-            tool_use_id TEXT,
-            error_message TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL,
-            path TEXT NOT NULL,
-            artifact_type TEXT,
-            file_size INTEGER,
-            preview_data TEXT,
-            thumbnail TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY NOT NULL,
-            value TEXT NOT NULL,
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS preview_instances (
-            id TEXT PRIMARY KEY,
-            task_id TEXT NOT NULL,
-            port INTEGER NOT NULL,
-            status TEXT DEFAULT 'starting',
-            url TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            last_accessed TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
-        CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id);
-        CREATE INDEX IF NOT EXISTS idx_files_task_id ON files(task_id);
-        CREATE INDEX IF NOT EXISTS idx_preview_instances_task_id ON preview_instances(task_id);
-        CREATE INDEX IF NOT EXISTS idx_files_artifact_type ON files(artifact_type);
-        "#,
-    )
-    .execute(pool)
-    .await?;
-
-    // 迁移：为现有的 tasks 表添加 title 列（如果不存在）
-    sqlx::query("ALTER TABLE tasks ADD COLUMN title TEXT")
-        .execute(pool)
-        .await
-        .ok(); // 忽略错误，因为列可能已经存在
-
-    // 迁移：为现有的 files 表添加新列（如果不存在）
-    sqlx::query("ALTER TABLE files ADD COLUMN artifact_type TEXT")
-        .execute(pool)
-        .await
-        .ok();
-    
-    sqlx::query("ALTER TABLE files ADD COLUMN file_size INTEGER")
-        .execute(pool)
-        .await
-        .ok();
-    
-    sqlx::query("ALTER TABLE files ADD COLUMN preview_data TEXT")
-        .execute(pool)
-        .await
-        .ok();
-    
-    sqlx::query("ALTER TABLE files ADD COLUMN thumbnail TEXT")
-        .execute(pool)
-        .await
-        .ok();
-
-    // 迁移：为现有的 tasks 表添加 UI 状态列（如果不存在）
-    sqlx::query("ALTER TABLE tasks ADD COLUMN selected_artifact_id TEXT")
-        .execute(pool)
-        .await
-        .ok();
-
-    sqlx::query("ALTER TABLE tasks ADD COLUMN preview_mode TEXT DEFAULT 'static'")
-        .execute(pool)
-        .await
-        .ok();
-
-    sqlx::query("ALTER TABLE tasks ADD COLUMN is_right_sidebar_visible INTEGER DEFAULT 0")
-        .execute(pool)
-        .await
-        .ok();
-
-    // 迁移：为现有的 messages 表添加新列（如果不存在）
-    sqlx::query("ALTER TABLE messages ADD COLUMN role TEXT")
-        .execute(pool)
-        .await
-        .ok();
-
-    sqlx::query("ALTER TABLE messages ADD COLUMN tool_use_id TEXT")
-        .execute(pool)
-        .await
-        .ok();
-
-    sqlx::query("ALTER TABLE messages ADD COLUMN error_message TEXT")
-        .execute(pool)
-        .await
-        .ok();
-
     Ok(())
 }
 

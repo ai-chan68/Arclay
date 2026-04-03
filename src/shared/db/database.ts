@@ -117,7 +117,7 @@ async function getSQLiteDatabase() {
       console.log('[SQLite] Database connected successfully');
     } catch (error) {
       console.error('[SQLite] Failed to connect:', error);
-      return null;
+      throw error;
     }
   }
   return sqliteDb;
@@ -139,28 +139,10 @@ export async function createSession(
   const database = await getSQLiteDatabase();
 
   if (database) {
-    // SQLite (Tauri) - sessions table may not exist in older DBs
-    try {
-      await database.execute(
-        'INSERT INTO sessions (id, prompt, task_count) VALUES ($1, $2, $3)',
-        [input.id, input.prompt, 0]
-      );
-    } catch {
-      // If sessions table doesn't exist, create it first
-      await database.execute(`
-        CREATE TABLE IF NOT EXISTS sessions (
-          id TEXT PRIMARY KEY NOT NULL,
-          prompt TEXT NOT NULL,
-          task_count INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `);
-      await database.execute(
-        'INSERT INTO sessions (id, prompt, task_count) VALUES ($1, $2, $3)',
-        [input.id, input.prompt, 0]
-      );
-    }
+    await database.execute(
+      'INSERT INTO sessions (id, prompt, task_count) VALUES ($1, $2, $3)',
+      [input.id, input.prompt, 0]
+    );
     return session;
   } else {
     // IndexedDB (Browser)
@@ -177,15 +159,11 @@ export async function getSession(id: string): Promise<Session | null> {
   const database = await getSQLiteDatabase();
 
   if (database) {
-    try {
-      const result = await database.select<Session[]>(
-        'SELECT * FROM sessions WHERE id = $1',
-        [id]
-      );
-      return result[0] || null;
-    } catch {
-      return null;
-    }
+    const result = await database.select<Session[]>(
+      'SELECT * FROM sessions WHERE id = $1',
+      [id]
+    );
+    return result[0] || null;
   } else {
     const db = await getIndexedDB();
     const tx = db.transaction('sessions', 'readonly');
@@ -199,14 +177,10 @@ export async function getAllSessions(): Promise<Session[]> {
   const database = await getSQLiteDatabase();
 
   if (database) {
-    try {
-      const sessions = await database.select<Session[]>(
-        'SELECT * FROM sessions ORDER BY created_at DESC'
-      );
-      return sessions;
-    } catch {
-      return [];
-    }
+    const sessions = await database.select<Session[]>(
+      'SELECT * FROM sessions ORDER BY created_at DESC'
+    );
+    return sessions;
   } else {
     const db = await getIndexedDB();
     const tx = db.transaction('sessions', 'readonly');
@@ -226,14 +200,10 @@ export async function updateSessionTaskCount(
   const database = await getSQLiteDatabase();
 
   if (database) {
-    try {
-      await database.execute(
-        "UPDATE sessions SET task_count = $1, updated_at = datetime('now') WHERE id = $2",
-        [taskCount, sessionId]
-      );
-    } catch {
-      // Session table may not exist
-    }
+    await database.execute(
+      "UPDATE sessions SET task_count = $1, updated_at = datetime('now') WHERE id = $2",
+      [taskCount, sessionId]
+    );
   } else {
     const db = await getIndexedDB();
     const session = await getSession(sessionId);
@@ -254,20 +224,15 @@ export async function getTasksBySessionId(sessionId: string): Promise<Task[]> {
   const database = await getSQLiteDatabase();
 
   if (database) {
-    try {
-      const tasks = await database.select<Task[]>(
-        'SELECT * FROM tasks WHERE session_id = $1 ORDER BY task_index ASC',
-        [sessionId]
-      );
-      // Convert favorite from 0/1 to boolean for all tasks
-      return tasks.map((task) => ({
-        ...task,
-        favorite: task.favorite !== undefined ? Boolean(task.favorite) : false,
-      }));
-    } catch {
-      // session_id column may not exist in older DBs
-      return [];
-    }
+    const tasks = await database.select<Task[]>(
+      'SELECT * FROM tasks WHERE session_id = $1 ORDER BY task_index ASC',
+      [sessionId]
+    );
+    // Convert favorite from 0/1 to boolean for all tasks
+    return tasks.map((task) => ({
+      ...task,
+      favorite: task.favorite !== undefined ? Boolean(task.favorite) : false,
+    }));
   } else {
     const db = await getIndexedDB();
     const tx = db.transaction('tasks', 'readonly');
@@ -301,19 +266,10 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   const database = await getSQLiteDatabase();
 
   if (database) {
-    // SQLite (Tauri) - Try with new schema, fallback to old
-    try {
-      await database.execute(
-        'INSERT INTO tasks (id, session_id, task_index, prompt) VALUES ($1, $2, $3, $4)',
-        [input.id, input.session_id, input.task_index, input.prompt]
-      );
-    } catch {
-      // Fallback for older schema without session_id
-      await database.execute('INSERT INTO tasks (id, prompt) VALUES ($1, $2)', [
-        input.id,
-        input.prompt,
-      ]);
-    }
+    await database.execute(
+      'INSERT INTO tasks (id, session_id, task_index, prompt) VALUES ($1, $2, $3, $4)',
+      [input.id, input.session_id, input.task_index, input.prompt]
+    );
     const result = await getTask(input.id);
     if (!result) throw new Error('Failed to create task');
 
@@ -419,28 +375,10 @@ export async function updateTask(
     if (updates.length > 0) {
       updates.push(`updated_at = datetime('now')`);
       values.push(id);
-      try {
-        await database.execute(
-          `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
-          values
-        );
-      } catch (error) {
-        // If favorite column doesn't exist, add it and retry
-        if (
-          input.favorite !== undefined &&
-          String(error).includes('favorite')
-        ) {
-          await database.execute(
-            'ALTER TABLE tasks ADD COLUMN favorite INTEGER DEFAULT 0'
-          );
-          await database.execute(
-            `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
-            values
-          );
-        } else {
-          throw error;
-        }
-      }
+      await database.execute(
+        `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+        values
+      );
     }
 
     return getTask(id);
@@ -489,63 +427,28 @@ export async function createMessage(
   const database = await getSQLiteDatabase();
 
   if (database) {
-    // Try with attachments column first, fallback to without
-    try {
-      const result = await database.execute(
-        `INSERT INTO messages (task_id, type, content, tool_name, tool_input, tool_output, tool_use_id, role, error_message, attachments)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          input.task_id,
-          input.type,
-          input.content || null,
-          input.tool_name || null,
-          input.tool_input || null,
-          input.tool_output || null,
-          input.tool_use_id || null,
-          input.subtype || null,
-          input.error_message || null,
-          input.attachments || null,
-        ]
-      );
+    const result = await database.execute(
+      `INSERT INTO messages (task_id, type, content, tool_name, tool_input, tool_output, tool_use_id, role, error_message, attachments)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        input.task_id,
+        input.type,
+        input.content || null,
+        input.tool_name || null,
+        input.tool_input || null,
+        input.tool_output || null,
+        input.tool_use_id || null,
+        input.subtype || null,
+        input.error_message || null,
+        input.attachments || null,
+      ]
+    );
 
-      const messages = await database.select<Message[]>(
-        'SELECT *, role AS subtype FROM messages WHERE id = $1',
-        [result.lastInsertId]
-      );
-      return messages[0];
-    } catch {
-      // Fallback: add attachments column if it doesn't exist
-      try {
-        await database.execute(
-          'ALTER TABLE messages ADD COLUMN attachments TEXT'
-        );
-      } catch {
-        // Column may already exist
-      }
-
-      const result = await database.execute(
-        `INSERT INTO messages (task_id, type, content, tool_name, tool_input, tool_output, tool_use_id, role, error_message, attachments)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          input.task_id,
-          input.type,
-          input.content || null,
-          input.tool_name || null,
-          input.tool_input || null,
-          input.tool_output || null,
-          input.tool_use_id || null,
-          input.subtype || null,
-          input.error_message || null,
-          input.attachments || null,
-        ]
-      );
-
-      const messages = await database.select<Message[]>(
-        'SELECT *, role AS subtype FROM messages WHERE id = $1',
-        [result.lastInsertId]
-      );
-      return messages[0];
-    }
+    const messages = await database.select<Message[]>(
+      'SELECT *, role AS subtype FROM messages WHERE id = $1',
+      [result.lastInsertId]
+    );
+    return messages[0];
   } else {
     const db = await getIndexedDB();
     const message: Omit<Message, 'id'> & { id?: number } = {
