@@ -26,6 +26,11 @@ docs/
 !docs/
 docs/*
 !docs/architecture.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/*.md
 openspec/
 AGENTS.md
 CLAUDE.md
