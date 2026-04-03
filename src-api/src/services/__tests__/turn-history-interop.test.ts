@@ -27,4 +27,22 @@ describe('turn history interop', () => {
     expect(isSessionDocumentFile(planningArtifact.path)).toBe(true)
     expect(filterArtifactsForDisplay([planningArtifact])).toEqual([planningArtifact])
   })
+
+  it('does not treat same-name files outside sessions as session documents', () => {
+    const nonSessionPlanningArtifact: Artifact = {
+      id: 'task-plan-outside-session',
+      name: 'task_plan.md',
+      path: '/tmp/task_plan.md',
+      type: 'markdown',
+    }
+
+    expect(isSessionDocumentFile(nonSessionPlanningArtifact.path)).toBe(false)
+    expect(filterArtifactsForDisplay([nonSessionPlanningArtifact])).toEqual([])
+  })
+
+  it('does not treat broad /sessions/* lookalikes as session docs', () => {
+    expect(isSessionDocumentFile('/repo/sessions/release/progress.md')).toBe(false)
+    expect(isSessionDocumentFile('/project/sessions/logs/history.jsonl')).toBe(false)
+    expect(isSessionDocumentFile('/repo/sessions/task_1/turns/tmp/evaluation.md')).toBe(false)
+  })
 })

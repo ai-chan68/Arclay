@@ -86,4 +86,80 @@ describe('filterArtifactsForDisplay', () => {
 
     expect(filterArtifactsForDisplay(artifacts)).toEqual(artifacts)
   })
+
+  it('filters out non-session files even when they use session document names', () => {
+    const artifacts: Artifact[] = [
+      {
+        id: 'fake-task-plan',
+        name: 'task_plan.md',
+        path: '/tmp/task_plan.md',
+        type: 'markdown',
+      },
+      {
+        id: 'fake-progress',
+        name: 'progress.md',
+        path: '/Users/demo/progress.md',
+        type: 'markdown',
+      },
+      {
+        id: 'real-session-plan',
+        name: 'task_plan.md',
+        path: '/tmp/sessions/task_1/task_plan.md',
+        type: 'markdown',
+      },
+    ]
+
+    expect(filterArtifactsForDisplay(artifacts)).toEqual([
+      {
+        id: 'real-session-plan',
+        name: 'task_plan.md',
+        path: '/tmp/sessions/task_1/task_plan.md',
+        type: 'markdown',
+      },
+    ])
+  })
+
+  it('filters out lookalike sessions paths that do not match EasyWork session layout', () => {
+    const artifacts: Artifact[] = [
+      {
+        id: 'release-progress',
+        name: 'progress.md',
+        path: '/repo/sessions/release/progress.md',
+        type: 'markdown',
+      },
+      {
+        id: 'logs-history',
+        name: 'history.jsonl',
+        path: '/project/sessions/logs/history.jsonl',
+        type: 'text',
+      },
+      {
+        id: 'real-interleaved',
+        name: 'history.jsonl',
+        path: '/repo/sessions/task_42/interleaved/history.jsonl',
+        type: 'text',
+      },
+      {
+        id: 'real-turn-evaluation',
+        name: 'evaluation.md',
+        path: '/repo/sessions/task_42/turns/turn_7/evaluation.md',
+        type: 'markdown',
+      },
+    ]
+
+    expect(filterArtifactsForDisplay(artifacts)).toEqual([
+      {
+        id: 'real-interleaved',
+        name: 'history.jsonl',
+        path: '/repo/sessions/task_42/interleaved/history.jsonl',
+        type: 'text',
+      },
+      {
+        id: 'real-turn-evaluation',
+        name: 'evaluation.md',
+        path: '/repo/sessions/task_42/turns/turn_7/evaluation.md',
+        type: 'markdown',
+      },
+    ])
+  })
 })

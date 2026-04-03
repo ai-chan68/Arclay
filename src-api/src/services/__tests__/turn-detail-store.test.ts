@@ -120,6 +120,43 @@ describe('TurnDetailStore', () => {
     fs.rmSync(sourceDir, { recursive: true, force: true })
   })
 
+  it('treats non-session evaluation markdown from output text as a user artifact', async () => {
+    const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'turn-detail-evaluation-artifact-'))
+    const reportPath = path.join(sourceDir, 'evaluation.md')
+    const helperPath = path.join(sourceDir, 'merge_files.py')
+    fs.writeFileSync(reportPath, '# final report', 'utf-8')
+    fs.writeFileSync(helperPath, 'print("merge")', 'utf-8')
+
+    await store.saveTurnDetail({
+      taskId: 'task_1',
+      turn,
+      summaryText: '生成了最终评估文档',
+      planSnapshot: plan,
+      outputText: `最终文档：${reportPath}`,
+      artifacts: [
+        {
+          id: 'artifact_helper',
+          name: 'merge_files.py',
+          path: helperPath,
+          type: 'text',
+        },
+      ],
+    })
+
+    const turnDir = path.join(tmpDir, 'sessions', 'task_1', 'turns', 'turn_1')
+    const saved = await store.loadTurnDetail('task_1', 'turn_1')
+    const reportArtifactId = 'artifact-' + reportPath.replace(/[^a-zA-Z0-9]/g, '-')
+    const reportArtifact = saved?.output.artifacts.find((artifact) => artifact.id === reportArtifactId)
+    const helperArtifact = saved?.output.artifacts.find((artifact) => artifact.id === 'artifact_helper')
+
+    expect(saved?.output.primaryArtifactId).toBe(reportArtifactId)
+    expect(reportArtifact?.path).toBe(path.join(turnDir, 'artifacts', 'final', 'evaluation.md'))
+    expect(helperArtifact?.path).toBe(path.join(turnDir, 'artifacts', 'scratch', 'merge_files.py'))
+    expect(fs.existsSync(path.join(turnDir, 'artifacts', 'final', 'evaluation.md'))).toBe(true)
+
+    fs.rmSync(sourceDir, { recursive: true, force: true })
+  })
+
   it('returns null when the turn detail does not exist', async () => {
     await expect(store.loadTurnDetail('task_1', 'missing_turn')).resolves.toBeNull()
   })

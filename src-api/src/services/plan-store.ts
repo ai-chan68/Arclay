@@ -1,5 +1,4 @@
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import type { TaskPlan } from '../types/agent-new'
 import type {
@@ -11,12 +10,15 @@ import type {
   PlanStoreSweepResult,
   StoredTaskPlan,
 } from '../types/plan-store'
+import { resolveEasyWorkPath } from '../shared/easywork-home'
 
-const STORE_DIR = path.join(os.homedir(), '.easywork')
-const STORE_FILE = path.join(STORE_DIR, 'plans.json')
 const STORE_VERSION = 1 as const
 const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+
+function getDefaultStoreFile(): string {
+  return resolveEasyWorkPath('plans.json')
+}
 
 const TERMINAL_STATUSES: PlanRecordStatus[] = [
   'executed',
@@ -59,19 +61,32 @@ function cloneRecord(record: PlanRecord): PlanRecord {
 
 export class PlanStore {
   private data: PlanStoreData
-  private readonly storeFile: string
+  private readonly explicitStoreFile: string | null
+  private storeFile: string
   private readonly pendingTtlMs: number
   private readonly retentionMs: number
   private lifecycleTimer: NodeJS.Timeout | null = null
 
   constructor(options: PlanStoreOptions = {}) {
-    this.storeFile = options.storeFile || STORE_FILE
+    this.explicitStoreFile = options.storeFile?.trim() || null
+    this.storeFile = this.resolveStoreFile()
     this.pendingTtlMs = options.pendingTtlMs && options.pendingTtlMs > 0
       ? options.pendingTtlMs
       : DEFAULT_PENDING_TTL_MS
     this.retentionMs = options.retentionMs && options.retentionMs > 0
       ? options.retentionMs
       : DEFAULT_RETENTION_MS
+    this.data = this.load()
+  }
+
+  private resolveStoreFile(): string {
+    return this.explicitStoreFile || getDefaultStoreFile()
+  }
+
+  private refreshStoreFile(): void {
+    const nextStoreFile = this.resolveStoreFile()
+    if (nextStoreFile === this.storeFile) return
+    this.storeFile = nextStoreFile
     this.data = this.load()
   }
 
@@ -213,6 +228,7 @@ export class PlanStore {
     plan: TaskPlan,
     context: { taskId?: string; runId?: string; turnId?: string; expiresAt?: number } = {}
   ): PlanRecord {
+    this.refreshStoreFile()
     const now = Date.now()
     const expiresAt = context.expiresAt ?? now + this.pendingTtlMs
     const nextRecord: PlanRecord = {
@@ -250,17 +266,20 @@ export class PlanStore {
   }
 
   getRecord(planId: string): PlanRecord | null {
+    this.refreshStoreFile()
     const record = this.data.plans.find((item) => item.id === planId)
     return record ? cloneRecord(record) : null
   }
 
   getPlan(planId: string): TaskPlan | null {
+    this.refreshStoreFile()
     const record = this.data.plans.find((item) => item.id === planId)
     if (!record) return null
     return this.toTaskPlan(record.plan)
   }
 
   findPendingPlan(taskId: string, turnId?: string): TaskPlan | null {
+    this.refreshStoreFile()
     const normalizedTaskId = taskId.trim()
     if (!normalizedTaskId) return null
 
@@ -290,6 +309,7 @@ export class PlanStore {
     planId: string,
     context: { taskId?: string; runId?: string; turnId?: string } = {}
   ): PlanStartResult {
+    this.refreshStoreFile()
     const index = this.findPlanIndex(planId)
     if (index < 0) {
       return { status: 'not_found' }
@@ -336,6 +356,7 @@ export class PlanStore {
   }
 
   markExecuted(planId: string): PlanRecord | null {
+    this.refreshStoreFile()
     const index = this.findPlanIndex(planId)
     if (index < 0) return null
 
@@ -363,6 +384,7 @@ export class PlanStore {
     reason?: string,
     failReason: Exclude<PlanFailReason, null> = 'execution_error'
   ): PlanRecord | null {
+    this.refreshStoreFile()
     const index = this.findPlanIndex(planId)
     if (index < 0) return null
 
@@ -385,6 +407,7 @@ export class PlanStore {
   }
 
   markRejected(planId: string, reason?: string): PlanRecord | null {
+    this.refreshStoreFile()
     const index = this.findPlanIndex(planId)
     if (index < 0) return null
 
@@ -407,6 +430,7 @@ export class PlanStore {
   }
 
   expireDuePending(now: number = Date.now()): PlanExpirationResult {
+    this.refreshStoreFile()
     let count = 0
     let changed = false
     const records: PlanRecord[] = []
@@ -436,6 +460,7 @@ export class PlanStore {
   }
 
   markExecutingAsOrphanedOnStartup(now: number = Date.now()): number {
+    this.refreshStoreFile()
     let count = 0
     let changed = false
 
@@ -457,6 +482,7 @@ export class PlanStore {
   }
 
   compact(now: number = Date.now()): number {
+    this.refreshStoreFile()
     const cutoff = now - this.retentionMs
     const before = this.data.plans.length
 

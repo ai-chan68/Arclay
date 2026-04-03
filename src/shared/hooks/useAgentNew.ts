@@ -617,7 +617,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
             if (!isDetachedBackgroundTask) {
               updatePlan(plan)
               // Transition directly to execution phase
-              updatePhase('execution')
+              updatePhase('executing')
               setPendingQuestion(null)
               setLatestApprovalTerminal(null)
             }

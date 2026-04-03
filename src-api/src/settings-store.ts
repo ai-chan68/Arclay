@@ -4,12 +4,15 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
+import { resolveEasyWorkPath } from './shared/easywork-home'
 
-// Settings file path
-const SETTINGS_DIR = path.join(os.homedir(), '.easywork')
-const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.json')
+function getSettingsDir(): string {
+  return resolveEasyWorkPath()
+}
+
+function getSettingsFile(): string {
+  return resolveEasyWorkPath('settings.json')
+}
 
 // MCP Server 配置
 export interface McpServerConfig {
@@ -256,18 +259,21 @@ function migrateFromLegacy(settings: Settings): Settings {
  * Load settings from file
  */
 export function loadSettingsFromFile(): Settings | null {
-  console.log('[Settings] Attempting to load settings from:', SETTINGS_FILE)
-  console.log('[Settings] Settings directory:', SETTINGS_DIR)
+  const settingsDir = getSettingsDir()
+  const settingsFile = getSettingsFile()
+
+  console.log('[Settings] Attempting to load settings from:', settingsFile)
+  console.log('[Settings] Settings directory:', settingsDir)
 
   try {
     // Check if directory exists
-    if (!fs.existsSync(SETTINGS_DIR)) {
-      console.log('[Settings] Settings directory does not exist:', SETTINGS_DIR)
+    if (!fs.existsSync(settingsDir)) {
+      console.log('[Settings] Settings directory does not exist:', settingsDir)
       return null
     }
 
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const content = fs.readFileSync(SETTINGS_FILE, 'utf-8')
+    if (fs.existsSync(settingsFile)) {
+      const content = fs.readFileSync(settingsFile, 'utf-8')
       console.log('[Settings] File content length:', content.length)
 
       const settings = JSON.parse(content) as Settings
@@ -275,7 +281,7 @@ export function loadSettingsFromFile(): Settings | null {
       console.log('[Settings] Loaded settings - providers:', migrated.providers.length, 'active:', migrated.activeProviderId)
       return migrated
     } else {
-      console.log('[Settings] Settings file does not exist:', SETTINGS_FILE)
+      console.log('[Settings] Settings file does not exist:', settingsFile)
     }
   } catch (err) {
     console.error('[Settings] Failed to load settings from file:', err)
@@ -292,22 +298,25 @@ export function loadSettingsFromFile(): Settings | null {
  * Save settings to file
  */
 export function saveSettingsToFile(settings: Settings): void {
-  console.log('[Settings] Attempting to save settings to:', SETTINGS_FILE)
-  console.log('[Settings] Settings directory:', SETTINGS_DIR)
+  const settingsDir = getSettingsDir()
+  const settingsFile = getSettingsFile()
+
+  console.log('[Settings] Attempting to save settings to:', settingsFile)
+  console.log('[Settings] Settings directory:', settingsDir)
   console.log('[Settings] Providers count:', settings.providers?.length || 0)
   console.log('[Settings] Active provider:', settings.activeProviderId || '(none)')
 
   try {
     // Ensure directory exists
-    if (!fs.existsSync(SETTINGS_DIR)) {
-      console.log('[Settings] Creating settings directory:', SETTINGS_DIR)
-      fs.mkdirSync(SETTINGS_DIR, { recursive: true })
+    if (!fs.existsSync(settingsDir)) {
+      console.log('[Settings] Creating settings directory:', settingsDir)
+      fs.mkdirSync(settingsDir, { recursive: true })
       console.log('[Settings] Directory created successfully')
     } else {
-      console.log('[Settings] Directory already exists:', SETTINGS_DIR)
+      console.log('[Settings] Directory already exists:', settingsDir)
       // Check directory permissions
       try {
-        const stat = fs.statSync(SETTINGS_DIR)
+        const stat = fs.statSync(settingsDir)
         console.log('[Settings] Directory permissions:', stat.mode.toString(8))
       } catch (statErr) {
         console.error('[Settings] Failed to check directory permissions:', statErr)
@@ -317,12 +326,12 @@ export function saveSettingsToFile(settings: Settings): void {
     const settingsJson = JSON.stringify(settings, null, 2)
     console.log('[Settings] Writing settings file, size:', settingsJson.length, 'bytes')
 
-    fs.writeFileSync(SETTINGS_FILE, settingsJson)
-    console.log('[Settings] Successfully saved settings to file:', SETTINGS_FILE)
+    fs.writeFileSync(settingsFile, settingsJson)
+    console.log('[Settings] Successfully saved settings to file:', settingsFile)
 
     // Verify the file was written correctly
     try {
-      const writtenContent = fs.readFileSync(SETTINGS_FILE, 'utf-8')
+      const writtenContent = fs.readFileSync(settingsFile, 'utf-8')
       const writtenSettings = JSON.parse(writtenContent)
       console.log('[Settings] Verified saved settings - providers:', writtenSettings.providers?.length || 0)
     } catch (verifyErr) {
@@ -343,7 +352,7 @@ export function saveSettingsToFile(settings: Settings): void {
         console.error('[Settings] Error code:', code)
         switch (code) {
           case 'EACCES':
-            console.error('[Settings] Permission denied - check write permissions for:', SETTINGS_DIR)
+            console.error('[Settings] Permission denied - check write permissions for:', settingsDir)
             break
           case 'ENOSPC':
             console.error('[Settings] No space left on device')

@@ -1,6 +1,4 @@
 import * as fs from 'fs'
-import * as os from 'os'
-import * as path from 'path'
 import type {
   ApprovalContext,
   ApprovalListFilter,
@@ -11,10 +9,17 @@ import type {
   ApprovalStoreData,
 } from '../types/approval'
 import type { PendingQuestion, PermissionRequest } from '../types/agent-new'
+import { resolveEasyWorkPath } from '../shared/easywork-home'
 
-const STORE_DIR = path.join(os.homedir(), '.easywork')
-const STORE_FILE = path.join(STORE_DIR, 'approval-requests.json')
 const STORE_VERSION = 1 as const
+
+function getStoreDir(): string {
+  return resolveEasyWorkPath()
+}
+
+function getStoreFile(): string {
+  return resolveEasyWorkPath('approval-requests.json')
+}
 
 function createInitialData(): ApprovalStoreData {
   return {
@@ -31,8 +36,9 @@ export class ApprovalStore {
   }
 
   private ensureStoreDir(): void {
-    if (!fs.existsSync(STORE_DIR)) {
-      fs.mkdirSync(STORE_DIR, { recursive: true })
+    const storeDir = getStoreDir()
+    if (!fs.existsSync(storeDir)) {
+      fs.mkdirSync(storeDir, { recursive: true })
     }
   }
 
@@ -74,11 +80,12 @@ export class ApprovalStore {
   }
 
   private load(): ApprovalStoreData {
+    const storeFile = getStoreFile()
     try {
-      if (!fs.existsSync(STORE_FILE)) {
+      if (!fs.existsSync(storeFile)) {
         return createInitialData()
       }
-      const text = fs.readFileSync(STORE_FILE, 'utf-8')
+      const text = fs.readFileSync(storeFile, 'utf-8')
       const parsed = JSON.parse(text) as ApprovalStoreData
       if (!parsed || !Array.isArray(parsed.requests)) {
         return createInitialData()
@@ -96,11 +103,12 @@ export class ApprovalStore {
   }
 
   private persist(): void {
+    const storeFile = getStoreFile()
     try {
       this.ensureStoreDir()
-      const tmpFile = `${STORE_FILE}.tmp`
+      const tmpFile = `${storeFile}.tmp`
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
-      fs.renameSync(tmpFile, STORE_FILE)
+      fs.renameSync(tmpFile, storeFile)
     } catch (error) {
       console.error('[ApprovalStore] Failed to persist store:', error)
       throw error

@@ -67,12 +67,15 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     ) => void
   }
   let oldHome: string | undefined
+  let oldEasyWorkHome: string | undefined
   let tempHome = ''
 
   beforeAll(async () => {
     oldHome = process.env.HOME
+    oldEasyWorkHome = process.env.EASYWORK_HOME
     tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-turn-runtime-'))
     process.env.HOME = tempHome
+    process.env.EASYWORK_HOME = path.join(tempHome, '.easywork')
 
     vi.resetModules()
     const routesModule = await import('../agent-new')
@@ -128,6 +131,11 @@ describe('V2 Agent Turn Runtime Dependency', () => {
 
   afterAll(() => {
     process.env.HOME = oldHome
+    if (oldEasyWorkHome === undefined) {
+      delete process.env.EASYWORK_HOME
+    } else {
+      process.env.EASYWORK_HOME = oldEasyWorkHome
+    }
     if (tempHome) {
       fs.rmSync(tempHome, { recursive: true, force: true })
     }

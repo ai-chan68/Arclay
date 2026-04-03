@@ -1,6 +1,4 @@
 import * as fs from 'fs'
-import * as os from 'os'
-import * as path from 'path'
 import type {
   CreateTurnInput,
   CreateTurnResult,
@@ -13,10 +11,17 @@ import type {
   TurnState,
   TurnTransitionResult,
 } from '../types/turn-runtime'
+import { resolveEasyWorkPath } from '../shared/easywork-home'
 
-const STORE_DIR = path.join(os.homedir(), '.easywork')
-const STORE_FILE = path.join(STORE_DIR, 'turn-runtime.json')
 const STORE_VERSION = 1 as const
+
+function getStoreDir(): string {
+  return resolveEasyWorkPath()
+}
+
+function getStoreFile(): string {
+  return resolveEasyWorkPath('turn-runtime.json')
+}
 
 const TERMINAL_STATES: TurnState[] = ['completed', 'failed', 'cancelled']
 const BLOCKING_STATES: TurnState[] = [
@@ -65,8 +70,9 @@ export class TurnRuntimeStore {
   }
 
   private ensureStoreDir(): void {
-    if (!fs.existsSync(STORE_DIR)) {
-      fs.mkdirSync(STORE_DIR, { recursive: true })
+    const storeDir = getStoreDir()
+    if (!fs.existsSync(storeDir)) {
+      fs.mkdirSync(storeDir, { recursive: true })
     }
   }
 
@@ -157,11 +163,12 @@ export class TurnRuntimeStore {
   }
 
   private load(): TurnRuntimeStoreData {
+    const storeFile = getStoreFile()
     try {
-      if (!fs.existsSync(STORE_FILE)) {
+      if (!fs.existsSync(storeFile)) {
         return createInitialData()
       }
-      const text = fs.readFileSync(STORE_FILE, 'utf-8')
+      const text = fs.readFileSync(storeFile, 'utf-8')
       const parsed = JSON.parse(text) as TurnRuntimeStoreData
       if (!parsed || typeof parsed !== 'object') return createInitialData()
       return {
@@ -183,11 +190,12 @@ export class TurnRuntimeStore {
   }
 
   private persist(): void {
+    const storeFile = getStoreFile()
     try {
       this.ensureStoreDir()
-      const tmpFile = `${STORE_FILE}.tmp`
+      const tmpFile = `${storeFile}.tmp`
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
-      fs.renameSync(tmpFile, STORE_FILE)
+      fs.renameSync(tmpFile, storeFile)
     } catch (error) {
       console.error('[TurnRuntimeStore] Failed to persist store:', error)
       throw error

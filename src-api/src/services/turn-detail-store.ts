@@ -1,5 +1,6 @@
 import { access, copyFile, mkdir, readFile, writeFile } from 'fs/promises'
 import path from 'path'
+import { isSessionDocumentFile } from '../../../src/shared/lib/file-utils'
 import type { TaskPlan } from '../types/agent-new'
 import type { TurnRecord } from '../types/turn-runtime'
 import {
@@ -60,11 +61,6 @@ const SCRIPT_EXTENSIONS = new Set([
   '.php',
 ])
 
-const SESSION_DOCUMENT_FILENAMES = new Set([
-  'evaluation.md',
-  'history.jsonl',
-])
-
 const LOCAL_FILE_PATH_REGEX = /(?:^|[\s"'`:：])((?:\/|~\/|\.\/|\.\.\/|[A-Za-z]:[\\/])[^\s"'`<>]+?\.[a-zA-Z0-9]{1,12})(?=$|[\s"'`<>])/g
 
 function normalizePathCandidate(raw: string): string {
@@ -99,7 +95,7 @@ function basenameOf(filePath: string): string {
 }
 
 function isSessionDocument(filePath: string): boolean {
-  return SESSION_DOCUMENT_FILENAMES.has(basenameOf(filePath).toLowerCase())
+  return isSessionDocumentFile(filePath)
 }
 
 function extractArtifactPathsFromText(text?: string | null): string[] {
