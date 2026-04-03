@@ -1,5 +1,4 @@
-import { getWorkDir } from '../config'
-import { getAgentService } from '../routes/agent-new'
+import type { AgentRuntimeState } from '../runtime/app-runtime'
 import type { ScheduledTask, ScheduledTaskRun, ScheduledTaskRunStatus, ScheduledTaskTriggerType } from '../types/scheduled-task'
 import { getNextRunAt } from './cron-utils'
 import { buildExecutionPrompt } from './plan-execution'
@@ -19,10 +18,21 @@ interface ExecuteTaskResult {
   task: ScheduledTask
 }
 
+export interface ScheduledTaskSchedulerDeps {
+  getAgentRuntimeState: () => AgentRuntimeState
+  workDir: string
+}
+
 export class ScheduledTaskScheduler {
   private interval: NodeJS.Timeout | null = null
   private tickInProgress = false
   private readonly runningTaskIds = new Set<string>()
+  private readonly deps: ScheduledTaskSchedulerDeps
+
+  constructor(deps: ScheduledTaskSchedulerDeps) {
+    assertScheduledTaskSchedulerDeps(deps)
+    this.deps = deps
+  }
 
   start(): void {
     if (this.interval) return
@@ -125,7 +135,7 @@ export class ScheduledTaskScheduler {
       return task.sourcePrompt
     }
 
-    const workDir = task.workDir || getWorkDir()
+    const workDir = task.workDir || this.deps.workDir
     return buildExecutionPrompt(task.approvedPlan, task.sourcePrompt, workDir)
   }
 
@@ -321,7 +331,7 @@ export class ScheduledTaskScheduler {
     pushLog('info', `Run started with trigger=${triggerType}`, startedAt)
 
     try {
-      const agentService = getAgentService()
+      const agentService = this.deps.getAgentRuntimeState().agentService
       if (!agentService) {
         throw new Error('Agent service not initialized')
       }
@@ -337,7 +347,7 @@ export class ScheduledTaskScheduler {
 
       try {
         const executionPrompt = this.getExecutionPrompt(freshTask)
-        const taskWorkDir = freshTask.workDir || getWorkDir()
+        const taskWorkDir = freshTask.workDir || this.deps.workDir
         const bootstrapResult = await bootstrapPlanningFiles({
           workDir: taskWorkDir,
           taskId: freshTask.id,
@@ -523,4 +533,10 @@ export class ScheduledTaskScheduler {
   }
 }
 
-export const scheduledTaskScheduler = new ScheduledTaskScheduler()
+function assertScheduledTaskSchedulerDeps(
+  deps: ScheduledTaskSchedulerDeps | undefined
+): asserts deps is ScheduledTaskSchedulerDeps {
+  if (!deps?.getAgentRuntimeState || !deps?.workDir) {
+    throw new Error('ScheduledTaskScheduler requires explicit scheduled task scheduler deps')
+  }
+}

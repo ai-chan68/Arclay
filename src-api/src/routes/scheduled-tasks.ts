@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { getWorkDir } from '../config'
 import { explainCronExpression, getUpcomingRuns, suggestCronExpressionsFromText, validateCronExpression } from '../services/cron-utils'
 import { buildExecutionPrompt } from '../services/plan-execution'
-import { scheduledTaskScheduler } from '../services/scheduled-task-scheduler'
+import type { ScheduledTaskScheduler } from '../services/scheduled-task-scheduler'
 import { scheduledTaskDefaults, scheduledTaskStore } from '../services/scheduled-task-store'
-import { getAgentService } from './agent-new'
 import type { TaskPlan } from '../types/agent-new'
 import type { ScheduledTaskBreakerState } from '../types/scheduled-task'
+import type { AgentRuntimeState } from '../runtime/app-runtime'
 
 const taskPlanSchema: z.ZodType<TaskPlan> = z.object({
   id: z.string().min(1),
@@ -56,7 +55,17 @@ function parseIntQuery(value: string | undefined, defaultValue: number): number 
   return Math.floor(parsed)
 }
 
-export const scheduledTaskRoutes = new Hono()
+export interface ScheduledTaskRouteDeps {
+  getAgentRuntimeState: () => AgentRuntimeState
+  scheduler: Pick<ScheduledTaskScheduler, 'runNow'>
+  workDir: string
+}
+
+export function createScheduledTaskRoutes(
+  deps: ScheduledTaskRouteDeps
+): Hono {
+  assertScheduledTaskRouteDeps(deps)
+  const scheduledTaskRoutes = new Hono()
 
 scheduledTaskRoutes.get('/cron/preview', (c) => {
   const expr = c.req.query('expr')
@@ -131,7 +140,7 @@ scheduledTaskRoutes.post('/plan/suggest', async (c) => {
     return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
   }
 
-  const agentService = getAgentService()
+  const agentService = deps.getAgentRuntimeState().agentService
   if (!agentService) {
     return c.json({ error: 'Agent service not initialized' }, 500)
   }
@@ -142,7 +151,7 @@ scheduledTaskRoutes.post('/plan/suggest', async (c) => {
   }
 
   const prompt = parsed.data.prompt.trim()
-  const workDir = parsed.data.workDir || getWorkDir()
+  const workDir = parsed.data.workDir || deps.workDir
 
   try {
     let plan: TaskPlan | null = null
@@ -215,7 +224,7 @@ scheduledTaskRoutes.post('/', async (c) => {
     return c.json({ error: cronValidation.error }, 400)
   }
 
-  const workDir = payload.workDir || getWorkDir()
+  const workDir = payload.workDir || deps.workDir
   const executionPromptSnapshot = payload.executionPromptSnapshot && payload.executionPromptSnapshot.trim() !== ''
     ? payload.executionPromptSnapshot
     : buildExecutionPrompt(payload.approvedPlan, payload.sourcePrompt, workDir)
@@ -261,7 +270,7 @@ scheduledTaskRoutes.patch('/:id', async (c) => {
 
   const nextSourcePrompt = payload.sourcePrompt ?? existing.sourcePrompt
   const nextPlan = payload.approvedPlan ?? existing.approvedPlan
-  const workDir = payload.workDir ?? existing.workDir ?? getWorkDir()
+  const workDir = payload.workDir ?? existing.workDir ?? deps.workDir
   const regeneratedSnapshot = nextPlan
     ? buildExecutionPrompt(nextPlan, nextSourcePrompt, workDir)
     : nextSourcePrompt
@@ -325,7 +334,7 @@ scheduledTaskRoutes.post('/:id/run-now', (c) => {
     return c.json({ error: 'Task not found' }, 404)
   }
 
-  void scheduledTaskScheduler.runNow(id).catch((error) => {
+  void deps.scheduler.runNow(id).catch((error) => {
     console.error(`[ScheduledTaskRoutes] run-now failed for task ${id}:`, error)
   })
 
@@ -348,3 +357,12 @@ scheduledTaskRoutes.get('/:id/runs', (c) => {
   const data = scheduledTaskStore.listRuns({ taskId: id, page, pageSize })
   return c.json(data)
 })
+
+  return scheduledTaskRoutes
+}
+
+function assertScheduledTaskRouteDeps(deps: ScheduledTaskRouteDeps | undefined): asserts deps is ScheduledTaskRouteDeps {
+  if (!deps?.getAgentRuntimeState || !deps?.scheduler || !deps?.workDir) {
+    throw new Error('createScheduledTaskRoutes requires explicit scheduled task route deps')
+  }
+}

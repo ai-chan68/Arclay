@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentRuntimeState } from '../../runtime/app-runtime'
 
 type MockSettings = {
   activeProviderId: string | null
@@ -36,7 +37,7 @@ type MockSettings = {
 }
 
 const createAgentServiceMock = vi.fn(() => ({ id: 'agent-service' }))
-const setNewAgentServiceMock = vi.fn()
+const setAgentRuntimeStateMock = vi.fn()
 const setSettingsMock = vi.fn()
 const saveSettingsToFileMock = vi.fn()
 
@@ -45,10 +46,6 @@ let activeProvider: MockSettings['providers'][number] | null = null
 
 vi.mock('../../services/agent-service', () => ({
   createAgentService: createAgentServiceMock,
-}))
-
-vi.mock('../agent-new', () => ({
-  setAgentService: setNewAgentServiceMock,
 }))
 
 vi.mock('../../config', () => ({
@@ -113,6 +110,11 @@ vi.mock('../../skills/ecosystem-service', () => ({
 }))
 
 describe('Settings MCP runtime integration', () => {
+  const initialRuntimeState: AgentRuntimeState = {
+    agentService: null,
+    agentServiceConfig: null,
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
 
@@ -151,8 +153,19 @@ describe('Settings MCP runtime integration', () => {
     activeProvider = mockSettings.providers[0]
   })
 
+  it('requires explicit runtime deps when creating settings routes', async () => {
+    const { createSettingsRoutes } = await import('../settings')
+
+    expect(() => createSettingsRoutes()).toThrow(/explicit settings route deps/i)
+  })
+
   it('recreates the agent service after saving MCP settings for the active provider', async () => {
-    const { settingsRoutes } = await import('../settings')
+    const { createSettingsRoutes } = await import('../settings')
+    const settingsRoutes = createSettingsRoutes({
+      getAgentRuntimeState: () => initialRuntimeState,
+      setAgentRuntimeState: setAgentRuntimeStateMock,
+      workDir: '/tmp/easywork-workdir',
+    })
 
     const response = await settingsRoutes.request('/mcp', {
       method: 'POST',
@@ -177,11 +190,37 @@ describe('Settings MCP runtime integration', () => {
         },
       },
     })
-    expect(setNewAgentServiceMock).toHaveBeenCalledTimes(1)
+    expect(setAgentRuntimeStateMock).toHaveBeenCalledTimes(1)
+    expect(setAgentRuntimeStateMock).toHaveBeenCalledWith({
+      agentService: { id: 'agent-service' },
+      agentServiceConfig: expect.objectContaining({
+        workDir: '/tmp/easywork-workdir',
+        mcp: {
+          enabled: true,
+          userDirEnabled: false,
+          appDirEnabled: false,
+          mcpServers: {
+            feishu: {
+              type: 'stdio',
+              command: 'npx',
+              args: ['-y', '@company/feishu-mcp'],
+              env: undefined,
+              url: undefined,
+              headers: undefined,
+            },
+          },
+        },
+      }),
+    })
   })
 
   it('keeps MCP runtime config when activating a provider', async () => {
-    const { settingsRoutes } = await import('../settings')
+    const { createSettingsRoutes } = await import('../settings')
+    const settingsRoutes = createSettingsRoutes({
+      getAgentRuntimeState: () => initialRuntimeState,
+      setAgentRuntimeState: setAgentRuntimeStateMock,
+      workDir: '/tmp/easywork-workdir',
+    })
 
     const response = await settingsRoutes.request('/providers/provider-1/activate', {
       method: 'POST',
@@ -204,5 +243,6 @@ describe('Settings MCP runtime integration', () => {
         },
       },
     })
+    expect(setAgentRuntimeStateMock).toHaveBeenCalledTimes(1)
   })
 })

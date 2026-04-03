@@ -4,7 +4,6 @@
  */
 
 import { Hono } from 'hono'
-import { setAgentService as setNewAgentService } from './agent-new'
 import { createAgentService, type AgentServiceConfig } from '../services/agent-service'
 import { getWorkDir, getProjectRoot } from '../config'
 import {
@@ -33,8 +32,19 @@ import {
   repairSkillFromSources,
   validateSourceForInstall,
 } from '../skills/ecosystem-service'
+import type { AgentRuntimeState } from '../runtime/app-runtime'
 
-export const settingsRoutes = new Hono()
+export interface SettingsRouteDeps {
+  getAgentRuntimeState: () => AgentRuntimeState
+  setAgentRuntimeState: (state: AgentRuntimeState) => void
+  workDir: string
+}
+
+export function createSettingsRoutes(
+  deps: SettingsRouteDeps
+): Hono {
+  assertSettingsRouteDeps(deps)
+  const settingsRoutes = new Hono()
 
 function getDefaultSkillsSettings(): SkillSettings {
   return normalizeSkillSettings({ enabled: true })
@@ -269,7 +279,7 @@ settingsRoutes.post('/providers/:id/activate', async (c) => {
     saveSettingsToFile(currentSettings)
 
     // 重新创建 agent service
-    const success = recreateAgentService(provider)
+    const success = recreateAgentService(provider, deps)
 
     if (!success) {
       return c.json({ error: 'Failed to activate provider' }, 500)
@@ -364,7 +374,7 @@ settingsRoutes.put('/providers/:id', async (c) => {
 
     // 如果更新的是当前 active provider，需要重新创建 agent service
     if (currentSettings.activeProviderId === id) {
-      recreateAgentService(updatedProvider)
+      recreateAgentService(updatedProvider, deps)
     }
 
     return c.json({
@@ -425,9 +435,9 @@ settingsRoutes.delete('/providers/:id', async (c) => {
 /**
  * 重新创建 Agent Service
  */
-function recreateAgentService(provider: ProviderConfigItem): boolean {
+function recreateAgentService(provider: ProviderConfigItem, deps: SettingsRouteDeps): boolean {
   try {
-    const workDir = getWorkDir()
+    const workDir = deps.workDir
 
     const maskedApiKey = provider.apiKey
       ? `${provider.apiKey.slice(0, 8)}...${provider.apiKey.slice(-4)}`
@@ -483,8 +493,10 @@ function recreateAgentService(provider: ProviderConfigItem): boolean {
       sandboxConfig
     )
 
-    // 仅更新 v2 agent service（旧 /api/agent/* 接口已下线）
-    setNewAgentService(agentService, agentServiceConfig)
+    deps.setAgentRuntimeState({
+      agentService,
+      agentServiceConfig,
+    })
     console.log('[Settings API] Agent service recreated successfully')
     return true
   } catch (err) {
@@ -824,7 +836,7 @@ settingsRoutes.post('/mcp', async (c) => {
 
     const activeProvider = getActiveProviderConfig()
     if (activeProvider?.apiKey) {
-      recreateAgentService(activeProvider)
+      recreateAgentService(activeProvider, deps)
     }
 
     return c.json({ success: true, mcp: newMcpSettings })
@@ -872,7 +884,7 @@ settingsRoutes.post('/sandbox', async (c) => {
 
     const activeProvider = getActiveProviderConfig()
     if (activeProvider?.apiKey) {
-      recreateAgentService(activeProvider)
+      recreateAgentService(activeProvider, deps)
     }
 
     return c.json({ success: true, sandbox: nextSandbox })
@@ -1468,3 +1480,12 @@ settingsRoutes.delete('/skills/:id', async (c) => {
     return c.json({ error: errorMessage }, 500)
   }
 })
+
+  return settingsRoutes
+}
+
+function assertSettingsRouteDeps(deps: SettingsRouteDeps | undefined): asserts deps is SettingsRouteDeps {
+  if (!deps?.getAgentRuntimeState || !deps?.setAgentRuntimeState || !deps?.workDir) {
+    throw new Error('createSettingsRoutes requires explicit settings route deps')
+  }
+}
