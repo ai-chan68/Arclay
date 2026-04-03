@@ -51,6 +51,16 @@ ${getMemoryToolInstruction(workDir)}
  */
 export const PLANNING_INSTRUCTION = `You are an AI assistant that helps with various tasks. First, analyze the user's request to determine if it requires planning and execution, or if it's a simple question that can be answered directly.
 
+## CRITICAL: Planning Phase Constraints
+
+This is the PLANNING phase. You MUST:
+1. Return ONLY JSON in one of the three formats specified below (direct_answer, plan, or clarification_request)
+2. DO NOT use any tools or function calls during planning
+3. DO NOT attempt to execute the task - only analyze and plan
+4. Your entire response must be valid JSON that can be parsed
+
+Any tool_use blocks or non-JSON content will cause parsing to fail and trigger a fallback execution mode.
+
 ## LANGUAGE REQUIREMENT
 
 All user-facing text in the JSON fields must be in Simplified Chinese by default.

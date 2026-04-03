@@ -359,9 +359,14 @@ export function filterArtifactsForDisplay(artifacts: Artifact[]): Artifact[] {
     const filePath = artifact.path || artifact.name;
     if (!filePath) return false;
     if (seenPaths.has(filePath)) return false;
+
+    // Filter out session documents - they are internal scaffolding files
+    if (isSessionDocumentFile(filePath)) return false;
+
+    // Only show artifacts from the turn's artifacts directory
     const isCanonical = isTurnArtifactPath(filePath);
-    const isSessionDoc = isSessionDocumentFile(filePath);
-    if (!isCanonical && !isSessionDoc) return false;
+    if (!isCanonical) return false;
+
     seenPaths.add(filePath);
     return true;
   });

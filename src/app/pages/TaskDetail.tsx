@@ -1201,7 +1201,7 @@ function TaskDetailContent() {
                     approvalPlan={currentPlan}
                     onApprovePlan={handleApprovePlan}
                     onRejectPlan={handleRejectPlan}
-                    canOpenPreview={!!selectedArtifact}
+                    canOpenPreview={!!selectedArtifact && currentPhase !== 'planning'}
                     onOpenPreview={handleOpenPreviewPanel}
                     selectedTurnIndex={selectedTurnIndex}
                     onSelectedTurnIndexChange={handleSelectedTurnIndexChange}
