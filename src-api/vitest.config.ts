@@ -7,6 +7,16 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     env: process.env.CI ? undefined : { ...process.env },
+    setupFiles: ['./src/test/setup-easywork-home.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      exclude: [
+        'src/**/*.test.ts',
+        'src/test/**',
+      ],
+    },
   },
   resolve: {
     alias: {

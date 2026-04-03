@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Run lint gate
         run: pnpm lint
 
@@ -41,8 +44,22 @@ jobs:
       - name: Run test gate
         run: pnpm test
 
+      - name: Run coverage gate
+        run: pnpm test:coverage
+
       - name: Run smoke gate with API bootstrap
         run: pnpm smoke:desktop:with-api
+
+      - name: Run desktop e2e gate
+        run: pnpm test:e2e
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: src-api/coverage/**
+          if-no-files-found: warn
 
       - name: Upload quality gate logs
         if: always()
@@ -50,6 +67,14 @@ jobs:
         with:
           name: quality-gate-logs
           path: .quality-gates/**
+          if-no-files-found: warn
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/**
           if-no-files-found: warn
 
   build-matrix:

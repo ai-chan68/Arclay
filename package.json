@@ -24,6 +24,8 @@
     "smoke:desktop": "node ./scripts/smoke-desktop.mjs",
     "smoke:desktop:with-api": "node ./scripts/run-smoke-with-api.mjs",
     "test": "node ./scripts/quality-runner.mjs test src src-api shared-types",
+    "test:coverage": "pnpm --filter src-api test:coverage",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "pre-release": "node ./scripts/pre-release.mjs"
   },
   "engines": {
@@ -32,6 +34,7 @@
   },
   "packageManager": "pnpm@9.0.0",
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@tauri-apps/cli": "^2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@yao-pkg/pkg": "^5.12.0",
