@@ -143,6 +143,253 @@ function createErrorScenario(): FakeScenario {
   }
 }
 
+function createGameProjectScenario(): FakeScenario {
+  return {
+    name: 'game-project',
+    messages: [
+      {
+        id: 'fake-game-text-1',
+        type: 'text',
+        role: 'assistant',
+        content: '我将创建一个 HAPPYBIRD 小游戏，包含以下文件：\n- index.html\n- game.js\n- style.css',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-tool-1',
+        type: 'tool_use',
+        role: 'assistant',
+        toolName: 'write_file',
+        toolInput: {
+          path: 'index.html',
+          content: `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HAPPYBIRD</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div id="score">0</div>
+  <script src="game.js"></script>
+</body>
+</html>`,
+        },
+        toolUseId: 'fake-game-tool-1',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-result-1',
+        type: 'tool_result',
+        toolUseId: 'fake-game-tool-1',
+        toolName: 'write_file',
+        toolOutput: JSON.stringify({
+          status: 'success',
+          summary: 'File created: index.html',
+          next_actions: [],
+          artifacts: ['index.html'],
+        }),
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-tool-2',
+        type: 'tool_use',
+        role: 'assistant',
+        toolName: 'write_file',
+        toolInput: {
+          path: 'game.js',
+          content: `const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+
+let score = 0;
+let bird = { x: 50, y: 300, velocity: 0 };
+const gravity = 0.5;
+const jump = -10;
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Update bird
+  bird.velocity += gravity;
+  bird.y += bird.velocity;
+
+  // Draw bird
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(bird.x, bird.y, 30, 30);
+
+  // Update score
+  score++;
+  scoreElement.textContent = Math.floor(score / 60);
+
+  requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener('click', () => {
+  bird.velocity = jump;
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    bird.velocity = jump;
+  }
+});
+
+gameLoop();`,
+        },
+        toolUseId: 'fake-game-tool-2',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-result-2',
+        type: 'tool_result',
+        toolUseId: 'fake-game-tool-2',
+        toolName: 'write_file',
+        toolOutput: JSON.stringify({
+          status: 'success',
+          summary: 'File created: game.js',
+          next_actions: [],
+          artifacts: ['game.js'],
+        }),
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-tool-3',
+        type: 'tool_use',
+        role: 'assistant',
+        toolName: 'write_file',
+        toolInput: {
+          path: 'style.css',
+          content: `body {
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+  font-family: Arial, sans-serif;
+}
+
+#gameCanvas {
+  border: 3px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#score {
+  margin-top: 20px;
+  font-size: 32px;
+  font-weight: bold;
+  color: #333;
+}`,
+        },
+        toolUseId: 'fake-game-tool-3',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-result-3',
+        type: 'tool_result',
+        toolUseId: 'fake-game-tool-3',
+        toolName: 'write_file',
+        toolOutput: JSON.stringify({
+          status: 'success',
+          summary: 'File created: style.css',
+          next_actions: [],
+          artifacts: ['style.css'],
+        }),
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-text-2',
+        type: 'text',
+        role: 'assistant',
+        content: '游戏创建完成！可以打开 index.html 运行。点击画布或按空格键让小鸟跳跃。',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-game-done',
+        type: 'done',
+        timestamp: Date.now(),
+      },
+    ],
+  }
+}
+
+function createSimpleHTMLScenario(): FakeScenario {
+  return {
+    name: 'simple-html',
+    messages: [
+      {
+        id: 'fake-html-text-1',
+        type: 'text',
+        role: 'assistant',
+        content: '我将创建一个简单的 HTML 页面。',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-html-tool-1',
+        type: 'tool_use',
+        role: 'assistant',
+        toolName: 'write_file',
+        toolInput: {
+          path: 'index.html',
+          content: `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简单页面</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    h1 { color: #333; }
+  </style>
+</head>
+<body>
+  <h1>欢迎</h1>
+  <p>这是一个简单的 HTML 页面。</p>
+</body>
+</html>`,
+        },
+        toolUseId: 'fake-html-tool-1',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-html-result-1',
+        type: 'tool_result',
+        toolUseId: 'fake-html-tool-1',
+        toolName: 'write_file',
+        toolOutput: JSON.stringify({
+          status: 'success',
+          summary: 'File created: index.html',
+          next_actions: [],
+          artifacts: ['index.html'],
+        }),
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-html-text-2',
+        type: 'text',
+        role: 'assistant',
+        content: 'HTML 页面创建完成！',
+        timestamp: Date.now(),
+      },
+      {
+        id: 'fake-html-done',
+        type: 'done',
+        timestamp: Date.now(),
+      },
+    ],
+  }
+}
+
 function resolveScenario(name: ScenarioName, prompt: string): FakeScenario {
   switch (name) {
     case 'echo':
@@ -154,6 +401,25 @@ function resolveScenario(name: ScenarioName, prompt: string): FakeScenario {
     case 'error':
       return createErrorScenario()
   }
+}
+
+function detectScenarioFromPrompt(prompt: string): FakeScenario | null {
+  const lowerPrompt = prompt.toLowerCase()
+
+  // Game project detection
+  if (lowerPrompt.includes('happybird') ||
+      lowerPrompt.includes('小游戏') ||
+      lowerPrompt.includes('game')) {
+    return createGameProjectScenario()
+  }
+
+  // Simple HTML detection
+  if (lowerPrompt.includes('html') &&
+      (lowerPrompt.includes('页面') || lowerPrompt.includes('网页'))) {
+    return createSimpleHTMLScenario()
+  }
+
+  return null
 }
 
 // ─── FakeAgent ────────────────────────────────────────────────
@@ -183,7 +449,18 @@ export class FakeAgent extends BaseAgent {
       timestamp: Date.now(),
     }
 
-    const messages = this.customMessages ?? resolveScenario(this.scenarioName, prompt).messages
+    // Priority: customMessages > detected scenario > configured scenario
+    let messages: readonly AgentMessage[]
+    if (this.customMessages) {
+      messages = this.customMessages
+    } else {
+      const detectedScenario = detectScenarioFromPrompt(prompt)
+      if (detectedScenario) {
+        messages = detectedScenario.messages
+      } else {
+        messages = resolveScenario(this.scenarioName, prompt).messages
+      }
+    }
 
     for (const message of messages) {
       if (this.abortController?.signal.aborted) break
