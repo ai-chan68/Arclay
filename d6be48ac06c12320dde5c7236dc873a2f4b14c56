@@ -1,0 +1,35 @@
+docs/superpowers/specs/2026-04-01-readme-update-design.md
+  0cb8dcc91a7be0c8 1-41
+docs/superpowers/specs/2026-04-02-easywork-evolution-final-spec.md
+  0cb8dcc91a7be0c8 1-51
+docs/superpowers/specs/2026-04-02-multi-agent-and-recorder.md
+  0cb8dcc91a7be0c8 1-45
+docs/superpowers/specs/2026-03-30-task-turn-history-layering-design.md
+  0cb8dcc91a7be0c8 1-210
+docs/superpowers/specs/2026-04-02-readme-redesign-spec.md
+  0cb8dcc91a7be0c8 1-55
+docs/superpowers/specs/2026-03-31-harness-iteration-plan-design.md
+  0cb8dcc91a7be0c8 1-343
+docs/superpowers/specs/2026-03-31-harness-refactor-design.md
+  0cb8dcc91a7be0c8 1-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "d6be48ac06c12320dde5c7236dc873a2f4b14c56",
+  "prompts": {
+    "0cb8dcc91a7be0c8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d51c8-30c1-7203-8a8e-65a9b7a2a2fc",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 948,
+      "overriden_lines": 0
+    }
+  }
+}
