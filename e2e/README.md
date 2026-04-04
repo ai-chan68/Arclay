@@ -206,8 +206,38 @@ lsof -ti:1420,2026 | xargs kill -9
 - 确保与真实 API 响应结构一致
 - 更新 `shared-types` 中的类型定义
 
+## 复杂任务测试
+
+### 当前局限性
+
+Mock E2E 测试**无法验证**复杂任务的实际结果，例如：
+- ❌ "写个 HAPPYBIRD 小游戏" - 无法验证游戏文件是否生成
+- ❌ "创建 TODO 应用" - 无法检查代码是否可运行
+- ❌ 多文件项目 - 无法验证项目完整性
+
+**原因**：Mock API 返回预定义响应，不执行真实的代码生成。
+
+### 解决方案
+
+详见 [COMPLEX_TASKS_TESTING.md](./COMPLEX_TASKS_TESTING.md)，推荐方案：
+
+1. **Integration E2E + FakeAgent** - 增强 FakeAgent 支持预定义任务场景
+2. **Real LLM E2E** - 使用真实 Claude API（发布前运行）
+3. **混合策略** - Mock（快速） + Integration（中速） + Real LLM（慢速）
+
+```bash
+# 运行 Integration 测试（需要先实现 FakeAgent 场景）
+pnpm test:e2e:integration
+
+# 运行 Real LLM 测试（需要 API key）
+pnpm test:e2e:real
+```
+
 ## 未来改进
 
+- [ ] 增强 FakeAgent 支持复杂任务场景
+- [ ] 添加 Integration E2E 测试（文件创建验证）
+- [ ] 添加 Real LLM E2E 测试（发布前运行）
 - [ ] 添加性能测试（Lighthouse CI）
 - [ ] 集成视觉回归工具（Percy/Chromatic）
 - [ ] 增加可访问性测试（axe-core）
