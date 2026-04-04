@@ -5,6 +5,7 @@
 
 import { agentRegistry, registerAgentPlugin } from '../registry'
 import { createClaudeProvider } from './claude'
+import { fakePlugin } from './fake'
 import type { AgentPlugin, IAgentProvider, AgentProviderConfig } from '../types'
 
 /**
@@ -51,6 +52,11 @@ export function initializeProviders(): void {
   if (initialized) return
   // 注册 Claude Provider
   registerAgentPlugin(claudePlugin)
+
+  // 注册 Fake Provider（测试或显式启用时）
+  if (process.env.NODE_ENV === 'test' || process.env.EASYWORK_FAKE_PROVIDER === '1') {
+    registerAgentPlugin(fakePlugin)
+  }
 
   console.log('[Providers] Initialized providers:', agentRegistry.getRegisteredTypes())
   initialized = true

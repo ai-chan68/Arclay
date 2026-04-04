@@ -124,6 +124,12 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'PUT' && pathname === '/api/settings') {
+    await parseBody(req).catch(() => ({}))
+    writeJson(res, 200, { success: true })
+    return
+  }
+
   if (req.method === 'GET' && pathname === '/api/preview/list') {
     writeJson(res, 200, { instances: [] })
     return
@@ -193,7 +199,77 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && pathname === '/api/v2/agent/execute') {
-    await parseBody(req).catch(() => ({}))
+    const body = await parseBody(req).catch(() => ({}))
+
+    // Error simulation: prompt contains "error" → immediate server error
+    if (typeof body.prompt === 'string' && body.prompt.includes('trigger-error')) {
+      writeJson(res, 500, { error: 'Simulated server error' })
+      return
+    }
+
+    // Multi-turn simulation: prompt contains "multi-turn" → multiple messages
+    if (typeof body.prompt === 'string' && body.prompt.includes('multi-turn')) {
+      writeSse(
+        res,
+        [
+          {
+            delayMs: 10,
+            message: {
+              id: 'msg-execute-1',
+              type: 'text',
+              role: 'assistant',
+              content: '第一轮：分析任务内容...',
+              timestamp: Date.now(),
+            },
+          },
+          {
+            delayMs: 50,
+            message: {
+              id: 'msg-execute-2',
+              type: 'tool_use',
+              role: 'assistant',
+              toolName: 'bash',
+              toolInput: { command: 'echo hello' },
+              toolUseId: 'tool-1',
+              timestamp: Date.now(),
+            },
+          },
+          {
+            delayMs: 80,
+            message: {
+              id: 'msg-execute-3',
+              type: 'tool_result',
+              toolUseId: 'tool-1',
+              toolName: 'bash',
+              toolOutput: 'hello',
+              timestamp: Date.now(),
+            },
+          },
+          {
+            delayMs: 120,
+            message: {
+              id: 'msg-execute-4',
+              type: 'text',
+              role: 'assistant',
+              content: '第二轮：任务执行完成。',
+              timestamp: Date.now(),
+            },
+          },
+          {
+            delayMs: 150,
+            message: {
+              id: 'msg-done',
+              type: 'done',
+              timestamp: Date.now(),
+            },
+          },
+        ],
+        200
+      )
+      return
+    }
+
+    // Default: slow streaming response
     writeSse(
       res,
       [

@@ -16,7 +16,7 @@ import type { TaskPlan } from '../../types/agent-new';
 /**
  * Agent Provider 类型
  */
-export type AgentProviderType = 'claude' | 'glm' | 'openai' | 'deepseek' | 'openrouter' | 'kimi';
+export type AgentProviderType = 'claude' | 'glm' | 'openai' | 'deepseek' | 'openrouter' | 'kimi' | 'fake';
 
 /**
  * Agent Provider 配置

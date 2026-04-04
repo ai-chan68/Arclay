@@ -21,7 +21,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:2026',
+        target: `http://localhost:${process.env.VITE_API_PORT || '2026'}`,
         changeOrigin: true
       }
     }

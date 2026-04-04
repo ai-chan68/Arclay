@@ -1300,8 +1300,12 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         setTurnState(currentTurn.state)
         setBlockedByTurnIds(currentTurn.blockedByTurnIds || [])
         const newPhase = mapTurnStateToPhase(currentTurn.state)
-        // Only update phase if it actually changed to avoid unnecessary re-renders
-        if (newPhase !== phaseRef.current) {
+        // Only update phase if it actually changed AND there's no pending interaction
+        // Pending interactions (from refreshPendingRequests) have higher priority
+        const hasPendingInteraction =
+          phaseRef.current === 'awaiting_clarification' ||
+          phaseRef.current === 'awaiting_approval'
+        if (newPhase !== phaseRef.current && !hasPendingInteraction) {
           updatePhase(newPhase)
         }
       }
