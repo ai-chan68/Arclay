@@ -1,4 +1,4 @@
-import type { AgentMessage } from '@shared-types'
+import type { AgentMessage, DeliverableType } from '@shared-types'
 import { parseToolOutputText } from './execution-stream-processing'
 
 export interface ExecutionObservation {
@@ -194,8 +194,30 @@ async function probeUrlHealth(url: string): Promise<boolean> {
 
 export async function evaluateRuntimeGate(
   observation: ExecutionObservation,
-  workDir: string
+  workDir: string,
+  deliverableType?: DeliverableType  // NEW parameter
 ): Promise<RuntimeGateResult> {
+  // Relaxed mode for static deliverables
+  if (deliverableType === 'static_files' ||
+      deliverableType === 'data_output' ||
+      deliverableType === 'script_execution') {
+    // Only fail if there are obvious errors (port conflicts)
+    if (observation.portConflicts.length === 0) {
+      return {
+        passed: true,
+        reason: 'Static deliverable type, no port conflicts detected.',
+        checkedUrls: [],
+        healthyUrls: [],
+        previewUrl: null,
+        frontendExpected: false,
+        frontendHealthy: false,
+        backendExpected: false,
+        backendHealthy: false,
+      }
+    }
+  }
+
+  // Strict mode for service deliverables (existing logic)
   const candidates = buildUrlCandidates(observation)
     .filter((url) => !shouldExcludeRuntimeUrl(url, workDir))
   const healthy: string[] = []

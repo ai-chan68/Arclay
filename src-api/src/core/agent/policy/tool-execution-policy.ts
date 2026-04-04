@@ -51,6 +51,27 @@ function getToolNameAliases(toolName: string): string[] {
 }
 
 /**
+ * Detect long-running commands that should not be executed in sandbox
+ */
+function isLongRunningCommand(command: string): boolean {
+  const patterns = [
+    /\bhttp\.server\b/,
+    /\bnpm\s+run\s+dev\b/,
+    /\bpnpm\s+dev\b/,
+    /\byarn\s+dev\b/,
+    /\bvite\b/,
+    /\bnext\s+dev\b/,
+    /\bnuxt\s+dev\b/,
+    /\bflask\s+run\b/,
+    /\buvicorn\b/,
+    /\bgunicorn\b/,
+    /\brunserver\b/,  // Matches django runserver
+    /&\s*$/  // Background execution suffix
+  ]
+  return patterns.some(pattern => pattern.test(command))
+}
+
+/**
  * Evaluate tool execution policy based on input context.
  * Centralizes trust boundary logic for the agent harness.
  */
@@ -66,7 +87,23 @@ export function evaluateToolExecutionPolicy(input: ToolExecutionPolicyInput): To
     }
   }
 
-  // 2. Write scope enforcement: Deny Write/Edit outside sessionDir
+  // 2. Block long-running commands in sandbox
+  const isSandboxTool =
+    toolName === 'sandbox_run_command' ||
+    toolName === 'mcp__sandbox__sandbox_run_command'
+
+  if (sandboxEnabled && isSandboxTool) {
+    const command = toolInput.command as string
+    if (command && isLongRunningCommand(command)) {
+      return {
+        decision: 'deny',
+        reason: `Long-running command detected: "${command}". Sandbox does not support background processes. Please suggest the user run this command manually in their terminal.`,
+        riskLevel: 'medium',
+      }
+    }
+  }
+
+  // 3. Write scope enforcement: Deny Write/Edit outside sessionDir
   if (['Write', 'Edit', 'MultiEdit', 'write', 'edit', 'multiedit'].includes(toolName.toLowerCase())) {
     const targetPath = (toolInput.file_path as string || toolInput.filePath as string || toolInput.path as string || '').trim()
     if (targetPath) {
@@ -81,7 +118,7 @@ export function evaluateToolExecutionPolicy(input: ToolExecutionPolicyInput): To
     }
   }
 
-  // 3. Bypass Approval: Skill tools always bypass
+  // 4. Bypass Approval: Skill tools always bypass
   if (toolName === 'Skill') {
     return {
       decision: 'allow',
@@ -90,7 +127,7 @@ export function evaluateToolExecutionPolicy(input: ToolExecutionPolicyInput): To
     }
   }
 
-  // 4. Auto-allow check (including aliases)
+  // 5. Auto-allow check (including aliases)
   const aliases = getToolNameAliases(toolName)
   if (aliases.some(alias => autoAllowTools.has(alias))) {
     return {
@@ -100,7 +137,7 @@ export function evaluateToolExecutionPolicy(input: ToolExecutionPolicyInput): To
     }
   }
 
-  // 5. MCP Bypass check (for configured servers, excluding sandbox)
+  // 6. MCP Bypass check (for configured servers, excluding sandbox)
   if (toolName.startsWith('mcp__') && !toolName.startsWith('mcp__sandbox__')) {
     const serverName = toolName.split('__')[1]
     if (configuredMcpServers.includes(serverName)) {
@@ -112,7 +149,7 @@ export function evaluateToolExecutionPolicy(input: ToolExecutionPolicyInput): To
     }
   }
 
-  // 6. Default to approval if enabled, otherwise allow
+  // 7. Default to approval if enabled, otherwise allow
   if (approvalEnabled) {
     return {
       decision: 'require_approval',

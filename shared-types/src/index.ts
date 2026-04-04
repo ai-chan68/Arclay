@@ -16,6 +16,7 @@ export type {
   PlanStep,
   AgentTurnState,
   AgentTurnSnapshot,
+  DeliverableType,
 } from './agent';
 
 // Message types

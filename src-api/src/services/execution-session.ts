@@ -127,6 +127,7 @@ export async function runExecutionSession(
       executionSummary: input.executionSummary,
       runtimeGateRequired: input.runtimeGateRequired,
       maxExecutionAttempts: input.maxExecutionAttempts,
+      deliverableType: input.plan.deliverableType,  // NEW: Pass deliverable type
       createObservation: input.createObservation,
       collectObservation: input.collectObservation,
       evaluateRuntimeGate: input.evaluateRuntimeGate,

@@ -155,6 +155,17 @@ export interface AgentStatus {
 export type AgentPhase = 'idle' | 'analyzing' | 'planning' | 'awaiting_approval' | 'awaiting_clarification' | 'executing' | 'blocked';
 
 /**
+ * Deliverable type classification for runtime gate decision
+ */
+export type DeliverableType =
+  | 'static_files'      // HTML/PDF/images, no server needed
+  | 'local_service'     // Requires local dev server (npm run dev)
+  | 'deployed_service'  // Requires remote deployment
+  | 'script_execution'  // One-time script execution
+  | 'data_output'       // Data analysis/processing results
+  | 'unknown'           // Unclear (conservative fallback)
+
+/**
  * Task plan for approval workflow (easywork style)
  */
 export interface TaskPlan {
@@ -162,6 +173,7 @@ export interface TaskPlan {
   goal: string;
   steps: PlanStep[];
   notes?: string;
+  deliverableType?: DeliverableType;  // Optional for backward compatibility
   createdAt: Date;
   skipPlanning?: boolean; // true when plan was auto-generated due to parse failure
 }

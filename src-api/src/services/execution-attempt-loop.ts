@@ -1,4 +1,4 @@
-import type { AgentMessage } from '@shared-types'
+import type { AgentMessage, DeliverableType } from '@shared-types'
 import type { ExecutionCompletionSummary } from './execution-completion'
 import type { ExecutionObservation, RuntimeGateResult } from './execution-runtime-gate'
 
@@ -17,6 +17,7 @@ export interface RunExecutionAttemptLoopInput {
   executionSummary: ExecutionCompletionSummary
   runtimeGateRequired: boolean
   maxExecutionAttempts: number
+  deliverableType?: DeliverableType  // NEW
   createObservation: () => ExecutionObservation
   collectObservation: (message: AgentMessage, observation: ExecutionObservation) => void
   evaluateRuntimeGate: (observation: ExecutionObservation, workDir: string) => Promise<RuntimeGateResult>
@@ -147,6 +148,7 @@ export async function runExecutionAttemptLoop(
     }
 
     runtimeGateResult = await input.evaluateRuntimeGate(observation, input.effectiveWorkDir)
+
     if (runtimeGateResult.passed) {
       runtimeGatePassed = true
       const timestamp = now()
@@ -159,6 +161,25 @@ export async function runExecutionAttemptLoop(
       await input.emitMessage(
         createRuntimePassedMessage(runtimeGateResult.previewUrl, input.createId, timestamp)
       )
+      break
+    }
+
+    // Distinguish between required and optional failures
+    const isOptionalFailure =
+      input.deliverableType === 'static_files' ||
+      input.deliverableType === 'data_output' ||
+      input.deliverableType === 'script_execution'
+
+    if (isOptionalFailure) {
+      // Optional failure: log warning but don't retry
+      const timestamp = now()
+      await input.appendProgressEntry(input.progressPath, [
+        `### Runtime Verification (${timestamp.toISOString()})`,
+        '- Status: skipped (optional for this deliverable type)',
+        `- Deliverable Type: ${input.deliverableType}`,
+        `- Reason: ${runtimeGateResult.reason}`,
+      ])
+      runtimeGatePassed = true  // Mark as passed to avoid retry
       break
     }
 

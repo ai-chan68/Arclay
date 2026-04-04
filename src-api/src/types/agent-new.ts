@@ -2,11 +2,14 @@
  * Types for the new two-phase execution agent API
  */
 
+import type { DeliverableType } from '@shared-types'
+
 export interface TaskPlan {
   id: string
   goal: string
   steps: PlanStep[]
   notes?: string
+  deliverableType?: DeliverableType
   estimatedIterations?: number
   createdAt: Date
 }

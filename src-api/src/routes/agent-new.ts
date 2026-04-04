@@ -441,7 +441,7 @@ agentNewRoutes.post('/execute', async (c) => {
       formatPlanForExecution: (planData, dir) => taskPlanner.formatForExecution(planData, dir),
       createObservation: createExecutionObservation,
       collectObservation: collectExecutionObservation,
-      evaluateRuntimeGate,
+      evaluateRuntimeGate: (observation, workDir) => evaluateRuntimeGate(observation, workDir, plan.deliverableType),
       isAborted: () => run.isAborted,
       emitMessage: async (message) => {
         emittedExecutionMessages.push(message)

@@ -1,4 +1,4 @@
-import type { AgentMessage, MessageAttachment } from '@shared-types'
+import type { AgentMessage, MessageAttachment, DeliverableType } from '@shared-types'
 import type { ConversationMessage } from '../core/agent/interface'
 import type { TaskPlan } from '../types/agent-new'
 import { isBrowserAutomationIntent } from './browser-intent'
@@ -87,7 +87,7 @@ function stripUrls(text: string): string {
   return text.replace(/https?:\/\/\S+/gi, ' ')
 }
 
-function isRuntimeRunIntent(promptText: string, plan: TaskPlan): boolean {
+function isRuntimeRunIntentLegacy(promptText: string, plan: TaskPlan): boolean {
   if (isBrowserAutomationIntent(promptText, plan)) {
     return false
   }
@@ -98,6 +98,59 @@ function isRuntimeRunIntent(promptText: string, plan: TaskPlan): boolean {
   const runHint = /运行|启动|可跑起来|本地启动|\brun\b|\bstart\b|\bserve\b|\bpreview\b|\bdev\s+server\b/.test(corpus)
   const targetHint = /项目|仓库|前端|后端|服务|页面|界面|应用|\bproject\b|\brepo(?:sitory)?\b|\bfrontend\b|\bbackend\b|\bserver\b|\bservice\b|\bweb\b|\bapp\b|\bapi\b/.test(corpus)
   return runHint && targetHint
+}
+
+function shouldEnableRuntimeGate(plan: TaskPlan): boolean {
+  // 1. Explicit type takes precedence
+  if (plan.deliverableType) {
+    return plan.deliverableType === 'local_service' ||
+           plan.deliverableType === 'deployed_service'
+  }
+
+  // 2. Fallback to legacy keyword detection (backward compatibility)
+  return false // Will be set by caller using legacy function
+}
+
+function validateDeliverableType(plan: TaskPlan): {
+  valid: boolean
+  correctedType?: DeliverableType
+  reason?: string
+} {
+  if (!plan.deliverableType) {
+    return {
+      valid: false,
+      correctedType: 'unknown',
+      reason: 'Agent did not specify deliverable type'
+    }
+  }
+
+  const corpus = [plan.goal, plan.notes, ...plan.steps.map(s => s.description)]
+    .filter(Boolean)
+    .join('\n')
+    .toLowerCase()
+
+  // Rule 1: Contains "HTML 文件" but classified as local_service
+  if (plan.deliverableType === 'local_service' &&
+      /html\s*文件|静态.*html|单.*html/.test(corpus) &&
+      !/npm|yarn|pnpm|webpack|vite|server/.test(corpus)) {
+    return {
+      valid: false,
+      correctedType: 'static_files',
+      reason: 'Detected static HTML file generation, corrected to static_files'
+    }
+  }
+
+  // Rule 2: Contains "启动服务" but classified as static_files
+  if (plan.deliverableType === 'static_files' &&
+      /启动.*服务|npm.*dev|本地.*服务器/.test(corpus)) {
+    return {
+      valid: false,
+      correctedType: 'local_service',
+      reason: 'Detected service startup requirement, corrected to local_service'
+    }
+  }
+
+  return { valid: true }
 }
 
 function collectConfiguredServerNames(record?: Record<string, unknown> | null): string[] {
@@ -194,6 +247,21 @@ export function resolveExecutionEntry(
   } = input
   const promptText = typeof prompt === 'string' ? prompt : ''
   const executionSummary = createExecutionSummary()
+
+  // Validate and correct deliverable type
+  const validation = validateDeliverableType(passthrough.plan)
+  if (!validation.valid && validation.correctedType) {
+    console.warn(`[ExecutionEntry] ${validation.reason}`)
+    passthrough.plan.deliverableType = validation.correctedType
+  }
+
+  // Determine runtime gate requirement
+  let runtimeGateRequired = shouldEnableRuntimeGate(passthrough.plan)
+  if (!passthrough.plan.deliverableType) {
+    // Fallback to legacy detection if no deliverable type
+    runtimeGateRequired = isRuntimeRunIntentLegacy(promptText, passthrough.plan)
+  }
+
   const baseExecutionPrompt = buildExecutionPrompt(
     passthrough.plan,
     promptText,
@@ -208,7 +276,6 @@ export function resolveExecutionEntry(
   const executionPrompt = artifactLayoutInstruction
     ? `${baseExecutionPrompt}\n\n${artifactLayoutInstruction}`
     : baseExecutionPrompt
-  const runtimeGateRequired = isRuntimeRunIntent(promptText, passthrough.plan)
   const browserAutomationIntent = isBrowserAutomationIntent(promptText, passthrough.plan)
   const maxRuntimeRepairAttempts = maxRuntimeRepairAttemptsInput ?? DEFAULT_MAX_RUNTIME_REPAIR_ATTEMPTS
   const maxExecutionAttempts = runtimeGateRequired ? maxRuntimeRepairAttempts + 1 : 1
