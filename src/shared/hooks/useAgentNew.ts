@@ -1237,7 +1237,7 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
       setPendingPermission(nextPermission || null)
       setPendingQuestion(nextQuestion || null)
-      if (nextQuestion) {
+      if (nextQuestion && phaseRef.current !== 'awaiting_clarification') {
         updatePhase('awaiting_clarification')
       } else if (nextPermission && phaseRef.current === 'idle') {
         updatePhase('awaiting_approval')
@@ -1299,7 +1299,11 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         setTurnId(currentTurn.id)
         setTurnState(currentTurn.state)
         setBlockedByTurnIds(currentTurn.blockedByTurnIds || [])
-        updatePhase(mapTurnStateToPhase(currentTurn.state))
+        const newPhase = mapTurnStateToPhase(currentTurn.state)
+        // Only update phase if it actually changed to avoid unnecessary re-renders
+        if (newPhase !== phaseRef.current) {
+          updatePhase(newPhase)
+        }
       }
 
       const runtimeVersion = data.runtime?.version
