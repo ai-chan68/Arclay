@@ -785,19 +785,18 @@ function TaskDetailContent() {
   }, [isRightSidebarVisible, rightPanelWidth, setRightPanelWidth])
 
   // Scroll management
-  const checkScrollPosition = useCallback(() => {
-    const container = messagesContainerRef.current
-    if (!container) return
-    const { scrollTop, scrollHeight, clientHeight } = container
-    setShowScrollButton(scrollHeight - scrollTop - clientHeight > 200)
-  }, [])
-
   useEffect(() => {
     const container = messagesContainerRef.current
     if (!container) return
+
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      setShowScrollButton(scrollHeight - scrollTop - clientHeight > 200)
+    }
+
     container.addEventListener('scroll', checkScrollPosition)
     return () => container.removeEventListener('scroll', checkScrollPosition)
-  }, [checkScrollPosition])
+  }, [])
 
   const scrollToBottom = useCallback(() => {
     messagesContainerRef.current?.scrollTo({
