@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import type { Task, AgentMessage } from '@shared-types'
 import { SettingsModal } from './SettingsModal'
+import { SchedulerPanel } from '../scheduler/SchedulerPanel'
 
 // Extended Task type for UI with additional fields
 export interface UITask extends Task {
@@ -57,6 +58,7 @@ export function LeftSidebar({
 }: LeftSidebarProps) {
   const navigate = useNavigate()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false)
 
   // 按创建时间降序排序（最新创建的任务优先）
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -108,7 +110,7 @@ export function LeftSidebar({
             <List className="size-5" />
           </button>
           <button
-            onClick={() => navigate('/scheduled-tasks')}
+            onClick={() => setIsSchedulerOpen(true)}
             className="ew-icon-btn mb-4 rounded-lg p-2"
             title="定时任务"
           >
@@ -141,6 +143,7 @@ export function LeftSidebar({
           </button>
         </div>
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+        <SchedulerPanel isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
       </>
     )
   }
@@ -169,7 +172,7 @@ export function LeftSidebar({
             <List className="size-4" />
           </button>
           <button
-            onClick={() => navigate('/scheduled-tasks')}
+            onClick={() => setIsSchedulerOpen(true)}
             className="ew-icon-btn rounded-lg p-1.5"
             title="定时任务"
           >
@@ -269,6 +272,7 @@ export function LeftSidebar({
       </div>
     </div>
     <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+    <SchedulerPanel isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
     </>
   )
 }
