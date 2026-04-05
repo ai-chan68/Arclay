@@ -26,6 +26,7 @@ import { useVitePreview } from '../../shared/hooks/useVitePreview'
 import type { Artifact } from '../../shared/types/artifacts'
 import { apiFetchRaw } from '../../shared/api'
 import { copyToClipboard } from '../../shared/services/clipboard-service'
+import { TodoList } from './TodoList'
 import {
   filterArtifactsForDisplay,
   isSessionDocumentFile,
@@ -638,6 +639,13 @@ export function RightSidebar({
           )}
         >
           {exportNotice.message}
+        </div>
+      )}
+
+      {/* TodoList */}
+      {taskId && (
+        <div className="ew-card shrink-0 rounded-2xl p-3">
+          <TodoList taskId={taskId} workDir={workingDir} />
         </div>
       )}
     </div>

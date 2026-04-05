@@ -11,6 +11,7 @@ import { createBashTool } from './bash'
 import { createGlobTool } from './glob'
 import { createGrepTool } from './grep'
 import { createAppendTool } from './append'
+import { createTodoWriteTool } from './todowrite'
 import type { SandboxService } from '../sandbox/sandbox-service'
 
 // Re-export types
@@ -28,7 +29,8 @@ export function createDefaultTools(sandbox: SandboxService): ITool[] {
     createBashTool(sandbox),
     createGlobTool(sandbox),
     createGrepTool(sandbox),
-    createAppendTool(sandbox)
+    createAppendTool(sandbox),
+    createTodoWriteTool(sandbox)
   ]
 }
 
