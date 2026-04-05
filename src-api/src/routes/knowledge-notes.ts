@@ -25,7 +25,7 @@ function getKnowledgeNotesStore(workDir: string): KnowledgeNotesStore {
 }
 
 // List knowledge notes
-app.get('/api/knowledge-notes', async (c) => {
+app.get('/knowledge-notes', async (c) => {
   try {
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
     const taskId = c.req.query('taskId')
@@ -50,7 +50,7 @@ app.get('/api/knowledge-notes', async (c) => {
 })
 
 // Get single knowledge note
-app.get('/api/knowledge-notes/:id', async (c) => {
+app.get('/knowledge-notes/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
@@ -76,7 +76,7 @@ app.get('/api/knowledge-notes/:id', async (c) => {
 })
 
 // Create knowledge note
-app.post('/api/knowledge-notes', async (c) => {
+app.post('/knowledge-notes', async (c) => {
   try {
     const workDir = c.req.query('workDir') || process.cwd()
     const body = await c.req.json() as CreateKnowledgeNoteInput
@@ -108,7 +108,7 @@ app.post('/api/knowledge-notes', async (c) => {
 })
 
 // Update knowledge note
-app.put('/api/knowledge-notes/:id', async (c) => {
+app.put('/knowledge-notes/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
@@ -132,7 +132,7 @@ app.put('/api/knowledge-notes/:id', async (c) => {
 })
 
 // Delete knowledge note
-app.delete('/api/knowledge-notes/:id', async (c) => {
+app.delete('/knowledge-notes/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined

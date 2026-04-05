@@ -213,6 +213,18 @@
       gap: 0;
       justify-content: center;
       flex-wrap: wrap;
+      position: relative;
+    }
+    /* horizontal connector line */
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 60px;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
     }
     .step {
       flex: 1;
@@ -220,32 +232,19 @@
       max-width: 280px;
       padding: 32px 24px;
       position: relative;
-    }
-    .step:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      top: 56px;
-      right: -16px;
-      width: 32px;
-      height: 2px;
-      background: linear-gradient(90deg, var(--border), var(--accent), var(--border));
+      z-index: 1;
     }
     .step-icon {
       width: 56px;
       height: 56px;
       border-radius: 16px;
-      background: var(--bg-card);
+      background: var(--bg-primary);
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 24px;
       margin: 0 auto 16px;
-      position: relative;
-    }
-    /* center the connector on the icon */
-    .step:not(:last-child)::after {
-      top: 56px;
     }
     .step h3 {
       font-size: 18px;
@@ -481,10 +480,7 @@
       .features-grid { grid-template-columns: 1fr; }
       .tech-cards { grid-template-columns: 1fr; }
       .steps { flex-direction: column; align-items: center; }
-      .step-arrow {
-        transform: rotate(90deg);
-        padding: 8px 0;
-      }
+      .steps::before { display: none; }
       .step { min-width: unset; }
     }
   </style>
