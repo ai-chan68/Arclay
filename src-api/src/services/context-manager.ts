@@ -12,8 +12,10 @@ import { join } from 'path'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import type { MemoryStore } from './memory/memory-store'
+import type { KnowledgeNote } from '@shared-types'
 import { MemoryInjector } from './memory/memory-injector'
 import { resolveTaskWorkspaceDir } from './workspace-layout'
+import { KnowledgeNotesStore } from './knowledge-notes-store'
 
 export interface SessionContext {
   sessionId: string
@@ -41,13 +43,16 @@ export class ContextManager {
   private storageRootId?: string
   // Memory injector (optional — backward compatible)
   private memoryInjector: MemoryInjector | null = null
+  // Knowledge notes store (optional)
+  private knowledgeNotesStore: KnowledgeNotesStore | null = null
 
-  constructor(workDir: string, memoryStore?: MemoryStore, storageRootId?: string) {
+  constructor(workDir: string, memoryStore?: MemoryStore, storageRootId?: string, knowledgeNotesStore?: KnowledgeNotesStore) {
     this.workDir = workDir
     this.storageRootId = storageRootId?.trim() || undefined
     if (memoryStore) {
       this.memoryInjector = new MemoryInjector(memoryStore)
     }
+    this.knowledgeNotesStore = knowledgeNotesStore || null
   }
 
   private sessionDir(sessionId: string): string {
@@ -172,13 +177,84 @@ export class ContextManager {
   // --- Context prompt injection ---
 
   async buildContextPrompt(): Promise<string> {
-    // If memory system is available, delegate to MemoryInjector
+    const parts: string[] = []
+
+    // Memory system (if available)
     if (this.memoryInjector) {
-      return this.memoryInjector.buildMemoryPrompt(this.sessionContext)
+      const memoryPrompt = await this.memoryInjector.buildMemoryPrompt(this.sessionContext)
+      if (memoryPrompt) {
+        parts.push(memoryPrompt)
+      }
+    } else {
+      // Fallback: legacy context
+      const legacyPrompt = this.buildLegacyContextPrompt()
+      if (legacyPrompt) {
+        parts.push(legacyPrompt)
+      }
     }
 
-    // Fallback: original logic (backward compatible)
-    return this.buildLegacyContextPrompt()
+    // Knowledge Notes injection
+    if (this.knowledgeNotesStore && this.sessionContext) {
+      const knowledgePrompt = await this.buildKnowledgeNotesPrompt()
+      if (knowledgePrompt) {
+        parts.push(knowledgePrompt)
+      }
+    }
+
+    return parts.join('\n\n')
+  }
+
+  private async buildKnowledgeNotesPrompt(): Promise<string> {
+    if (!this.knowledgeNotesStore) return ''
+
+    const parts: string[] = []
+
+    // Load global notes
+    const globalNotes = await this.knowledgeNotesStore.listEnabled('global')
+
+    // Load project notes
+    const projectNotes = await this.knowledgeNotesStore.listEnabled('project')
+
+    // Load task notes (if storageRootId is set)
+    let taskNotes: KnowledgeNote[] = []
+    if (this.storageRootId) {
+      taskNotes = await this.knowledgeNotesStore.listEnabled('task', this.storageRootId)
+    }
+
+    // Combine all notes
+    const allNotes = [...globalNotes, ...projectNotes, ...taskNotes]
+
+    if (allNotes.length === 0) return ''
+
+    // Group by type
+    const byType = {
+      context: allNotes.filter(n => n.type === 'context'),
+      instruction: allNotes.filter(n => n.type === 'instruction'),
+      reference: allNotes.filter(n => n.type === 'reference'),
+    }
+
+    if (byType.context.length > 0) {
+      parts.push(
+        '## Background Context\n\n' +
+        byType.context.map(n => n.content).join('\n\n')
+      )
+    }
+
+    if (byType.instruction.length > 0) {
+      parts.push(
+        '## Additional Instructions\n\n' +
+        byType.instruction.map(n => n.content).join('\n\n')
+      )
+    }
+
+    if (byType.reference.length > 0) {
+      parts.push(
+        '## Reference Materials\n\n' +
+        byType.reference.map(n => `### ${n.title}\n\n${n.content}`).join('\n\n')
+      )
+    }
+
+    return parts.join('\n\n')
   }
 
   private buildLegacyContextPrompt(): string {

@@ -9,6 +9,7 @@ import { providersRoutes } from './providers'
 import previewRoutes from './preview'
 import { filesRoutes } from './files'
 import { createScheduledTaskRoutes, type ScheduledTaskRouteDeps } from './scheduled-tasks'
+import knowledgeNotesRoutes from './knowledge-notes'
 
 export interface RouteFactoriesDeps {
   agentNew: AgentRouteDeps
@@ -30,6 +31,7 @@ export function createRoutes(deps: RouteFactoriesDeps): Hono {
   routes.route('/preview', previewRoutes)
   routes.route('/files', filesRoutes)
   routes.route('/scheduled-tasks', createScheduledTaskRoutes(deps.scheduledTasks))
+  routes.route('/', knowledgeNotesRoutes) // Knowledge notes API
 
   return routes
 }

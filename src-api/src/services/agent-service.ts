@@ -29,6 +29,7 @@ import { MemoryStore } from './memory/memory-store'
 import { HistoryLogger } from './memory/history-logger'
 import { generateDailySummary } from './memory/daily-memory'
 import { resolveTaskInputsDir, resolveTaskWorkspaceDir } from './workspace-layout'
+import { KnowledgeNotesStore } from './knowledge-notes-store'
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -477,7 +478,10 @@ ${categoryInstructions.join('\n---\n')}
 
     // --- Context management (Tasks 5.3–5.5) ---
     const memoryStore = new MemoryStore(baseWorkDir, storageRootId)
-    const contextManager = new ContextManager(baseWorkDir, memoryStore, storageRootId)
+    const globalKnowledgeDir = join(resolveEasyWorkHome(), 'knowledge-notes')
+    const projectKnowledgeDir = join(baseWorkDir, '.easywork', 'knowledge-notes')
+    const knowledgeNotesStore = new KnowledgeNotesStore(globalKnowledgeDir, projectKnowledgeDir)
+    const contextManager = new ContextManager(baseWorkDir, memoryStore, storageRootId, knowledgeNotesStore)
     await contextManager.load(effectiveSessionId)
     const contextPrompt = await contextManager.buildContextPrompt()
 

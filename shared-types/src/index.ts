@@ -116,3 +116,12 @@ export type {
   AgentRole,
   MultiAgentSession,
 } from './multi-agent';
+
+// Knowledge Note types
+export type {
+  KnowledgeNoteType,
+  KnowledgeNoteScope,
+  KnowledgeNote,
+  CreateKnowledgeNoteInput,
+  UpdateKnowledgeNoteInput,
+} from './knowledge-note';
