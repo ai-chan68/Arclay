@@ -89,6 +89,10 @@ function parseBody(req) {
   })
 }
 
+// In-memory storage for knowledge notes (shared across requests)
+const inMemoryNotes = new Map()
+let noteIdCounter = 1
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -215,6 +219,16 @@ const server = http.createServer(async (req, res) => {
           {
             delayMs: 10,
             message: {
+              id: 'msg-thinking-1',
+              type: 'thinking',
+              role: 'assistant',
+              content: '正在分析任务需求...',
+              timestamp: Date.now(),
+            },
+          },
+          {
+            delayMs: 30,
+            message: {
               id: 'msg-execute-1',
               type: 'text',
               role: 'assistant',
@@ -269,22 +283,63 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
-    // Default: slow streaming response
+    // Default: streaming response with thinking messages
     writeSse(
       res,
       [
         {
           delayMs: 10,
           message: {
-            id: 'msg-execute-1',
+            id: 'msg-thinking-1',
+            type: 'thinking',
+            role: 'assistant',
+            content: '正在思考如何完成这个任务...',
+            timestamp: Date.now(),
+          },
+        },
+        {
+          delayMs: 50,
+          message: {
+            id: 'msg-tool-1',
+            type: 'tool_use',
+            role: 'assistant',
+            toolName: 'Write',
+            toolInput: { file_path: 'hello.txt', content: 'Hello World' },
+            toolUseId: 'tool-write-1',
+            timestamp: Date.now(),
+          },
+        },
+        {
+          delayMs: 100,
+          message: {
+            id: 'msg-tool-result-1',
+            type: 'tool_result',
+            toolUseId: 'tool-write-1',
+            toolName: 'Write',
+            toolOutput: 'File written successfully',
+            timestamp: Date.now(),
+          },
+        },
+        {
+          delayMs: 150,
+          message: {
+            id: 'msg-text-1',
             type: 'text',
             role: 'assistant',
-            content: '正在执行模拟任务，请稍候...',
+            content: '任务执行完成。',
+            timestamp: Date.now(),
+          },
+        },
+        {
+          delayMs: 180,
+          message: {
+            id: 'msg-done',
+            type: 'done',
             timestamp: Date.now(),
           },
         },
       ],
-      15000
+      250
     )
     return
   }
@@ -292,6 +347,63 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && pathname.startsWith('/api/v2/agent/stop/')) {
     writeJson(res, 200, { success: true })
     return
+  }
+
+  // Knowledge Notes API mock endpoints
+  if (pathname.startsWith('/api/knowledge-notes')) {
+    if (req.method === 'GET' && pathname === '/api/knowledge-notes') {
+      const scope = url.searchParams.get('scope')
+      const notes = Array.from(inMemoryNotes.values()).filter(n => n.scope === scope)
+      writeJson(res, 200, { notes })
+      return
+    }
+
+    const idMatch = pathname.match(/^\/api\/knowledge-notes\/([^/?]+)/)
+    if (req.method === 'GET' && idMatch) {
+      const id = idMatch[1]
+      const note = inMemoryNotes.get(id)
+      if (note) {
+        writeJson(res, 200, { note })
+      } else {
+        writeJson(res, 404, { error: 'Knowledge note not found' })
+      }
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge-notes') {
+      const body = await parseBody(req).catch(() => ({}))
+      const note = {
+        id: `note-${noteIdCounter++}`,
+        ...body,
+        enabled: body.enabled ?? true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      inMemoryNotes.set(note.id, note)
+      writeJson(res, 201, { note })
+      return
+    }
+
+    if (req.method === 'PUT' && idMatch) {
+      const id = idMatch[1]
+      const note = inMemoryNotes.get(id)
+      if (note) {
+        const body = await parseBody(req).catch(() => ({}))
+        const updated = { ...note, ...body, updatedAt: new Date().toISOString() }
+        inMemoryNotes.set(id, updated)
+        writeJson(res, 200, { note: updated })
+      } else {
+        writeJson(res, 500, { error: 'Knowledge note not found' })
+      }
+      return
+    }
+
+    if (req.method === 'DELETE' && idMatch) {
+      const id = idMatch[1]
+      inMemoryNotes.delete(id)
+      writeJson(res, 200, { success: true })
+      return
+    }
   }
 
   writeJson(res, 404, { error: `Unhandled mock route: ${req.method} ${pathname}` })

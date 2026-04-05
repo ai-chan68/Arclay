@@ -31,7 +31,7 @@ export function createRoutes(deps: RouteFactoriesDeps): Hono {
   routes.route('/preview', previewRoutes)
   routes.route('/files', filesRoutes)
   routes.route('/scheduled-tasks', createScheduledTaskRoutes(deps.scheduledTasks))
-  routes.route('/knowledge-notes', knowledgeNotesRoutes) // Knowledge notes API
+  routes.route('/knowledge-notes', knowledgeNotesRoutes)
 
   return routes
 }

@@ -20,6 +20,13 @@ test.describe('Thinking Stream Display', () => {
     // Wait for task page
     await expect(page).toHaveURL(/\/task\//, { timeout: 10000 })
 
+    // Wait for plan approval button
+    const approveButton = page.getByRole('button', { name: '开始执行' })
+    await expect(approveButton).toBeVisible({ timeout: 10000 })
+
+    // Approve the plan to start execution
+    await approveButton.click()
+
     // Wait for thinking section to appear
     const thinkingSection = page.locator('button:has-text("思考过程"), button:has-text("思考中")')
     await expect(thinkingSection).toBeVisible({ timeout: 15000 })
@@ -33,8 +40,8 @@ test.describe('Thinking Stream Display', () => {
     // Verify tool calls are displayed
     await expect(page.locator('text=/Write|Bash|Read/')).toBeVisible({ timeout: 10000 })
 
-    // Verify thinking section shows completion status
-    await expect(page.locator('text=/思考过程|正常|异常/')).toBeVisible({ timeout: 20000 })
+    // Verify thinking section shows completion status (use first match to avoid strict mode violation)
+    await expect(page.locator('text=/思考过程|正常|异常/').first()).toBeVisible({ timeout: 20000 })
   })
 
   test('should show tool execution results', async ({ page }) => {
@@ -47,6 +54,11 @@ test.describe('Thinking Stream Display', () => {
     await page.getByTitle('发送').click()
 
     await expect(page).toHaveURL(/\/task\//, { timeout: 10000 })
+
+    // Wait for plan approval button and approve
+    const approveButton = page.getByRole('button', { name: '开始执行' })
+    await expect(approveButton).toBeVisible({ timeout: 10000 })
+    await approveButton.click()
 
     // Wait for thinking section
     await expect(page.locator('button:has-text("思考过程"), button:has-text("思考中")')).toBeVisible({ timeout: 15000 })
