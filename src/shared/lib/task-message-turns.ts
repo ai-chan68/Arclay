@@ -141,6 +141,9 @@ export function groupIntoTurns(messages: AgentMessage[], isRunning: boolean): Co
       currentTurn.interactionMessages.push(msg)
       currentTurn.pendingQuestion = msg.clarification || msg.question || null
       lastAssistantTextWasContinuous = false
+    } else if (msg.type === 'thinking') {
+      currentTurn.thinkingMessages.push(msg)
+      lastAssistantTextWasContinuous = false
     } else if (msg.type === 'tool_use' || msg.type === 'tool_result') {
       currentTurn.thinkingMessages.push(msg)
       if (

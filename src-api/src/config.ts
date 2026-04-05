@@ -131,8 +131,14 @@ export function getAllProviderConfigs(): Record<string, AgentProviderConfig> {
 /**
  * Get working directory from environment
  * The workspace is located at src-api/workspace where session files are stored.
+ * Can be overridden with EASYWORK_WORKSPACE env var (useful for E2E tests).
  */
 export function getWorkDir(): string {
+  // Allow override via environment variable (for E2E tests)
+  if (process.env.EASYWORK_WORKSPACE) {
+    return path.resolve(process.env.EASYWORK_WORKSPACE);
+  }
+
   const cwd = process.cwd();
   // When running from within src-api/ (e.g. pnpm dev:api), avoid doubling the path
   if (cwd.endsWith('/src-api') || cwd.endsWith('\\src-api')) {

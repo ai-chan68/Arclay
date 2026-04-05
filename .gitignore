@@ -70,3 +70,5 @@ playwright-report-integration/
 test-results/
 src-tauri/binaries/
 .worktrees/
+.e2e/
+.docs/

@@ -438,6 +438,39 @@ export class FakeAgent extends BaseAgent {
     this.delayMs = (pc?.delayMs as number) || 0
   }
 
+  async *plan(prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage> {
+    this.abortController = options?.abortController ?? new AbortController()
+    const session = this.initSession(options?.sessionId)
+
+    yield {
+      id: 'fake-session',
+      type: 'session',
+      sessionId: session.id,
+      timestamp: Date.now(),
+    }
+
+    // Detect scenario to determine plan structure
+    const detectedScenario = detectScenarioFromPrompt(prompt)
+    const taskPlan = this.createTaskPlanFromScenario(prompt, detectedScenario)
+
+    yield {
+      id: 'fake-plan',
+      type: 'plan',
+      role: 'assistant',
+      content: taskPlan.goal,
+      plan: taskPlan,
+      timestamp: Date.now(),
+    }
+
+    yield {
+      id: 'fake-done',
+      type: 'done',
+      timestamp: Date.now(),
+    }
+
+    this.updateSessionStatus('completed')
+  }
+
   async *stream(prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage> {
     this.abortController = options?.abortController ?? new AbortController()
     const session = this.initSession(options?.sessionId)
@@ -462,6 +495,9 @@ export class FakeAgent extends BaseAgent {
       }
     }
 
+    // Get work directory for file operations
+    const workDir = options?.cwd || process.cwd()
+
     for (const message of messages) {
       if (this.abortController?.signal.aborted) break
 
@@ -480,10 +516,83 @@ export class FakeAgent extends BaseAgent {
         if (this.abortController?.signal.aborted) break
       }
 
+      // Execute write_file tool if present
+      if (message.type === 'tool_use' && message.toolName === 'write_file' && message.toolInput) {
+        await this.executeWriteFile(message.toolInput, workDir)
+      }
+
       yield message
     }
 
     this.updateSessionStatus('completed')
+  }
+
+  private async executeWriteFile(toolInput: Record<string, unknown>, workDir: string): Promise<void> {
+    const path = toolInput.path as string
+    const content = toolInput.content as string
+
+    if (!path || !content) {
+      return
+    }
+
+    try {
+      const fs = await import('node:fs/promises')
+      const nodePath = await import('node:path')
+
+      const fullPath = nodePath.join(workDir, path)
+      await fs.writeFile(fullPath, content, 'utf-8')
+    } catch (error) {
+      // Silently ignore errors in fake agent
+      console.warn('[FakeAgent] Failed to write file:', error)
+    }
+  }
+
+  private createTaskPlanFromScenario(prompt: string, scenario: FakeScenario | null): import('@shared-types').TaskPlan {
+    const lowerPrompt = prompt.toLowerCase()
+
+    // Game project plan
+    if (scenario?.name === 'game-project' ||
+        lowerPrompt.includes('happybird') ||
+        lowerPrompt.includes('小游戏') ||
+        lowerPrompt.includes('game')) {
+      return {
+        id: 'fake-plan-game',
+        goal: '创建 HAPPYBIRD 小游戏',
+        steps: [
+          { id: 'step-1', description: '创建 HTML 文件', status: 'pending' },
+          { id: 'step-2', description: '创建游戏逻辑 (game.js)', status: 'pending' },
+          { id: 'step-3', description: '创建样式文件 (style.css)', status: 'pending' },
+        ],
+        deliverableType: 'static_files',
+        createdAt: new Date(),
+      }
+    }
+
+    // Simple HTML plan
+    if (scenario?.name === 'simple-html' ||
+        (lowerPrompt.includes('html') && (lowerPrompt.includes('页面') || lowerPrompt.includes('网页')))) {
+      return {
+        id: 'fake-plan-html',
+        goal: '创建简单的 HTML 页面',
+        steps: [
+          { id: 'step-1', description: '创建 HTML 页面', status: 'pending' },
+        ],
+        deliverableType: 'static_files',
+        createdAt: new Date(),
+      }
+    }
+
+    // Default plan
+    return {
+      id: 'fake-plan-default',
+      goal: `执行任务: ${prompt}`,
+      steps: [
+        { id: 'step-1', description: '分析任务需求', status: 'pending' },
+        { id: 'step-2', description: '执行任务', status: 'pending' },
+      ],
+      deliverableType: 'unknown',
+      createdAt: new Date(),
+    }
   }
 }
 

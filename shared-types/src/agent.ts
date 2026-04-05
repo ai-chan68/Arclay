@@ -5,6 +5,7 @@
 export type AgentMessageType =
   | 'session'      // Session information
   | 'text'         // Text message
+  | 'thinking'     // Thinking/reasoning process
   | 'tool_use'     // Tool call
   | 'tool_result'  // Tool result
   | 'result'       // Execution result

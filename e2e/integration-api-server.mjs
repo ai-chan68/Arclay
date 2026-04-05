@@ -21,6 +21,10 @@ const frontendPort = process.env.EASYWORK_E2E_WEB_PORT || '1421'
 // Create isolated EASYWORK_HOME
 const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-e2e-'))
 
+// Create isolated workspace directory for test files
+const tempWorkspace = path.join(tempHome, 'workspace')
+fs.mkdirSync(tempWorkspace, { recursive: true })
+
 const settings = {
   activeProviderId: 'provider-fake',
   providers: [
@@ -47,6 +51,7 @@ fs.writeFileSync(
 )
 
 console.log(`[e2e-integration] EASYWORK_HOME: ${tempHome}`)
+console.log(`[e2e-integration] WORKSPACE: ${tempWorkspace}`)
 console.log(`[e2e-integration] Starting real API on ${host}:${port}`)
 
 // Start the real API server
@@ -62,6 +67,7 @@ const child = spawn('npx', ['tsx', 'src/index.ts'], {
     HOST: host,
     FRONTEND_URL: `http://127.0.0.1:${frontendPort}`,
     EASYWORK_HOME: tempHome,
+    EASYWORK_WORKSPACE: tempWorkspace,
     EASYWORK_FAKE_PROVIDER: '1',
     NODE_ENV: 'test',
   },

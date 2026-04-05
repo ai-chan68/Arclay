@@ -2611,8 +2611,19 @@ ${formattedMessages}${truncationNotice}
     // 处理 assistant 消息
     if (msg.type === 'assistant' && msg.message?.content) {
       for (const block of msg.message.content as Record<string, unknown>[]) {
-        // 跳过 thinking 块，不输出到日志也不发送给前端
+        // 捕获 thinking 块并发送给前端
         if ('type' in block && block.type === 'thinking') {
+          const thinkingText = this.sanitizeText((block as { thinking?: string }).thinking || '');
+          if (thinkingText) {
+            console.log(`[Claude ${sessionId}] Thinking: ${thinkingText.slice(0, 80)}${thinkingText.length > 80 ? '...' : ''}`);
+            yield {
+              id: this.generateMessageId(),
+              type: 'thinking' as AgentMessageType,
+              role: 'assistant',
+              content: thinkingText,
+              timestamp: Date.now(),
+            };
+          }
           continue;
         }
         if ('text' in block) {

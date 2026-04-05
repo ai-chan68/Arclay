@@ -1723,6 +1723,21 @@ function ThinkingSection({
  * 思考过程中的单个消息
  */
 function ThinkingMessageItem({ message }: { message: AgentMessage }) {
+  if (message.type === 'thinking') {
+    return (
+      <div className="flex items-start gap-2 py-1">
+        <div className="flex-shrink-0 size-5 rounded bg-blue-500/10 flex items-center justify-center mt-0.5">
+          <Brain className="size-3 text-blue-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-muted-foreground whitespace-pre-wrap">
+            {message.content}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (message.type === 'tool_use') {
     const inputPreview = message.toolName === 'TodoWrite'
       ? formatTodoWriteInput(message.toolInput)
