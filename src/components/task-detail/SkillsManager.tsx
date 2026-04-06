@@ -541,6 +541,7 @@ interface ImportSkillsModalProps {
 }
 
 function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
+  const [importMethod, setImportMethod] = useState<'folder' | 'github'>('folder')
   const [importPath, setImportPath] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -553,7 +554,7 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
 
   const handleImport = async () => {
     if (!importPath.trim()) {
-      showMessage('error', '请输入 Skill 目录路径')
+      showMessage('error', importMethod === 'folder' ? '请选择 Skill 文件夹' : '请输入 GitHub URL')
       return
     }
 
@@ -561,7 +562,10 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
       setLoading(true)
       await api.post('/api/settings/skills/import', { path: importPath.trim() })
       showMessage('success', 'Skill 已成功导入')
-      onSuccess()
+      setTimeout(() => {
+        onSuccess()
+        onClose()
+      }, 1000)
     } catch (err) {
       console.error('Failed to import skill:', err)
       showMessage('error', err instanceof Error ? err.message : '无法导入 Skill')
@@ -585,84 +589,141 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
         </div>
 
         <p className="ew-subtext mt-2 text-sm">
-          输入包含 SKILL.md 文件的 Skill 目录路径
+          选择导入方式
         </p>
 
+        {/* 导入方式选择 */}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => {
+              setImportMethod('folder')
+              setImportPath('')
+            }}
+            className={cn(
+              'flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors',
+              importMethod === 'folder'
+                ? 'border-[color:var(--ui-accent)] bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] text-[color:var(--ui-text)]'
+                : 'border-border bg-[color:color-mix(in_oklab,var(--ui-panel-2)_76%,transparent)] text-[color:var(--ui-subtext)] hover:border-[color:var(--ui-accent)]/50'
+            )}
+          >
+            <FolderOpen className="mx-auto mb-1 size-5" />
+            从文件夹导入
+          </button>
+          <button
+            onClick={() => {
+              setImportMethod('github')
+              setImportPath('')
+            }}
+            className={cn(
+              'flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors',
+              importMethod === 'github'
+                ? 'border-[color:var(--ui-accent)] bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] text-[color:var(--ui-text)]'
+                : 'border-border bg-[color:color-mix(in_oklab,var(--ui-panel-2)_76%,transparent)] text-[color:var(--ui-subtext)] hover:border-[color:var(--ui-accent)]/50'
+            )}
+          >
+            <Download className="mx-auto mb-1 size-5" />
+            从 GitHub 导入
+          </button>
+        </div>
+
+        {/* 导入内容区域 */}
         <div className="mt-4 space-y-3">
-          <div>
-            <label className="ew-text mb-1.5 block text-sm font-medium">
-              Skill 目录路径
-            </label>
-            <div className="flex gap-2">
+          {importMethod === 'folder' ? (
+            <div>
+              <label className="ew-text mb-1.5 block text-sm font-medium">
+                Skill 文件夹
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={importPath}
+                  readOnly
+                  placeholder="点击右侧按钮选择文件夹"
+                  className="ew-input flex-1 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={async () => {
+                    if (isTauri()) {
+                      try {
+                        const fs = getFileSystem()
+                        const selectedPath = await fs.pickDirectory()
+                        if (selectedPath) {
+                          setImportPath(selectedPath)
+                        }
+                      } catch (err) {
+                        console.error('Failed to pick directory:', err)
+                        showMessage('error', '无法选择目录')
+                      }
+                    } else {
+                      const input = document.createElement('input')
+                      input.type = 'file'
+                      // @ts-ignore - webkitdirectory is non-standard but widely supported
+                      input.webkitdirectory = true
+                      input.onchange = (e) => {
+                        const files = (e.target as HTMLInputElement).files
+                        if (files && files.length > 0) {
+                          const relativePath = files[0].webkitRelativePath
+                          if (relativePath) {
+                            const pathParts = relativePath.split('/')
+                            pathParts.pop()
+                            const dirPath = pathParts.join('/')
+                            setImportPath(dirPath)
+                          }
+                        }
+                      }
+                      input.click()
+                    }
+                  }}
+                  className="ew-control ew-subtext flex items-center gap-1 rounded-lg px-3 py-2 text-sm hover:text-[color:var(--ui-text)]"
+                >
+                  <FolderOpen className="size-4" />
+                  选择
+                </button>
+              </div>
+              {!isTauri() && (
+                <p className="mt-2 text-xs text-[color:var(--ui-warning)]">
+                  提示：浏览器环境下只能获取相对路径，建议使用桌面版或直接输入完整路径
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="ew-text mb-1.5 block text-sm font-medium">
+                GitHub URL
+              </label>
               <input
                 type="text"
                 value={importPath}
                 onChange={(e) => setImportPath(e.target.value)}
-                placeholder="例如: /path/to/my-skill"
-                className="ew-input flex-1 rounded-lg px-3 py-2 text-sm"
+                placeholder="https://github.com/user/repo 或 https://github.com/user/repo/tree/main/path"
+                className="ew-input w-full rounded-lg px-3 py-2 text-sm"
               />
-              <button
-                onClick={async () => {
-                  if (isTauri()) {
-                    // Tauri 环境下使用原生文件选择器获取完整路径
-                    try {
-                      const fs = getFileSystem()
-                      const selectedPath = await fs.pickDirectory()
-                      if (selectedPath) {
-                        setImportPath(selectedPath)
-                      }
-                    } catch (err) {
-                      console.error('Failed to pick directory:', err)
-                      showMessage('error', '无法选择目录')
-                    }
-                  } else {
-                    // Web 环境下使用原生的文件选择（只能获取相对路径）
-                    const input = document.createElement('input')
-                    input.type = 'file'
-                    // @ts-ignore - webkitdirectory is non-standard but widely supported
-                    input.webkitdirectory = true
-                    input.onchange = (e) => {
-                      const files = (e.target as HTMLInputElement).files
-                      if (files && files.length > 0) {
-                        // 获取目录路径 - 使用 webkitRelativePath
-                        const relativePath = files[0].webkitRelativePath
-                        if (relativePath) {
-                          // 获取完整目录路径（包含所有父目录）
-                          const pathParts = relativePath.split('/')
-                          // 移除文件名，保留目录路径
-                          pathParts.pop()
-                          const dirPath = pathParts.join('/')
-                          setImportPath(dirPath)
-                        }
-                      }
-                    }
-                    input.click()
-                  }
-                }}
-                className="ew-control ew-subtext flex items-center gap-1 rounded-lg px-3 py-2 text-sm hover:text-[color:var(--ui-text)]"
-              >
-                <FolderOpen className="size-4" />
-                浏览
-              </button>
-            </div>
-          </div>
-
-          <div className="ew-subtext rounded-lg border border-border bg-[color:color-mix(in_oklab,var(--ui-panel-2)_76%,transparent)] p-3 text-xs">
-            <p>导入的 Skill 将被复制到项目目录:</p>
-            <p className="mt-1 font-mono text-[color:var(--ui-accent)]">SKILLs/</p>
-            {!isTauri() && (
-              <p className="mt-2 text-[color:var(--ui-warning)]">
-                提示：由于浏览器安全限制，"浏览"按钮只能选择文件夹名称。
-                请手动输入完整路径（如：/Users/xxx/SKILLs/canvas-design）
+              <p className="mt-2 text-xs text-[color:var(--ui-subtext)]">
+                支持仓库根目录、tree 和 blob 格式的 GitHub URL
               </p>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* 错误/成功消息 */}
+          {message && (
+            <div
+              className={cn(
+                'rounded-lg p-3 text-sm',
+                message.type === 'success'
+                  ? 'bg-[color:var(--ui-success)]/10 text-[color:var(--ui-success)]'
+                  : 'bg-[color:var(--ui-error)]/10 text-[color:var(--ui-error)]'
+              )}
+            >
+              {message.text}
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="ew-text rounded-lg px-4 py-2 text-sm font-medium hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)]"
+            disabled={loading}
+            className="ew-text rounded-lg px-4 py-2 text-sm font-medium hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] disabled:opacity-50"
           >
             取消
           </button>

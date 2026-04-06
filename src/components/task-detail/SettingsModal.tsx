@@ -37,8 +37,8 @@ import { api } from '@/shared/api'
 import { renameMcpServerRecord, syncMcpNameDrafts } from '@/shared/lib/mcp-server-utils'
 import { SkillsManager } from './SkillsManager'
 import { SkillRoutingPanel, type SkillRoutingSettings } from './SkillRoutingPanel'
-import { SkillSourcesPanel } from './SkillSourcesPanel'
 import { useUITheme } from '@/shared/theme/ui-theme'
+import { KnowledgeNotesManager } from './KnowledgeNotesManager'
 
 // MCP Server 配置
 interface McpServerConfig {
@@ -208,7 +208,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'provider' | 'appearance' | 'sandbox' | 'mcp' | 'skills' | 'approval' | 'system'
+type SettingsTab = 'provider' | 'appearance' | 'sandbox' | 'mcp' | 'skills' | 'approval' | 'system' | 'knowledge'
 
 // 编辑/添加 Provider 的表单状态
 interface ProviderFormState {
@@ -862,6 +862,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             >
               <ShieldCheck className="size-4" />
               权限审批
+            </button>
+            <button
+              onClick={() => setActiveTab('knowledge')}
+              className={cn(
+                'ew-settings-nav-item mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                activeTab === 'knowledge'
+                  ? 'active'
+                  : ''
+              )}
+            >
+              <BriefcaseBusiness className="size-4" />
+              Knowledge Notes
             </button>
 
             <div className="ew-subtext mb-2 mt-4 px-2 text-xs font-medium uppercase tracking-wide">系统状态</div>
@@ -1635,11 +1647,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 }
               />
 
-              <SkillSourcesPanel
-                disabled={!(settings.skills?.enabled ?? true)}
-                onInstalled={() => setSkillsManagerReloadKey((prev) => prev + 1)}
-              />
-
               {/* Skills Manager */}
               {settings.skills?.enabled && (
                 <SkillsManager
@@ -1792,6 +1799,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 >
                   {loading ? '保存中...' : '保存审批设置'}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Knowledge Notes Tab */}
+          {activeTab === 'knowledge' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-medium ew-text mb-1">全局 Knowledge Notes</h3>
+                <p className="text-xs ew-subtext mb-4">
+                  全局级别的知识笔记，对所有任务生效
+                </p>
+                <KnowledgeNotesManager scope="global" />
               </div>
             </div>
           )}
