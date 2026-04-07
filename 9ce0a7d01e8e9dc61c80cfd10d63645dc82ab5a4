@@ -1,0 +1,158 @@
+apps/desktop/tauri.conf.json
+  f8aeb942ad8e11a7 5,37
+  bc14929d2dba6df6 10,38
+  2d4bd56c43e68e4f 3,16
+  77fac7f4acde205e 39-40
+apps/desktop/capabilities/default.json
+  f8aeb942ad8e11a7 4,13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "9ce0a7d01e8e9dc61c80cfd10d63645dc82ab5a4",
+  "prompts": {
+    "1cae6b20aed5468c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6706-b09e-7df2-8a23-0aa7ed1bdb57",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "2d4bd56c43e68e4f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6616-bf7b-7cd2-b84f-53bc328969af",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 97,
+      "overriden_lines": 0
+    },
+    "305d6f6892fd87a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d636f-7cf9-7d00-8911-a7835ba085ce",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 825,
+      "overriden_lines": 0
+    },
+    "4cceabb34be60813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c4-db95-70b0-a6bf-5663fd442947",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 431,
+      "overriden_lines": 0
+    },
+    "501fd2629370c45c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62f3-2fe7-7003-83ef-d7f4077861ac",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 453,
+      "overriden_lines": 0
+    },
+    "77fac7f4acde205e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d67b7-5efa-79c1-a618-2ea765112de4",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 581,
+      "total_deletions": 107,
+      "accepted_lines": 577,
+      "overriden_lines": 0
+    },
+    "8b0da1b6ca7342b9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66f5-8469-7f53-afa4-280c7a19fbb0",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "900a60b9e89b8caf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6791-83bb-7221-a6f5-2e860a061dae",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 254,
+      "overriden_lines": 0
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 87981,
+      "overriden_lines": 2
+    },
+    "eea91ca3d39ad096": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66c8-8f50-7cb2-a065-c9eb2ce11c5c",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 93,
+      "overriden_lines": 0
+    },
+    "f8aeb942ad8e11a7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66b9-bf18-77b2-9663-9bf450cbbe2e",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 20,
+      "overriden_lines": 1
+    }
+  }
+}
