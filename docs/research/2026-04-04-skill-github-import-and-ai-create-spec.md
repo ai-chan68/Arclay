@@ -1,4 +1,4 @@
-# EasyWork Skill 增强 Spec
+# Arclay Skill 增强 Spec
 
 > 日期: 2026-04-04
 > 主题: GitHub URL 导入 + AI 分析式创建 Skill
@@ -6,7 +6,7 @@
 
 ## 1. 背景
 
-当前 EasyWork 的 Skill 能力已经具备一部分底层基础：
+当前 Arclay 的 Skill 能力已经具备一部分底层基础：
 
 - 项目内 `SKILLs/` 目录扫描与加载
 - Skills 来源管理

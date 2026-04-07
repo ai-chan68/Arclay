@@ -4,7 +4,7 @@
 **Topic:** Updating main README to reflect latest practices in Harness Engineering, Local Workflow, and Runtime optimizations.
 
 ## 1. Goal
-Align the project documentation with the latest code implementation and the core philosophy of "Harness Engineering". Show that EasyWork is a professional workbench for *executing* tasks, not just chatting.
+Align the project documentation with the latest code implementation and the core philosophy of "Harness Engineering". Show that Arclay is a professional workbench for *executing* tasks, not just chatting.
 
 ## 2. Key Sections to Add/Modify
 
@@ -38,4 +38,4 @@ Align the project documentation with the latest code implementation and the core
 7. Contribution & License
 
 ## 4. Rationale
-This structure prioritizes the project's unique value proposition: the engineering discipline behind high-reliability agent execution. It differentiates EasyWork from generic LLM wrappers.
+This structure prioritizes the project's unique value proposition: the engineering discipline behind high-reliability agent execution. It differentiates Arclay from generic LLM wrappers.

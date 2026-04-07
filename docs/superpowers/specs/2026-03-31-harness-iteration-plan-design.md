@@ -1,4 +1,4 @@
-# EasyWork Harness 迭代优化设计
+# Arclay Harness 迭代优化设计
 
 **日期：** 2026-03-31
 **分支：** fix/agent-harness-fixes

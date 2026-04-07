@@ -1,4 +1,4 @@
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 import { getApiConfig } from '../config/app-config';
 import { setCachedPort, resetCachedPort } from '../api';
 import { getDesktopApiPort } from '../tauri/commands';
@@ -111,7 +111,20 @@ export class AppInitializer {
           progress: 10,
           message: '启动 API 服务...',
         });
-        await this.waitForApi(signal);
+
+        try {
+          await this.waitForApi(signal);
+        } catch (error) {
+          // API failed to start, but allow user to continue
+          console.warn('[AppInitializer] API service failed to start, continuing anyway:', error);
+          this.setState({
+            phase: 'ready',
+            progress: 100,
+            message: '就绪（API 服务未启动）',
+          });
+          this.isInitializing = false;
+          return;
+        }
       }
 
       // 3. Initialize database (50-80%)
@@ -199,6 +212,9 @@ export class AppInitializer {
       `[AppInitializer] Waiting for API (timeout: ${config.startupTimeout}ms)`
     );
 
+    // Reduce retry interval for faster detection (200ms instead of 500ms)
+    const fastRetryInterval = 200;
+
     while (Date.now() - startTime < config.startupTimeout) {
       if (signal.aborted) {
         throw new Error('初始化已取消');
@@ -236,7 +252,7 @@ export class AppInitializer {
       }
 
       await new Promise((resolve) =>
-        setTimeout(resolve, config.retryInterval)
+        setTimeout(resolve, fastRetryInterval)
       );
     }
 
@@ -253,18 +269,27 @@ export class AppInitializer {
     signal: AbortSignal
   ): Promise<number> {
     const fallbackPort = getApiConfig().defaultPort;
+    // Expand port scan range to 10 ports to handle port conflicts
     const ports = [
       startPort,
       fallbackPort,
-      ...Array.from({ length: 19 }, (_, i) => startPort + i + 1),
+      ...Array.from({ length: 8 }, (_, i) => startPort + i + 1),
     ].filter((port, index, all) => port > 0 && all.indexOf(port) === index);
 
-    for (const port of ports) {
-      if (signal.aborted) {
-        throw new Error('初始化已取消');
-      }
-      if (await this.isApiHealthy(port)) {
-        return port;
+    // Probe ports in parallel for faster detection
+    const results = await Promise.allSettled(
+      ports.map(async (port) => {
+        if (signal.aborted) {
+          throw new Error('初始化已取消');
+        }
+        const healthy = await this.isApiHealthy(port);
+        return { port, healthy };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.healthy) {
+        return result.value.port;
       }
     }
 

@@ -1,20 +1,20 @@
-# README Redesign Specification - EasyWork
+# README Redesign Specification - Arclay
 
 - **Date**: 2026-04-02
 - **Topic**: README & README_EN Improvement
 - **Approach**: Clone WorkAny Layout Style
 
 ## 1. Background
-User prefers the exact layout and visual presentation of `workany-ai/workany`. The goal is to replicate its structure while injecting EasyWork's core values (Harness Engineering, Deterministic Execution).
+User prefers the exact layout and visual presentation of `workany-ai/workany`. The goal is to replicate its structure while injecting Arclay's core values (Harness Engineering, Deterministic Execution).
 
 ## 2. Structure (WorkAny-Cloned Layout)
 
 ### A. Banner & Intro
 - **Logo/Banner**: Centered large branding image.
-- **Slogan**: Concise description of what EasyWork does.
+- **Slogan**: Concise description of what Arclay does.
 - **Badges**: Standard GitHub status badges.
 
-### B. What is EasyWork?
+### B. What is Arclay?
 - Brief introduction focusing on the "Workbench" aspect.
 - Links to documentation/demo.
 

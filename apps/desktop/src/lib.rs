@@ -4,7 +4,8 @@ use serde_json::Value;
 use sqlx::{Row, Column};
 use sqlx::sqlite::SqlitePool;
 use std::sync::atomic::{AtomicU16, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Notify;
 #[cfg(debug_assertions)]
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
@@ -14,6 +15,9 @@ static API_PORT: AtomicU16 = AtomicU16::new(0);
 
 // Global database pool
 static DB_POOL: OnceLock<SqlitePool> = OnceLock::new();
+
+// Database initialization notifier
+static DB_READY: OnceLock<Arc<Notify>> = OnceLock::new();
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,7 +39,7 @@ pub fn run() {
             {
                 // Keep devtools opt-in in development so desktop startup does not
                 // automatically enter developer mode during normal local runs.
-                let should_open_devtools = std::env::var("EASYWORK_OPEN_DEVTOOLS")
+                let should_open_devtools = std::env::var("ARCLAY_OPEN_DEVTOOLS")
                     .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                     .unwrap_or(false);
 
@@ -46,22 +50,49 @@ pub fn run() {
                 }
             }
 
-            // Initialize database pool before startup completes so schema errors
-            // fail loudly instead of surfacing later as generic runtime failures.
+            // Initialize database asynchronously to avoid blocking startup
             let app_handle = app.handle().clone();
-            tauri::async_runtime::block_on(async {
-                init_database(&app_handle).await
-            })?;
+            tauri::async_runtime::spawn(async move {
+                match init_database(&app_handle).await {
+                    Ok(_) => {
+                        println!("[DB] Database initialized successfully");
+                        // Notify waiting database commands
+                        if let Some(notify) = DB_READY.get() {
+                            notify.notify_waiters();
+                        }
+                    }
+                    Err(e) => eprintln!("[DB] Database initialization failed: {}", e),
+                }
+            });
 
-            let spawn_sidecar_in_dev = std::env::var("EASYWORK_SPAWN_SIDECAR_IN_DEV")
+            let spawn_sidecar_in_dev = std::env::var("ARCLAY_SPAWN_SIDECAR_IN_DEV")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false);
             let should_spawn_sidecar = !cfg!(debug_assertions) || spawn_sidecar_in_dev;
 
             if should_spawn_sidecar {
+                // Check if API is already running on default port
+                let default_port = 2026;
+                if is_port_available(default_port) {
+                    println!("[API] Port {} is available, starting sidecar", default_port);
+                } else {
+                    println!("[API] Port {} already in use, assuming API is running", default_port);
+                    API_PORT.store(default_port, Ordering::SeqCst);
+                    return Ok(());
+                }
+
                 // Spawn API sidecar
                 let shell = app.shell();
-                let sidecar_command = shell.sidecar("easywork-api").unwrap();
+                let sidecar_command = match shell.sidecar("arclay-api") {
+                    Ok(command) => command,
+                    Err(e) => {
+                        API_PORT.store(2026, Ordering::SeqCst);
+                        eprintln!("Failed to prepare API sidecar command: {}", e);
+                        #[cfg(debug_assertions)]
+                        println!("Running in dev mode - API should be started separately with 'pnpm dev:api'");
+                        return Ok(());
+                    }
+                };
 
                 // Set environment variable for sidecar detection
                 std::env::set_var("TAURI_FAMILY", "sidecar");
@@ -107,6 +138,7 @@ pub fn run() {
                         });
                     }
                     Err(e) => {
+                        API_PORT.store(2026, Ordering::SeqCst);
                         eprintln!("Failed to start API sidecar: {}", e);
                         // In development mode, the API might be running separately
                         #[cfg(debug_assertions)]
@@ -131,7 +163,10 @@ async fn init_database(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error:
     use tauri::path::BaseDirectory;
     use tauri::Manager;
 
-    let app_data_dir = app.path().resolve("easywork.db", BaseDirectory::AppData)?;
+    // Initialize notifier if not already set
+    DB_READY.get_or_init(|| Arc::new(Notify::new()));
+
+    let app_data_dir = app.path().resolve("arclay.db", BaseDirectory::AppData)?;
     let db_path = app_data_dir.to_string_lossy().to_string();
 
     // Ensure parent directory exists
@@ -151,6 +186,12 @@ async fn init_database(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+/// Check if a port is available
+fn is_port_available(port: u16) -> bool {
+    use std::net::TcpListener;
+    TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
 /// Tauri command to get the API port
 #[tauri::command]
 fn get_api_port() -> u16 {
@@ -167,6 +208,13 @@ fn is_desktop() -> bool {
 /// Returns the number of rows affected
 #[tauri::command]
 async fn db_execute(sql: String, params: Vec<Value>) -> Result<u64, String> {
+    // Wait for database to be ready if not initialized yet
+    if DB_POOL.get().is_none() {
+        if let Some(notify) = DB_READY.get() {
+            notify.notified().await;
+        }
+    }
+
     let pool = DB_POOL.get().ok_or("Database not initialized")?;
 
     let mut query = sqlx::query(&sql);
@@ -188,6 +236,13 @@ async fn db_execute(sql: String, params: Vec<Value>) -> Result<u64, String> {
 /// Query the database and return results as JSON
 #[tauri::command]
 async fn db_query(sql: String, params: Vec<Value>) -> Result<Vec<serde_json::Map<String, Value>>, String> {
+    // Wait for database to be ready if not initialized yet
+    if DB_POOL.get().is_none() {
+        if let Some(notify) = DB_READY.get() {
+            notify.notified().await;
+        }
+    }
+
     let pool = DB_POOL.get().ok_or("Database not initialized")?;
 
     let mut query = sqlx::query(&sql);

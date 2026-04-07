@@ -42,6 +42,9 @@ export function SetupGuard({ children }: SetupGuardProps) {
   useEffect(() => {
     if (!skipped) {
       checkDependencies()
+    } else {
+      // When skipped, immediately show children
+      setState('ready')
     }
   }, [checkDependencies, skipped])
 

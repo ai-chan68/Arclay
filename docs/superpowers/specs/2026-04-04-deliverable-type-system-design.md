@@ -6,7 +6,7 @@
 
 ## Problem Statement
 
-EasyWork's current runtime gate mechanism has three critical issues:
+Arclay's current runtime gate mechanism has three critical issues:
 
 1. **Misclassification**: Keyword-based detection (`isRuntimeRunIntent`) cannot distinguish between "runnable static files" (HTML that opens in browser) and "services requiring startup" (npm run dev)
 2. **Sandbox incompatibility**: Agent attempts to start long-running background processes in sandbox, causing timeouts and triggering unnecessary auto-repair loops
