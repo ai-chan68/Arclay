@@ -1,0 +1,1011 @@
+apps/agent-service/src/services/memory/__tests__/memory-store-history.test.ts
+  bc14929d2dba6df6 1-68
+apps/web/components/artifacts/index.ts
+  bc14929d2dba6df6 1-28
+apps/web/components/task-detail/SidebarContext.tsx
+  bc14929d2dba6df6 1-20,24-93
+  eea91ca3d39ad096 21-23
+apps/web/shared/db/sqlite-adapter.ts
+  305d6f6892fd87a4 78-79,102,107-108,203,207-211
+  8b0da1b6ca7342b9 11,17
+  bc14929d2dba6df6 1-10,12-16,18-24,26-77,80-101,103-106,109-202,204-206,212-527
+  eea91ca3d39ad096 25
+apps/agent-service/src/routes/__tests__/agent.test.ts
+  bc14929d2dba6df6 1-60
+apps/agent-service/src/routes/__tests__/agent-v2-plan-conversation.test.ts
+  eea91ca3d39ad096 16
+  bc14929d2dba6df6 1-15,17-94
+apps/agent-service/src/core/agent/orchestrator/task-analyzer.ts
+  bc14929d2dba6df6 1-517
+apps/agent-service/src/core/agent/providers/claude-conversation-history.test.ts
+  bc14929d2dba6df6 1-119
+apps/agent-service/src/core/agent/providers/index.ts
+  eea91ca3d39ad096 57
+  bc14929d2dba6df6 1-56,58-101
+apps/agent-service/src/services/__tests__/workspace-layout-history.test.ts
+  bc14929d2dba6df6 1-16
+apps/web/components/scheduler/SchedulerPanel.tsx
+  bc14929d2dba6df6 1-260
+apps/web/components/task-detail/TodoList.tsx
+  bc14929d2dba6df6 1-132
+apps/agent-service/src/routes/__tests__/file-src.test.ts
+  1cae6b20aed5468c 17,19,21
+  bc14929d2dba6df6 1-16,18,20,22-23
+apps/agent-service/src/services/turn-detail-store.ts
+  bc14929d2dba6df6 1-496
+apps/agent-service/src/services/scheduled-task-scheduler.ts
+  bc14929d2dba6df6 1-542
+apps/web/components/task/sub-agent-status.tsx
+  bc14929d2dba6df6 1-174
+apps/agent-service/src/types/agent-new.ts
+  bc14929d2dba6df6 1-38
+apps/agent-service/src/services/__tests__/runtime-control.test.ts
+  bc14929d2dba6df6 1-132
+apps/web/components/setup-guard.tsx
+  bc14929d2dba6df6 1-44,48-130
+apps/agent-service/src/core/tools/bash.ts
+  bc14929d2dba6df6 1-159
+apps/agent-service/src/services/memory/memory-injector.ts
+  bc14929d2dba6df6 1-88
+apps/agent-service/src/services/execution-completion.ts
+  bc14929d2dba6df6 1-279
+apps/agent-service/src/services/execution-session.ts
+  bc14929d2dba6df6 1-234
+apps/agent-service/src/services/execution-stream-processing.ts
+  bc14929d2dba6df6 1-389
+apps/agent-service/src/services/runtime-control.ts
+  bc14929d2dba6df6 1-102
+apps/web/components/task/multi-agent-execution.tsx
+  bc14929d2dba6df6 1-113
+apps/web/config/locale/.gitkeep
+  bc14929d2dba6df6 1
+apps/web/main.tsx
+  bc14929d2dba6df6 1-10
+apps/agent-service/src/services/scheduled-task-store.ts
+  305d6f6892fd87a4 218-219
+  501fd2629370c45c 39,102-103,107
+  bc14929d2dba6df6 1-14,16-17,19-21,23-38,40-101,104-106,108-217,220-384
+  eea91ca3d39ad096 15,18,22
+apps/agent-service/env.d.ts
+  bc14929d2dba6df6 1-42
+apps/web/shared/services/notification-service.ts
+  8b0da1b6ca7342b9 1
+  bc14929d2dba6df6 2-167,169-174,176-280
+  2d4bd56c43e68e4f 168,175
+apps/agent-service/src/routes/index.ts
+  bc14929d2dba6df6 1-45
+apps/agent-service/src/shared/provider/manager.ts
+  bc14929d2dba6df6 1-312
+apps/agent-service/src/services/agent-service.ts
+  bc14929d2dba6df6 1-3,5-69,71-471,473-652
+  900a60b9e89b8caf 4
+  eea91ca3d39ad096 70,472
+apps/agent-service/src/services/execution-entry.ts
+  bc14929d2dba6df6 1-328
+apps/desktop/src/lib.rs
+  1cae6b20aed5468c 42,68
+  900a60b9e89b8caf 7-8,19-21,53,55-65,165-167,211-217,239-245
+  f8aeb942ad8e11a7 86-95,141,169
+  bc14929d2dba6df6 1-6,9-18,22-41,43-52,54,66-67,69-73,84-85,96-140,142-164,168,170-186,193-210,218-238,246-317
+apps/web/index.html
+  bc14929d2dba6df6 1-5,7-12
+  2d4bd56c43e68e4f 6
+apps/agent-service/src/services/__tests__/agent-stream-events.test.ts
+  bc14929d2dba6df6 1-97
+apps/web/components/artifacts/CodePreview.tsx
+  bc14929d2dba6df6 1-72
+apps/agent-service/src/services/planning-files.ts
+  bc14929d2dba6df6 1-213
+apps/web/shared/lib/utils.ts
+  bc14929d2dba6df6 1-37
+apps/agent-service/src/services/approval-request.ts
+  bc14929d2dba6df6 1-206
+apps/agent-service/src/services/__tests__/execution-pause.test.ts
+  bc14929d2dba6df6 1-156
+apps/web/components/common/MarkdownRenderer.tsx
+  bc14929d2dba6df6 1-253
+apps/web/components/artifacts/VideoPreview.tsx
+  bc14929d2dba6df6 1-120
+apps/agent-service/src/services/memory/daily-memory.ts
+  bc14929d2dba6df6 1-141
+apps/web/components/scheduler/SchedulerRunHistory.tsx
+  bc14929d2dba6df6 1-185
+apps/agent-service/src/services/agent-stream-events.ts
+  bc14929d2dba6df6 1-78
+apps/agent-service/src/core/sandbox/registry.ts
+  bc14929d2dba6df6 1-79
+apps/agent-service/src/services/__tests__/task-turn-display-interop.test.ts
+  1cae6b20aed5468c 3
+  bc14929d2dba6df6 1-2,4-61
+apps/agent-service/src/services/execution-lifecycle.ts
+  bc14929d2dba6df6 1-166
+apps/agent-service/src/runtime/app-runtime.ts
+  bc14929d2dba6df6 1-150
+apps/agent-service/src/services/task-planner.ts
+  bc14929d2dba6df6 1-153
+apps/agent-service/src/core/agent/base-agent.ts
+  bc14929d2dba6df6 1-141
+apps/agent-service/src/services/__tests__/deliverable-type-system.test.ts
+  bc14929d2dba6df6 1-99
+apps/agent-service/src/config.ts
+  bc14929d2dba6df6 1-133,135-137,140-242
+  eea91ca3d39ad096 134,138-139
+apps/agent-service/src/services/__tests__/execution-request.test.ts
+  bc14929d2dba6df6 1-235
+apps/agent-service/src/runtime/__tests__/startup-composition.test.ts
+  eea91ca3d39ad096 89,110,115,120,125
+  bc14929d2dba6df6 1-88,90-109,111-114,116-119,121-124,126-132
+apps/agent-service/src/services/__tests__/route-support.test.ts
+  bc14929d2dba6df6 1-347
+apps/agent-service/src/services/memory/index.ts
+  bc14929d2dba6df6 1-3,5-24
+  900a60b9e89b8caf 4
+apps/agent-service/src/shared/__tests__/agent-error-display.test.ts
+  bc14929d2dba6df6 1-3,6-93
+  1cae6b20aed5468c 4-5
+apps/agent-service/src/core/agent/__tests__/registry.test.ts
+  bc14929d2dba6df6 1-137
+apps/agent-service/src/services/__tests__/plan-store.test.ts
+  eea91ca3d39ad096 28
+  bc14929d2dba6df6 1-27,29-137
+apps/agent-service/src/shared/__tests__/background-tasks.test.ts
+  1cae6b20aed5468c 8
+  bc14929d2dba6df6 1-7,9-48
+apps/agent-service/src/core/agent/interface.ts
+  bc14929d2dba6df6 1-77,79-145
+  900a60b9e89b8caf 78
+apps/agent-service/src/types/scheduled-task.ts
+  501fd2629370c45c 69
+  bc14929d2dba6df6 1-68,70-114
+apps/agent-service/src/services/__tests__/execution-entry.test.ts
+  bc14929d2dba6df6 1-176
+apps/agent-service/src/services/planning-entry.ts
+  bc14929d2dba6df6 1-203
+apps/agent-service/src/core/agent/system-prompt-language.test.ts
+  bc14929d2dba6df6 1-5,7-8,10-26
+  eea91ca3d39ad096 6,9
+apps/web/app/pages/ScheduledTasks.tsx
+  bc14929d2dba6df6 1-304,306,308-311,313-317,324-330,332-531,533-548,550-1323
+  501fd2629370c45c 305,307,312,318-323,331,532,549
+apps/web/components/artifacts/FontPreview.tsx
+  bc14929d2dba6df6 1-153
+apps/web/shared/lib/task-message-turns.ts
+  bc14929d2dba6df6 1-232
+apps/desktop/gen/schemas/capabilities.json
+  f8aeb942ad8e11a7 1
+apps/agent-service/src/core/agent/providers/claude-planning-resilience.test.ts
+  bc14929d2dba6df6 1-46
+apps/agent-service/src/core/agent/providers/__tests__/fake.test.ts
+  bc14929d2dba6df6 1-161
+apps/agent-service/src/routes/__tests__/sandbox.test.ts
+  bc14929d2dba6df6 1-238
+apps/agent-service/src/routes/__tests__/health.test.ts
+  bc14929d2dba6df6 1-38
+apps/agent-service/src/skills/router.ts
+  bc14929d2dba6df6 1-318
+apps/web/app/pages/TaskDetail.tsx
+  900a60b9e89b8caf 2,4
+  bc14929d2dba6df6 1,3,5-85,87-204,206-232,235-238,240-270,272-442,445-538,540-544,550-556,562-1291
+  501fd2629370c45c 205,233-234,239,271,443-444,539,545-549,557-561
+  eea91ca3d39ad096 86
+apps/agent-service/src/services/workspace-layout.ts
+  bc14929d2dba6df6 1-58
+apps/web/components/task-detail/SkillsManager.tsx
+  bc14929d2dba6df6 1-15,17-527,531-536,538-543,545-549,551-558,564-577,580-588,590-606,615-618,625-756
+  4cceabb34be60813 528-530,537,544,550,559-563,578-579,589,607-614,619-624
+  8b0da1b6ca7342b9 16
+apps/web/components/task-detail/ChatInput.tsx
+  bc14929d2dba6df6 1-247
+apps/web/shared/lib/session.ts
+  bc14929d2dba6df6 1-78
+apps/agent-service/src/services/__tests__/planning-lifecycle.test.ts
+  bc14929d2dba6df6 1-248
+apps/agent-service/src/services/runtime-request.ts
+  bc14929d2dba6df6 1-260
+apps/agent-service/src/core/tools/tool-result-metadata.test.ts
+  bc14929d2dba6df6 1-103
+apps/agent-service/src/services/__tests__/direct-execution.test.ts
+  bc14929d2dba6df6 1-108
+apps/agent-service/src/skills/index-store.ts
+  eea91ca3d39ad096 7,53-56,58,62,66
+  bc14929d2dba6df6 1-6,8-52,57,59-61,63-65,67-211
+apps/agent-service/src/services/__tests__/planning-files.test.ts
+  eea91ca3d39ad096 11
+  bc14929d2dba6df6 1-10,12-58
+apps/web/components/artifacts/DocxPreview.tsx
+  bc14929d2dba6df6 1-292
+apps/agent-service/src/__tests__/index-build-compat.test.ts
+  bc14929d2dba6df6 1-6,8,11-18,20-39
+  1cae6b20aed5468c 7,9,19
+  eea91ca3d39ad096 10
+apps/agent-service/src/routes/sandbox.ts
+  bc14929d2dba6df6 1-391
+apps/agent-service/src/services/direct-execution.ts
+  bc14929d2dba6df6 1-86
+apps/agent-service/src/services/skills-service.ts
+  eea91ca3d39ad096 127
+  bc14929d2dba6df6 1-92,94-126,128-223
+  4cceabb34be60813 93
+apps/desktop/Cargo.toml
+  f8aeb942ad8e11a7 2,4-5,9
+  bc14929d2dba6df6 1,3,6-8,10-26
+apps/agent-service/src/core/tools/grep.ts
+  bc14929d2dba6df6 1-164
+apps/agent-service/src/routes/knowledge-notes.ts
+  bc14929d2dba6df6 1-12,14-129
+  eea91ca3d39ad096 13
+apps/agent-service/src/services/planning-stream-processing.ts
+  bc14929d2dba6df6 1-183
+apps/web/shared/db/storage-adapter.ts
+  305d6f6892fd87a4 48,79
+  8b0da1b6ca7342b9 11,144
+  bc14929d2dba6df6 1-10,12-47,49-78,80-143,145-176
+apps/web/app/pages/Library.tsx
+  501fd2629370c45c 89,92,99
+  bc14929d2dba6df6 1-88,90-91,93-98,100-394
+apps/agent-service/src/core/agent/providers/claude-execution-result.test.ts
+  bc14929d2dba6df6 1-31
+packages/shared-types/src/tool.ts
+  bc14929d2dba6df6 1-47
+apps/web/components/task/task-progress.tsx
+  bc14929d2dba6df6 1-65
+apps/web/shared/lib/background-tasks.ts
+  bc14929d2dba6df6 1-196
+apps/web/components/task/agent-visualization.tsx
+  bc14929d2dba6df6 1-287
+apps/web/components/task/workflow-timeline.tsx
+  bc14929d2dba6df6 1-230
+apps/agent-service/src/core/agent/.gitkeep
+  bc14929d2dba6df6 1-2
+apps/web/shared/lib/file-utils.ts
+  900a60b9e89b8caf 5
+  8b0da1b6ca7342b9 8,503
+  bc14929d2dba6df6 1-4,6-7,9-502,504-687
+apps/web/shared/lib/mcp-server-utils.ts
+  bc14929d2dba6df6 1-54
+apps/agent-service/src/routes/__tests__/settings.test.ts
+  bc14929d2dba6df6 1-84
+apps/agent-service/src/types/turn-runtime.ts
+  bc14929d2dba6df6 1-78
+apps/agent-service/src/services/turn-runtime-store.ts
+  eea91ca3d39ad096 14,19,23
+  bc14929d2dba6df6 1-13,15-18,20-22,24-716
+apps/web/components/ui/.gitkeep
+  bc14929d2dba6df6 1-2
+apps/agent-service/src/services/__tests__/intent-classifier.test.ts
+  bc14929d2dba6df6 1-79
+apps/web/shared/hooks/useEnvironment.ts
+  bc14929d2dba6df6 1,3-167
+  8b0da1b6ca7342b9 2
+apps/agent-service/src/routes/__tests__/agent-v2-preflight-clarification.test.ts
+  eea91ca3d39ad096 45
+  bc14929d2dba6df6 1-44,46-149
+apps/agent-service/src/services/__tests__/approval-response.test.ts
+  bc14929d2dba6df6 1-243
+apps/agent-service/src/services/__tests__/file-utils-preview.test.ts
+  900a60b9e89b8caf 122
+  bc14929d2dba6df6 1-121,123-165
+apps/agent-service/src/services/__tests__/desktop-regression-config.test.ts
+  1cae6b20aed5468c 5,18,20
+  bc14929d2dba6df6 1-4,6-17,19,21-43
+apps/agent-service/src/services/intent-classifier.ts
+  bc14929d2dba6df6 1-189
+apps/agent-service/src/services/memory/__tests__/history-logger.test.ts
+  bc14929d2dba6df6 1-49
+apps/agent-service/src/services/agent-stream-sequences.ts
+  bc14929d2dba6df6 1-119
+apps/agent-service/src/routes/providers.ts
+  bc14929d2dba6df6 1-298
+apps/agent-service/src/settings-store.ts
+  eea91ca3d39ad096 7,10,14
+  bc14929d2dba6df6 1-6,8-9,11-13,15-420
+apps/agent-service/src/core/sandbox/types.ts
+  bc14929d2dba6df6 1-28
+apps/agent-service/src/routes/multi-agent.ts
+  bc14929d2dba6df6 1-253
+apps/agent-service/src/services/__tests__/desktop-database-schema.test.ts
+  305d6f6892fd87a4 52,86
+  bc14929d2dba6df6 1-18,20-51,53-85,87-161
+  eea91ca3d39ad096 19
+apps/agent-service/src/core/tools/glob.ts
+  bc14929d2dba6df6 1-139
+apps/agent-service/src/core/agent/registry.ts
+  bc14929d2dba6df6 1-123
+apps/agent-service/src/core/sandbox/.gitkeep
+  bc14929d2dba6df6 1-2
+apps/agent-service/src/services/execution-post-run.ts
+  bc14929d2dba6df6 1-164
+apps/agent-service/src/services/plan-execution.ts
+  bc14929d2dba6df6 1-89
+apps/agent-service/src/core/sandbox/providers/native.ts
+  bc14929d2dba6df6 1-292
+apps/agent-service/src/routes/todos.ts
+  bc14929d2dba6df6 1-24,26-41
+  eea91ca3d39ad096 25
+apps/agent-service/src/services/__tests__/planning-stream-loop.test.ts
+  bc14929d2dba6df6 1-198
+apps/agent-service/src/services/.gitkeep
+  bc14929d2dba6df6 1-2
+apps/agent-service/src/services/github-skill-importer.ts
+  bc14929d2dba6df6 1-148,152-180
+  4cceabb34be60813 149-151
+apps/agent-service/src/services/planning-post-run.ts
+  bc14929d2dba6df6 1-117
+apps/agent-service/src/services/route-support.ts
+  bc14929d2dba6df6 1-314
+apps/agent-service/src/services/knowledge-notes-store.ts
+  bc14929d2dba6df6 1-127
+apps/agent-service/src/services/planning-session.ts
+  bc14929d2dba6df6 1-195
+apps/agent-service/src/services/browser-intent.ts
+  bc14929d2dba6df6 1-13
+apps/agent-service/src/services/preview-manager.ts
+  bc14929d2dba6df6 1-4,6-516
+  900a60b9e89b8caf 5
+apps/agent-service/src/shared/provider/registry.ts
+  bc14929d2dba6df6 1-267
+apps/web/components/artifacts/AudioPreview.tsx
+  bc14929d2dba6df6 1-127
+apps/web/components/artifacts/WebSearchPreview.tsx
+  bc14929d2dba6df6 1-88
+apps/agent-service/src/core/agent/policy/__tests__/tool-execution-policy-long-running.test.ts
+  bc14929d2dba6df6 1-184
+apps/agent-service/src/types/plan-store.ts
+  bc14929d2dba6df6 1-58
+apps/desktop/src/db/mod.rs
+  bc14929d2dba6df6 1-4
+apps/desktop/src/main.rs
+  f8aeb942ad8e11a7 5
+  bc14929d2dba6df6 1-4,6
+apps/agent-service/src/services/__tests__/planning-session.test.ts
+  bc14929d2dba6df6 1-376
+apps/web/shared/hooks/index.ts
+  bc14929d2dba6df6 1-5
+apps/web/shared/hooks/useDatabase.ts
+  501fd2629370c45c 34-35,47,145,147-150,159-163,261,263
+  bc14929d2dba6df6 1-33,36-46,48-144,146,151-158,164-260,262,264-287
+apps/web/shared/types/artifacts.ts
+  bc14929d2dba6df6 1-6,8-145
+  900a60b9e89b8caf 7
+apps/web/package.json
+  bc14929d2dba6df6 1,3-29,31-43
+  8b0da1b6ca7342b9 2,30
+apps/agent-service/src/core/runtime/plugin-types.ts
+  bc14929d2dba6df6 1-21
+apps/desktop/gen/schemas/desktop-schema.json
+  bc14929d2dba6df6 1-6488
+apps/agent-service/src/services/memory/__tests__/daily-memory.test.ts
+  bc14929d2dba6df6 1-86
+apps/agent-service/src/core/agent/pool/index.ts
+  bc14929d2dba6df6 1-9
+apps/web/components/artifacts/ExcelPreview.tsx
+  bc14929d2dba6df6 1-304
+apps/agent-service/src/core/sandbox/providers/index.ts
+  bc14929d2dba6df6 1-55
+apps/web/components/task-detail/RightSidebar.tsx
+  bc14929d2dba6df6 1-653
+packages/shared-types/src/environment.ts
+  bc14929d2dba6df6 1-50,61
+  501fd2629370c45c 51-60
+apps/agent-service/src/services/planning-lifecycle.ts
+  bc14929d2dba6df6 1-249
+apps/agent-service/src/routes/agent-new.ts
+  bc14929d2dba6df6 1-3,5-776
+  900a60b9e89b8caf 4
+apps/agent-service/src/skills/types.ts
+  bc14929d2dba6df6 1-49
+apps/agent-service/src/core/agent/orchestrator/__tests__/task-decomposer.test.ts
+  bc14929d2dba6df6 1-49
+apps/agent-service/src/core/sandbox/__tests__/registry.test.ts
+  bc14929d2dba6df6 1-150
+apps/agent-service/src/routes/agent.ts
+  bc14929d2dba6df6 1-46
+apps/agent-service/src/core/agent/orchestrator/__tests__/task-analyzer.test.ts
+  bc14929d2dba6df6 1-56
+apps/web/components/layout/index.ts
+  bc14929d2dba6df6 1-2
+apps/agent-service/src/services/__tests__/planning-post-run.test.ts
+  900a60b9e89b8caf 66
+  bc14929d2dba6df6 1-65,67-173
+apps/agent-service/src/services/execution-pause.ts
+  bc14929d2dba6df6 1-117
+apps/web/app/pages/Home.tsx
+  bc14929d2dba6df6 1-54,57-58,61-75,77-191
+  501fd2629370c45c 55-56,59-60,76
+apps/web/components/task-detail/QuestionInput.tsx
+  900a60b9e89b8caf 5
+  bc14929d2dba6df6 1-4,6-109
+apps/web/shared/hooks/useAgentNew.ts
+  bc14929d2dba6df6 1,3-1576
+  900a60b9e89b8caf 2
+apps/web/shared/initialization/app-initializer.ts
+  900a60b9e89b8caf 114-127,215-217,255,272,276,279-292
+  8b0da1b6ca7342b9 1
+  bc14929d2dba6df6 2-113,128-214,218-254,256-271,273-275,277-278,293-349
+apps/web/styles/multi-agent-animations.css
+  bc14929d2dba6df6 1-342
+packages/shared-types/src/config.ts
+  bc14929d2dba6df6 1-51
+packages/shared-types/src/message.ts
+  bc14929d2dba6df6 1-33
+apps/agent-service/src/skills/ecosystem-service.ts
+  bc14929d2dba6df6 1-183,185-207,209-486
+  eea91ca3d39ad096 184,208
+apps/web/components/artifacts/ArtifactPreview.tsx
+  bc14929d2dba6df6 1-4,6-793
+  900a60b9e89b8caf 5
+packages/shared-types/tsconfig.json
+  bc14929d2dba6df6 1-10
+apps/agent-service/src/routes/__tests__/mcp-server-utils.test.ts
+  1cae6b20aed5468c 2
+  bc14929d2dba6df6 1,3-46
+apps/agent-service/src/services/__tests__/execution-start.test.ts
+  bc14929d2dba6df6 1-245
+apps/agent-service/src/services/context-manager.ts
+  bc14929d2dba6df6 1-266
+apps/agent-service/src/services/__tests__/turn-runtime-store.test.ts
+  eea91ca3d39ad096 12
+  bc14929d2dba6df6 1-11,13-96
+apps/agent-service/src/services/runtime-recovery-bootstrap.ts
+  bc14929d2dba6df6 1-68
+apps/agent-service/src/routes/__tests__/settings-mcp-runtime.test.ts
+  bc14929d2dba6df6 1-51,54-166,168-196,198-221,223-246,248
+  2d4bd56c43e68e4f 247
+  eea91ca3d39ad096 52-53,167,197,222
+apps/agent-service/src/services/approval-recovery.ts
+  bc14929d2dba6df6 1-74
+apps/agent-service/src/shared/__tests__/task-message-turns.test.ts
+  bc14929d2dba6df6 1-8,10-116
+  1cae6b20aed5468c 9
+apps/agent-service/src/services/__tests__/execution-completion.test.ts
+  bc14929d2dba6df6 1-186
+apps/desktop/src/db/errors.rs
+  bc14929d2dba6df6 1-32
+apps/web/components/layout/TitleBar.tsx
+  bc14929d2dba6df6 1-2,4-8,10-93
+  2d4bd56c43e68e4f 9
+  8b0da1b6ca7342b9 3
+apps/web/shared/db/index.ts
+  900a60b9e89b8caf 2
+  bc14929d2dba6df6 1,3-4
+apps/agent-service/src/services/plan-turn-sync.ts
+  bc14929d2dba6df6 1-47
+apps/web/shared/lib/task-turn-display.ts
+  bc14929d2dba6df6 1-251
+apps/agent-service/src/routes/__tests__/multi-agent.test.ts
+  bc14929d2dba6df6 1-42
+apps/web/components/task/VitePreview.tsx
+  bc14929d2dba6df6 1-221
+apps/desktop/src/db/migrations.rs
+  bc14929d2dba6df6 1-11,13-794
+  305d6f6892fd87a4 12
+packages/shared-types/src/transformers.ts
+  bc14929d2dba6df6 1-202
+apps/agent-service/src/services/__tests__/execution-session.test.ts
+  bc14929d2dba6df6 1-353
+packages/shared-types/src/multi-agent.ts
+  bc14929d2dba6df6 1-269
+apps/agent-service/src/routes/scheduled-tasks.ts
+  bc14929d2dba6df6 1-368
+apps/agent-service/src/services/__tests__/task-planner.test.ts
+  bc14929d2dba6df6 1-75
+apps/agent-service/src/routes/__tests__/agent-v2-permission-auto-allow.test.ts
+  bc14929d2dba6df6 1-24,26-124
+  eea91ca3d39ad096 25
+apps/agent-service/src/services/__tests__/execution-post-run.test.ts
+  bc14929d2dba6df6 1-238
+apps/agent-service/src/services/session-documents.ts
+  bc14929d2dba6df6 1-42
+apps/agent-service/src/core/agent/providers/claude-max-turns.test.ts
+  eea91ca3d39ad096 50
+  bc14929d2dba6df6 1-49,51-64
+apps/agent-service/src/shared/provider/types.ts
+  bc14929d2dba6df6 1-216
+apps/agent-service/src/services/__tests__/agent-stream-sequences.test.ts
+  bc14929d2dba6df6 1-253
+apps/agent-service/src/utils/index.ts
+  bc14929d2dba6df6 1
+apps/web/shared/lib/task-state.ts
+  bc14929d2dba6df6 1-9,11-29,31-178,180-356,358-364
+  900a60b9e89b8caf 10,30,179,357
+apps/agent-service/src/core/agent/providers/claude-sandbox-enforcement.test.ts
+  bc14929d2dba6df6 1-295,297-304,306-315,317-320,322-332
+  eea91ca3d39ad096 296,305,316,321
+apps/agent-service/src/services/__tests__/tool-result-pipeline.test.ts
+  bc14929d2dba6df6 1-100
+apps/agent-service/src/services/memory/types.ts
+  bc14929d2dba6df6 1-70
+apps/agent-service/src/routes/__tests__/agent-v2-clarification.test.ts
+  bc14929d2dba6df6 1-60,62-326
+  eea91ca3d39ad096 61
+apps/agent-service/src/core/agent/pool/parallel-executor.ts
+  bc14929d2dba6df6 1-282
+apps/agent-service/src/services/memory/history-logger.ts
+  bc14929d2dba6df6 1-161
+apps/desktop/icons/android/mipmap-anydpi-v26/ic_launcher.xml
+  bc14929d2dba6df6 1-5
+apps/agent-service/src/routes/__tests__/agent-v2-service-readiness.test.ts
+  bc14929d2dba6df6 1-83
+apps/agent-service/src/services/approval-coordinator.ts
+  bc14929d2dba6df6 1-233
+apps/web/types/index.ts
+  bc14929d2dba6df6 1-13
+apps/agent-service/src/shared/provider/index.ts
+  bc14929d2dba6df6 1-28
+apps/agent-service/src/services/__tests__/planning-stream-processing.test.ts
+  bc14929d2dba6df6 1-282
+apps/web/shared/hooks/useMultiAgent.ts
+  bc14929d2dba6df6 1-374
+apps/agent-service/src/core/agent/orchestrator/task-decomposer.ts
+  bc14929d2dba6df6 1-618
+apps/agent-service/src/services/execution-runtime-gate.ts
+  bc14929d2dba6df6 1-25,27-175,177-315
+  eea91ca3d39ad096 26,176
+apps/agent-service/src/services/planning-request.ts
+  bc14929d2dba6df6 1-163
+apps/agent-service/src/index.ts
+  bc14929d2dba6df6 1-242
+apps/agent-service/src/services/__tests__/approval-recovery.test.ts
+  bc14929d2dba6df6 1-134
+apps/agent-service/src/shared/__tests__/approval-terminal.test.ts
+  bc14929d2dba6df6 1-6,8-53
+  1cae6b20aed5468c 7
+apps/agent-service/src/services/__tests__/execution-attempt-loop.test.ts
+  bc14929d2dba6df6 1-222
+apps/agent-service/src/services/memory/memory-store.ts
+  bc14929d2dba6df6 1-315
+apps/desktop/gen/schemas/macOS-schema.json
+  bc14929d2dba6df6 1-6488
+apps/agent-service/src/services/execution-request.ts
+  bc14929d2dba6df6 1-144
+apps/web/components/artifacts/FileTooLarge.tsx
+  bc14929d2dba6df6 1-44
+apps/agent-service/src/services/__tests__/runtime-recovery-bootstrap.test.ts
+  bc14929d2dba6df6 1-104
+apps/agent-service/src/core/tools/registry.ts
+  bc14929d2dba6df6 1-119
+apps/agent-service/src/services/approval-response.ts
+  bc14929d2dba6df6 1-153
+apps/web/app/App.tsx
+  501fd2629370c45c 11-16,18-19
+  bc14929d2dba6df6 1-10,17,20-21
+apps/web/components/scheduler/SchedulerForm.tsx
+  bc14929d2dba6df6 1-291
+apps/web/shared/hooks/useVitePreview.ts
+  bc14929d2dba6df6 1-306
+apps/agent-service/src/services/__tests__/turn-detail-store.test.ts
+  bc14929d2dba6df6 1-163
+apps/agent-service/src/core/tools/read.ts
+  bc14929d2dba6df6 1-110
+apps/web/components/artifacts/PptxPreview.tsx
+  bc14929d2dba6df6 1-392
+apps/web/components/task/ScenarioIndicator.tsx
+  bc14929d2dba6df6 1-229
+apps/agent-service/src/services/__tests__/approval-request.test.ts
+  bc14929d2dba6df6 1-270
+apps/agent-service/src/routes/__tests__/runtime-contract-regression.test.ts
+  bc14929d2dba6df6 1-48
+apps/agent-service/src/services/planning-stream-loop.ts
+  bc14929d2dba6df6 1-77
+packages/shared-types/src/sandbox.ts
+  bc14929d2dba6df6 1-61
+apps/agent-service/src/services/execution-attempt-loop.ts
+  bc14929d2dba6df6 1-212
+apps/agent-service/src/core/agent/providers/fake.ts
+  bc14929d2dba6df6 1-672
+apps/agent-service/src/core/sandbox/sandbox-service.ts
+  bc14929d2dba6df6 1-179
+packages/shared-types/src/index.ts
+  bc14929d2dba6df6 1-127
+apps/web/shared/theme/ui-theme.tsx
+  eea91ca3d39ad096 13
+  bc14929d2dba6df6 1-12,14-86
+apps/agent-service/src/services/knowledge-notes-store.test.ts
+  bc14929d2dba6df6 1-176
+apps/web/components/task-detail/index.ts
+  bc14929d2dba6df6 1-9
+apps/agent-service/src/services/__tests__/execution-lifecycle.test.ts
+  bc14929d2dba6df6 1-280
+apps/web/components/task/execution-status-live.tsx
+  bc14929d2dba6df6 1-252
+apps/agent-service/src/core/agent/policy/tool-execution-policy.test.ts
+  bc14929d2dba6df6 1-58
+apps/agent-service/src/services/__tests__/planning-request.test.ts
+  bc14929d2dba6df6 1-132
+apps/web/components/task-detail/SkillRoutingPanel.tsx
+  bc14929d2dba6df6 1-242
+apps/agent-service/src/core/sandbox/providers/claude.ts
+  bc14929d2dba6df6 1-412
+apps/agent-service/src/core/tools/bash-stderr.test.ts
+  bc14929d2dba6df6 1-91
+apps/agent-service/src/core/tools/todowrite.ts
+  eea91ca3d39ad096 94
+  bc14929d2dba6df6 1-93,95-127
+apps/agent-service/src/services/github-skill-importer.test.ts
+  4cceabb34be60813 6
+  bc14929d2dba6df6 1-5,7-98
+apps/web/components/artifacts/ImagePreview.tsx
+  bc14929d2dba6df6 1-222
+apps/web/shared/config/app-config.ts
+  900a60b9e89b8caf 38,40
+  eea91ca3d39ad096 45
+  bc14929d2dba6df6 1-37,39,41-43,46-93
+  305d6f6892fd87a4 44
+apps/agent-service/src/services/__tests__/plan-execution.test.ts
+  bc14929d2dba6df6 1-45
+apps/agent-service/src/core/agent/orchestrator/result-aggregator.ts
+  bc14929d2dba6df6 1-138
+apps/agent-service/src/services/__tests__/agent-service.test.ts
+  eea91ca3d39ad096 26,203-204
+  bc14929d2dba6df6 1-11,13-20,22-24,27-29,31-202,205-288
+  900a60b9e89b8caf 12,21,25,30
+apps/agent-service/src/services/__tests__/tauri-commands.test.ts
+  bc14929d2dba6df6 1-14,16-25,27-30
+  1cae6b20aed5468c 15,26
+apps/web/components/task/index.ts
+  bc14929d2dba6df6 1-12
+apps/agent-service/src/services/plan-store.ts
+  eea91ca3d39ad096 13,20
+  bc14929d2dba6df6 1-12,14-19,21-536
+apps/agent-service/src/core/agent/pool/__tests__/parallel-executor.test.ts
+  bc14929d2dba6df6 1-95
+apps/agent-service/src/runtime/__tests__/app-runtime.test.ts
+  bc14929d2dba6df6 1-50,52-129,131-148
+  eea91ca3d39ad096 51,130
+apps/agent-service/src/core/tools/append.ts
+  bc14929d2dba6df6 1-85
+apps/agent-service/src/types/approval.ts
+  bc14929d2dba6df6 1-66
+apps/agent-service/src/core/agent/system-prompt.ts
+  bc14929d2dba6df6 1-305
+apps/web/app/router.tsx
+  bc14929d2dba6df6 1-54
+apps/web/shared/db/database.ts
+  8b0da1b6ca7342b9 13
+  eea91ca3d39ad096 15-16
+  501fd2629370c45c 17,25-36,38
+  bc14929d2dba6df6 1-10,14,18-24,37,39-68,70-133,136-152,155-201,206-726
+  305d6f6892fd87a4 11-12,69,134-135,153-154,202-205
+apps/agent-service/src/skills/skill-scanner.ts
+  bc14929d2dba6df6 1-225
+apps/desktop/tauri.conf.json
+  bc14929d2dba6df6 1-2,4,6-15,17-35,37-65
+  2d4bd56c43e68e4f 3,16
+  f8aeb942ad8e11a7 5,36
+apps/agent-service/src/services/execution-start.ts
+  bc14929d2dba6df6 1-197
+apps/desktop/icons/android/values/ic_launcher_background.xml
+  bc14929d2dba6df6 1-4
+apps/web/shared/fs/index.ts
+  bc14929d2dba6df6 2-251
+  8b0da1b6ca7342b9 1
+apps/web/shared/lib/index.ts
+  bc14929d2dba6df6 1-9
+apps/web/shared/services/clipboard-service.ts
+  8b0da1b6ca7342b9 1
+  bc14929d2dba6df6 2-255
+apps/agent-service/src/services/__tests__/vite-watch-config.test.ts
+  1cae6b20aed5468c 3
+  eea91ca3d39ad096 16
+  bc14929d2dba6df6 1-2,4-15,17-19
+apps/agent-service/src/shared/__tests__/task-turn-display.test.ts
+  1cae6b20aed5468c 4-5
+  bc14929d2dba6df6 1-3,6-347
+apps/agent-service/src/core/agent/providers/claude.ts
+  900a60b9e89b8caf 416,1867
+  bc14929d2dba6df6 1-415,417-1866,1868-2919
+apps/agent-service/src/core/tools/index.ts
+  bc14929d2dba6df6 1-148
+apps/agent-service/docs/implementation/2026-04-05-thought-stream-implementation.md
+  bc14929d2dba6df6 1-10,12-151,153-154
+  900a60b9e89b8caf 11,152
+apps/agent-service/src/routes/__tests__/health-dependencies-readiness.test.ts
+  bc14929d2dba6df6 1-55
+apps/agent-service/src/services/__tests__/turn-history-interop.test.ts
+  bc14929d2dba6df6 1-48
+apps/web/components/chat/ChatInput.tsx
+  bc14929d2dba6df6 1-116
+packages/shared-types/package.json
+  8b0da1b6ca7342b9 2
+  bc14929d2dba6df6 1,3-25
+packages/shared-types/src/error.ts
+  bc14929d2dba6df6 1-60
+apps/agent-service/src/services/__tests__/execution-runtime-gate.test.ts
+  bc14929d2dba6df6 1-69,71-111
+  900a60b9e89b8caf 70
+apps/agent-service/src/routes/settings.ts
+  2d4bd56c43e68e4f 239
+  501fd2629370c45c 107,119,122,134
+  bc14929d2dba6df6 1-106,108-118,120-121,123-133,135-238,240-1475
+apps/desktop/gen/schemas/acl-manifests.json
+  bc14929d2dba6df6 1
+apps/agent-service/src/core/agent/providers/claude-token-budget.test.ts
+  bc14929d2dba6df6 1-61
+apps/agent-service/src/core/tools/edit.ts
+  bc14929d2dba6df6 1-152
+apps/agent-service/src/core/agent/policy/tool-execution-policy.ts
+  bc14929d2dba6df6 1-166
+apps/agent-service/src/skills/router.test.ts
+  bc14929d2dba6df6 1-34
+apps/agent-service/src/core/tools/write.ts
+  bc14929d2dba6df6 1-90
+apps/web/tsconfig.json
+  bc14929d2dba6df6 1-14
+apps/web/shared/api/index.ts
+  8b0da1b6ca7342b9 1
+  bc14929d2dba6df6 2-180
+packages/shared-types/src/database.ts
+  bc14929d2dba6df6 1-150,152-181
+  305d6f6892fd87a4 151
+apps/web/vite.config.ts
+  bc14929d2dba6df6 1-18,20-29
+  eea91ca3d39ad096 19
+apps/agent-service/src/routes/health.ts
+  bc14929d2dba6df6 1-46
+apps/web/components/task-detail/SettingsModal.tsx
+  305d6f6892fd87a4 768-773
+  bc14929d2dba6df6 1-767,774-1874
+apps/agent-service/src/services/__tests__/agent-run-store.test.ts
+  bc14929d2dba6df6 1-69
+apps/agent-service/src/services/agent-run-store.ts
+  bc14929d2dba6df6 1-96
+apps/web/components/task-detail/TaskMessageList.tsx
+  bc14929d2dba6df6 1,3-1918
+  900a60b9e89b8caf 2
+apps/web/components/artifacts/PdfPreview.tsx
+  bc14929d2dba6df6 1-142
+apps/agent-service/src/services/__tests__/turn-detail-builder.test.ts
+  bc14929d2dba6df6 1-103
+apps/web/components/task-detail/PlanApproval.tsx
+  bc14929d2dba6df6 1,3-4,6-204
+  900a60b9e89b8caf 2,5
+apps/agent-service/src/core/agent/providers/claude-mcp-guidance.test.ts
+  eea91ca3d39ad096 55,75
+  bc14929d2dba6df6 1-54,56-74,76-83
+apps/agent-service/src/core/agent/pool/sub-agent.ts
+  bc14929d2dba6df6 1-212
+apps/agent-service/src/routes/files.ts
+  bc14929d2dba6df6 1-319,321-347
+  eea91ca3d39ad096 320
+apps/web/components/layout/LoadingScreen.tsx
+  8b0da1b6ca7342b9 2
+  900a60b9e89b8caf 98,100,111,118
+  bc14929d2dba6df6 1,3-97,99,101-110,112-117,119-120
+apps/web/components/task-detail/LeftSidebar.tsx
+  501fd2629370c45c 20,87-89,116,188
+  305d6f6892fd87a4 60-64
+  bc14929d2dba6df6 1-19,21-59,65-86,90-115,117-187,189-278
+apps/web/components/task-detail/ReplyInput.tsx
+  bc14929d2dba6df6 1-98
+apps/agent-service/src/services/__tests__/context-manager.test.ts
+  bc14929d2dba6df6 1-126
+apps/agent-service/src/services/__tests__/planning-completion.test.ts
+  bc14929d2dba6df6 1-148
+apps/agent-service/src/services/__tests__/session-documents.test.ts
+  bc14929d2dba6df6 1-10,12-47
+  eea91ca3d39ad096 11
+apps/agent-service/src/services/turn-detail-builder.ts
+  bc14929d2dba6df6 1-151
+apps/agent-service/src/core/agent/pool/agent-pool.ts
+  bc14929d2dba6df6 1-158
+apps/agent-service/src/routes/__tests__/agent-v2-direct-execution.test.ts
+  bc14929d2dba6df6 1-118
+apps/web/shared/lib/approval-terminal.ts
+  bc14929d2dba6df6 1-55
+apps/agent-service/src/services/__tests__/runtime-request.test.ts
+  bc14929d2dba6df6 1-390
+apps/web/shared/tauri/commands.ts
+  bc14929d2dba6df6 2-24
+  8b0da1b6ca7342b9 1
+apps/agent-service/src/routes/__tests__/preview.test.ts
+  bc14929d2dba6df6 1-51
+apps/agent-service/package.json
+  8b0da1b6ca7342b9 2,24
+  bc14929d2dba6df6 1,3-23,25-36
+apps/agent-service/src/core/agent/orchestrator/index.ts
+  bc14929d2dba6df6 1-19
+apps/agent-service/tsconfig.json
+  bc14929d2dba6df6 1-15
+packages/shared-types/src/agent.ts
+  bc14929d2dba6df6 1-169,171-186
+  900a60b9e89b8caf 170
+apps/agent-service/src/services/memory/memory-retriever.ts
+  bc14929d2dba6df6 1-140
+apps/agent-service/vitest.config.ts
+  eea91ca3d39ad096 10
+  bc14929d2dba6df6 1-9,11-27
+apps/agent-service/src/routes/preview.ts
+  bc14929d2dba6df6 1-477
+apps/agent-service/src/shared/__tests__/task-state.test.ts
+  1cae6b20aed5468c 13
+  bc14929d2dba6df6 1-12,14-252
+apps/web/index.css
+  bc14929d2dba6df6 1-1558
+apps/agent-service/src/routes/__tests__/providers.test.ts
+  bc14929d2dba6df6 1-75
+apps/web/app/pages/Welcome.tsx
+  bc14929d2dba6df6 1-131,133-292
+  2d4bd56c43e68e4f 132
+apps/agent-service/src/core/sandbox/interface.ts
+  bc14929d2dba6df6 1-92
+packages/shared-types/src/knowledge-note.ts
+  bc14929d2dba6df6 1-35
+apps/agent-service/src/core/agent/types.ts
+  bc14929d2dba6df6 1-310
+apps/desktop/build.rs
+  bc14929d2dba6df6 1-10
+apps/agent-service/src/services/approval-store.ts
+  bc14929d2dba6df6 1-11,13-16,18-20,22-374
+  eea91ca3d39ad096 12,17,21
+apps/web/shared/db/indexeddb-adapter.ts
+  305d6f6892fd87a4 163,191,195,197-199,202,297-301,303-304
+  bc14929d2dba6df6 1-10,12-15,17-162,164-190,192-194,196,200-201,203-296,302,305-545
+  8b0da1b6ca7342b9 11,16
+apps/desktop/capabilities/default.json
+  f8aeb942ad8e11a7 4,13-14
+  bc14929d2dba6df6 1-3,5-12,15-55
+apps/web/shared/lib/agent-error-display.ts
+  bc14929d2dba6df6 1-117
+apps/web/vite-env.d.ts
+  bc14929d2dba6df6 1-10
+apps/agent-service/src/routes/__tests__/scheduled-tasks-runtime.test.ts
+  bc14929d2dba6df6 1-249
+apps/agent-service/src/services/memory/memory-tool.ts
+  bc14929d2dba6df6 1-51
+apps/agent-service/src/core/agent/orchestrator/multi-agent-orchestrator.ts
+  bc14929d2dba6df6 1-352
+apps/agent-service/src/services/__tests__/planning-entry.test.ts
+  bc14929d2dba6df6 1-265
+apps/agent-service/src/services/cron-utils.ts
+  bc14929d2dba6df6 1-587
+apps/agent-service/src/core/tools/interface.ts
+  bc14929d2dba6df6 1-40
+apps/agent-service/src/services/planning-completion.ts
+  bc14929d2dba6df6 1-91
+apps/agent-service/src/routes/__tests__/agent-v2-turn-runtime.test.ts
+  900a60b9e89b8caf 70,75,135,138
+  bc14929d2dba6df6 1-69,71-74,77,79-134,137,139-343,345-520
+  eea91ca3d39ad096 76,78,136,344
+apps/agent-service/scripts/analyze-harness-metrics.ts
+  eea91ca3d39ad096 23-24
+  bc14929d2dba6df6 1-22,25-120
+apps/agent-service/src/services/__tests__/execution-stream-processing.test.ts
+  bc14929d2dba6df6 1-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "08eae1f0f91d835ef81cc95eb69f00bf32d7546f",
+  "prompts": {
+    "1cae6b20aed5468c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6706-b09e-7df2-8a23-0aa7ed1bdb57",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 24,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "2d4bd56c43e68e4f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6616-bf7b-7cd2-b84f-53bc328969af",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 97,
+      "total_deletions": 8,
+      "accepted_lines": 97,
+      "overriden_lines": 0
+    },
+    "305d6f6892fd87a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d636f-7cf9-7d00-8911-a7835ba085ce",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 873,
+      "total_deletions": 83,
+      "accepted_lines": 818,
+      "overriden_lines": 0
+    },
+    "4cceabb34be60813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c4-db95-70b0-a6bf-5663fd442947",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 443,
+      "total_deletions": 28,
+      "accepted_lines": 439,
+      "overriden_lines": 0
+    },
+    "501fd2629370c45c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62f3-2fe7-7003-83ef-d7f4077861ac",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 541,
+      "total_deletions": 145,
+      "accepted_lines": 481,
+      "overriden_lines": 0
+    },
+    "8b0da1b6ca7342b9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66f5-8469-7f53-afa4-280c7a19fbb0",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 24,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "900a60b9e89b8caf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6791-83bb-7221-a6f5-2e860a061dae",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 271,
+      "total_deletions": 65,
+      "accepted_lines": 270,
+      "overriden_lines": 0
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 88681,
+      "total_deletions": 55,
+      "accepted_lines": 88102,
+      "overriden_lines": 0
+    },
+    "eea91ca3d39ad096": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66c8-8f50-7cb2-a065-c9eb2ce11c5c",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 112,
+      "total_deletions": 128,
+      "accepted_lines": 93,
+      "overriden_lines": 0
+    },
+    "f8aeb942ad8e11a7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66b9-bf18-77b2-9663-9bf450cbbe2e",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 25,
+      "total_deletions": 15,
+      "accepted_lines": 23,
+      "overriden_lines": 0
+    }
+  }
+}
