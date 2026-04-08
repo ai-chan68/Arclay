@@ -11,69 +11,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality-gates:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.11.1
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Run lint gate
-        run: pnpm lint
-
-      - name: Run typecheck gate
-        run: pnpm typecheck
-
-      - name: Run test gate
-        run: pnpm test
-
-      - name: Run coverage gate
-        run: pnpm test:coverage
-
-      - name: Run smoke gate with API bootstrap
-        run: pnpm smoke:desktop:with-api
-
-      - name: Run desktop e2e gate
-        run: pnpm test:e2e
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: apps/agent-service/coverage/**
-          if-no-files-found: warn
-
-      - name: Upload quality gate logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: quality-gate-logs
-          path: .quality-gates/**
-          if-no-files-found: warn
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/**
-          if-no-files-found: warn
+    uses: ./.github/workflows/quality-gates.yml
 
   build-matrix:
     needs:
@@ -85,19 +29,19 @@ jobs:
           - target: linux
             os: ubuntu-latest
             rust_target: x86_64-unknown-linux-gnu
-            pkg_target: node18-linux-x64
+            pkg_target: node20-linux-x64
           - target: windows
             os: windows-latest
             rust_target: x86_64-pc-windows-msvc
-            pkg_target: node18-win-x64
+            pkg_target: node20-win-x64
           - target: macos-intel
             os: macos-13
             rust_target: x86_64-apple-darwin
-            pkg_target: node18-macos-x64
+            pkg_target: node20-macos-x64
           - target: macos-arm64
             os: macos-14
             rust_target: aarch64-apple-darwin
-            pkg_target: node18-macos-arm64
+            pkg_target: node20-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -109,7 +53,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.11.1
+          node-version: '20'
           cache: pnpm
 
       - name: Setup Rust
@@ -171,19 +115,13 @@ jobs:
           fi
 
       - name: Build desktop package
+        shell: bash
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          if [ "${{ runner.os }}" = "macOS" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
-            echo "Building with code signing enabled"
-            pnpm tauri build --target ${{ matrix.rust_target }}
-          else
-            echo "Building without code signing"
-            pnpm tauri build --target ${{ matrix.rust_target }}
-          fi
+        run: pnpm tauri build --target ${{ matrix.rust_target }}
 
       - name: Prepare release artifacts and checksums
         run: >
