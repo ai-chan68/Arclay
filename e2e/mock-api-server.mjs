@@ -152,6 +152,16 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'GET' && pathname === '/api/scheduled-tasks') {
+    writeJson(res, 200, { items: [] })
+    return
+  }
+
+  if (req.method === 'PATCH' && pathname.startsWith('/api/scheduled-tasks/')) {
+    writeJson(res, 200, { success: true })
+    return
+  }
+
   if (req.method === 'GET' && pathname === '/api/v2/agent/pending') {
     writeJson(res, 200, { pendingPermissions: [], pendingQuestions: [], latestTerminal: null })
     return
