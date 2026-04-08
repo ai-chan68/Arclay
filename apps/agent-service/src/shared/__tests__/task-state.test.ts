@@ -10,7 +10,7 @@ import {
   resolveTaskStatus,
   shouldPollRuntimePhase,
   shouldApplyTerminalExecutionFailure,
-} from '../../../../src/shared/lib/task-state'
+} from '../../../../web/shared/lib/task-state'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
   return {

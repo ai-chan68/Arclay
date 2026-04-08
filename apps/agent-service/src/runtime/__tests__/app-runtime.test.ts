@@ -48,7 +48,7 @@ vi.mock('../../settings-store', () => ({
 
 vi.mock('../../config', () => ({
   getProviderConfig: () => fallbackProviderConfig,
-  getWorkDir: () => '/tmp/easywork-workdir',
+  getWorkDir: () => '/tmp/arclay-workdir',
 }))
 
 describe('createAppRuntime', () => {
@@ -127,7 +127,7 @@ describe('createAppRuntime', () => {
     ])
 
     expect(createSandboxServiceMock).toHaveBeenCalledTimes(1)
-    expect(createSandboxServiceMock).toHaveBeenCalledWith('/tmp/easywork-workdir')
+    expect(createSandboxServiceMock).toHaveBeenCalledWith('/tmp/arclay-workdir')
     expect(runtime.getSandboxService()).toEqual({ id: 'sandbox-service' })
   })
 

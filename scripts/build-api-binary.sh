@@ -109,7 +109,7 @@ echo "Packaging with @yao-pkg/pkg..."
 for TARGET in "${TARGETS[@]}"; do
   echo "Building for $TARGET..."
 
-  # Map target to output name
+  # Map target to output name (Tauri sidecar naming convention)
   case $TARGET in
     *macos-arm64)
       OUTPUT_NAME="arclay-api-aarch64-apple-darwin"

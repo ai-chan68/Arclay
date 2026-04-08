@@ -32,7 +32,13 @@ import {
   repairSkillFromSources,
   validateSourceForInstall,
 } from '../skills/ecosystem-service'
+import {
+  loadSkillSourceBindings,
+  removeSkillSourceBinding,
+  upsertSkillSourceBindings,
+} from '../skills/source-binding-store'
 import type { AgentRuntimeState } from '../runtime/app-runtime'
+import type { SkillSourceConfig } from '../settings-store'
 
 export interface SettingsRouteDeps {
   getAgentRuntimeState: () => AgentRuntimeState
@@ -92,9 +98,11 @@ function inspectSkillHealth(skill: SkillInfo, activeProvider?: string): {
   status: SkillHealthStatus
   issues: string[]
   warnings: string[]
+  suggestions: string[]
 } {
   const issues: string[] = []
   const warnings: string[] = []
+  const suggestions: string[] = []
   const skillMdPath = path.join(skill.path, 'SKILL.md')
 
   if (!fs.existsSync(skill.path)) {
@@ -104,7 +112,7 @@ function inspectSkillHealth(skill: SkillInfo, activeProvider?: string): {
     issues.push('缺少 SKILL.md')
   }
   if (!skill.description || !skill.description.trim()) {
-    warnings.push('description 为空，路由命中率可能较低')
+    suggestions.push('description 为空，建议补充说明以提升可读性')
   }
 
   const metadata = (skill.metadata || {}) as {
@@ -116,10 +124,10 @@ function inspectSkillHealth(skill: SkillInfo, activeProvider?: string): {
     ? metadata.providers.map((item: unknown) => String(item).toLowerCase())
     : []
   if (!Array.isArray(metadata.tags) || metadata.tags.length === 0) {
-    warnings.push('未声明 tags，建议补充标签以提升路由准确率')
+    suggestions.push('未声明 tags，建议补充标签以提升路由准确率')
   }
   if (!Array.isArray(metadata.intents) || metadata.intents.length === 0) {
-    warnings.push('未声明 intents，建议补充意图词')
+    suggestions.push('未声明 intents，建议补充意图词')
   }
   if (activeProvider && providers.length > 0 && !providers.includes(activeProvider.toLowerCase())) {
     warnings.push(`当前 Provider(${activeProvider}) 未在技能 providers 中声明`)
@@ -131,7 +139,64 @@ function inspectSkillHealth(skill: SkillInfo, activeProvider?: string): {
       ? 'warning'
       : 'healthy'
 
-  return { status, issues, warnings }
+  return { status, issues, warnings, suggestions }
+}
+
+function isGitHubSource(source: SkillSourceConfig | undefined): boolean {
+  return Boolean(source && source.type === 'git' && /github\.com[:/]/i.test(source.location))
+}
+
+function buildGitHubSourceConfig(owner: string, repo: string, branch: string): SkillSourceConfig {
+  const now = Date.now()
+  return {
+    id: `source_${now}_${Math.random().toString(36).slice(2, 8)}`,
+    name: `${owner}/${repo}`,
+    type: 'git',
+    location: `https://github.com/${owner}/${repo}.git`,
+    branch: branch || undefined,
+    trusted: true,
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+function ensureGitHubSkillSource(
+  currentSettings: Settings | null,
+  owner: string,
+  repo: string,
+  branch?: string,
+): { sourceId?: string; nextSettings?: Settings } {
+  if (!currentSettings) {
+    return {}
+  }
+
+  const currentSkills = normalizeSkillSettings(currentSettings.skills)
+  const sources = currentSkills.sources || []
+  const location = `https://github.com/${owner}/${repo}.git`
+  const existing = sources.find((source) => (
+    source.type === 'git'
+    && source.location === location
+    && (source.branch || '') === (branch || '')
+  ))
+
+  if (existing) {
+    return { sourceId: existing.id }
+  }
+
+  const source = buildGitHubSourceConfig(owner, repo, branch || '')
+  const nextSettings: Settings = {
+    ...currentSettings,
+    skills: normalizeSkillSettings({
+      ...currentSkills,
+      sources: [...sources, source],
+    }),
+  }
+
+  return {
+    sourceId: source.id,
+    nextSettings,
+  }
 }
 
 /**
@@ -165,6 +230,13 @@ settingsRoutes.get('/', (c) => {
     skills: normalizeSkillSettings(settingsCache.skills),
     approval: normalizeApprovalSettings(settingsCache.approval),
     sandbox: normalizeSandboxSettings(settingsCache.sandbox),
+  })
+})
+
+settingsRoutes.get('/runtime', (c) => {
+  return c.json({
+    workDir: deps.workDir,
+    projectRoot: getProjectRoot(),
   })
 })
 
@@ -236,6 +308,15 @@ settingsRoutes.post('/providers', async (c) => {
     // 保存设置
     setSettings(settings)
     saveSettingsToFile(settings)
+
+    // 如果这是首个 provider，保存后立即初始化运行时 AgentService，
+    // 避免用户首次配置完成后仍命中“未初始化 Agent 服务”错误。
+    if (settings.activeProviderId === newProvider.id && newProvider.enabled) {
+      const success = recreateAgentService(newProvider, deps)
+      if (!success) {
+        return c.json({ error: 'Failed to initialize provider runtime' }, 500)
+      }
+    }
 
     return c.json({
       success: true,
@@ -1249,6 +1330,10 @@ settingsRoutes.post('/skills/install', async (c) => {
     const skillsSettings = normalizeSkillSettings(currentSettings.skills)
     const source = validateSourceForInstall(skillsSettings.sources || [], sourceId)
     const installed = await installSkillFromSource(source, getProjectRoot(), skillName)
+    upsertSkillSourceBindings(
+      getProjectRoot(),
+      Object.fromEntries(installed.map((item) => [item.skillId, item.sourceId]))
+    )
 
     return c.json({
       success: true,
@@ -1283,6 +1368,7 @@ settingsRoutes.post('/skills/:skillId/update', async (c) => {
       getProjectRoot(),
       sourceId
     )
+    upsertSkillSourceBindings(getProjectRoot(), { [updated.skillId]: updated.sourceId })
 
     return c.json({
       success: true,
@@ -1316,6 +1402,7 @@ settingsRoutes.post('/skills/:skillId/repair', async (c) => {
       getProjectRoot(),
       sourceId
     )
+    upsertSkillSourceBindings(getProjectRoot(), { [repaired.skillId]: repaired.sourceId })
 
     return c.json({
       success: true,
@@ -1352,6 +1439,7 @@ settingsRoutes.get('/skills/:skillId/health', (c) => {
       status: health.status,
       issues: health.issues,
       warnings: health.warnings,
+      suggestions: health.suggestions,
     })
   } catch (error) {
     console.error('[Settings API] Failed to inspect skill health:', error)
@@ -1376,6 +1464,7 @@ settingsRoutes.get('/skills/diagnostics', (c) => {
         status: health.status,
         issues: health.issues,
         warnings: health.warnings,
+        suggestions: health.suggestions,
       }
     })
 
@@ -1404,9 +1493,27 @@ settingsRoutes.get('/skills/list', (c) => {
     const projectRoot = getProjectRoot()
     const skills = getAllSkills(projectRoot)
     const stats = getSkillsStats(projectRoot)
+    const bindings = loadSkillSourceBindings(projectRoot)
+    const sources = normalizeSkillSettings(getSettings()?.skills).sources || []
+    const sourceById = new Map(sources.map((source) => [source.id, source]))
 
     return c.json({
-      skills,
+      skills: skills.map((skill) => {
+        const sourceId = bindings[skill.id]
+        const source = sourceId ? sourceById.get(sourceId) : undefined
+        return {
+          ...skill,
+          sourceInfo: sourceId && source ? {
+            sourceId,
+            name: source.name,
+            type: source.type,
+            location: source.location,
+            branch: source.branch,
+            canUpdate: isGitHubSource(source),
+            canRepair: isGitHubSource(source),
+          } : undefined,
+        }
+      }),
       stats,
     })
   } catch (error) {
@@ -1416,42 +1523,128 @@ settingsRoutes.get('/skills/list', (c) => {
 })
 
 /**
- * POST /api/settings/skills/import - Import a skill from a directory to project SKILLs/
+ * POST /api/settings/skills/import/analyze - Analyze a GitHub URL before import
  */
-settingsRoutes.post('/skills/import', async (c) => {
+settingsRoutes.post('/skills/import/analyze', async (c) => {
   try {
     const body = await c.req.json()
     const { path: importPath } = body
 
     if (!importPath) {
-      return c.json({ error: 'Path is required' }, 400)
+      return c.json({ error: 'Path or URL is required' }, 400)
     }
 
-    // Validate the source directory exists
-    if (!fs.existsSync(importPath)) {
-      return c.json({ error: 'Source directory does not exist' }, 404)
+    if (!importPath.startsWith('http://') && !importPath.startsWith('https://')) {
+      return c.json({ error: 'GitHub URL is required for analysis' }, 400)
     }
 
-    // Check if SKILL.md exists
-    const skillMdPath = path.join(importPath, 'SKILL.md')
-    if (!fs.existsSync(skillMdPath)) {
-      return c.json({ error: 'SKILL.md not found in the specified directory' }, 400)
+    const { analyzeGitHubSkillSource } = await import('../services/github-skill-importer')
+    const analysis = await analyzeGitHubSkillSource(importPath)
+
+    return c.json(analysis)
+  } catch (error) {
+    console.error('[Settings API] Failed to analyze GitHub skill import:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze GitHub skill import'
+    return c.json({ error: errorMessage }, 500)
+  }
+})
+
+/**
+ * POST /api/settings/skills/import - Import a skill from a directory or GitHub URL to project SKILLs/
+ */
+settingsRoutes.post('/skills/import', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { path: importPath, skillPaths, analysisKey } = body as {
+      path?: string
+      skillPaths?: string[]
+      analysisKey?: string
     }
 
-    // Import to project SKILLs/ directory
+    if (!importPath) {
+      return c.json({ error: 'Path or URL is required' }, 400)
+    }
+
     const projectRoot = getProjectRoot()
-    const skill = importSkill(importPath, projectRoot)
+    const currentSettings = getSettings()
+    let importedSkills: SkillInfo[] = []
+    let tempDir: string | null = null
+    let importedSourceId: string | undefined
 
-    console.log(`[Settings API] Imported skill "${skill.name}" from ${importPath} to project SKILLs/`)
+    // Check if it's a GitHub URL
+    if (importPath.startsWith('http://') || importPath.startsWith('https://')) {
+      const { downloadSkillsFromGitHub, cleanupTempDir } = await import('../services/github-skill-importer')
+      const { parseGitHubUrl } = await import('../services/github-skill-importer')
+      const parsedUrl = parseGitHubUrl(importPath)
 
+      try {
+        const downloadResult = await downloadSkillsFromGitHub(importPath, skillPaths, analysisKey)
+        tempDir = downloadResult.tempRoot
+
+        importedSkills = downloadResult.skillDirs.map((skillDir) => importSkill(skillDir, projectRoot))
+
+        if (parsedUrl) {
+          const sourceRegistration = ensureGitHubSkillSource(
+            currentSettings,
+            parsedUrl.owner,
+            parsedUrl.repo,
+            parsedUrl.branchExplicit ? parsedUrl.branch : undefined,
+          )
+          importedSourceId = sourceRegistration.sourceId
+          if (sourceRegistration.nextSettings) {
+            setSettings(sourceRegistration.nextSettings)
+            saveSettingsToFile(sourceRegistration.nextSettings)
+          }
+        }
+
+        if (importedSourceId) {
+          upsertSkillSourceBindings(
+            projectRoot,
+            Object.fromEntries(importedSkills.map((skill) => [skill.id, importedSourceId!]))
+          )
+        }
+
+        console.log(`[Settings API] Imported ${importedSkills.length} skill(s) from GitHub URL ${importPath}`)
+      } finally {
+        // Cleanup temp directory
+        if (tempDir) {
+          cleanupTempDir(tempDir)
+        }
+      }
+    } else {
+      // Local path import
+      // Validate the source directory exists
+      if (!fs.existsSync(importPath)) {
+        return c.json({ error: 'Source directory does not exist' }, 404)
+      }
+
+      // Check if SKILL.md exists
+      const skillMdPath = path.join(importPath, 'SKILL.md')
+      if (!fs.existsSync(skillMdPath)) {
+        return c.json({ error: 'SKILL.md not found in the specified directory' }, 400)
+      }
+
+      // Import to project SKILLs/ directory
+      importedSkills = [importSkill(importPath, projectRoot)]
+
+      console.log(`[Settings API] Imported skill "${importedSkills[0]?.name}" from ${importPath} to project SKILLs/`)
+    }
+
+    const primarySkill = importedSkills[0]
     return c.json({
       success: true,
-      skill: {
+      skill: primarySkill ? {
+        id: primarySkill.id,
+        name: primarySkill.name,
+        source: 'project',
+        path: primarySkill.path,
+      } : null,
+      skills: importedSkills.map((skill) => ({
         id: skill.id,
         name: skill.name,
         source: 'project',
         path: skill.path,
-      },
+      })),
     })
   } catch (error) {
     console.error('[Settings API] Failed to import skill:', error)
@@ -1470,6 +1663,7 @@ settingsRoutes.delete('/skills/:id', async (c) => {
     // Delete from project SKILLs/ directory
     const projectRoot = getProjectRoot()
     deleteSkill(id, projectRoot)
+    removeSkillSourceBinding(projectRoot, id)
 
     console.log(`[Settings API] Deleted skill "${id}" from project SKILLs/`)
 

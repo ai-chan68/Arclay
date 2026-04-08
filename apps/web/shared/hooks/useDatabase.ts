@@ -13,31 +13,33 @@ import type {
   CreateSessionInput,
   CreateMessageInput,
   MessageType,
+  Session,
 } from '@shared-types'
 import {
   createSession as dbCreateSession,
   getSession as dbGetSession,
-  getAllSessions as dbGetAllSessions,
   createTask as dbCreateTask,
   getTask as dbGetTask,
   getAllTasks as dbGetAllTasks,
+  getSessionsByWorkspaceId as dbGetSessionsByWorkspaceId,
+  getTasksByWorkspaceId as dbGetTasksByWorkspaceId,
   updateTask as dbUpdateTask,
   deleteTask as dbDeleteTask,
   createMessage as dbCreateMessage,
   getMessagesByTaskId as dbGetMessagesByTaskId,
   countMessagesByTaskId as dbCountMessagesByTaskId,
-  deleteMessagesByTaskId as dbDeleteMessagesByTaskId,
 } from '../db'
 
 interface UseDatabaseReturn {
   isReady: boolean
 
   // Task operations
-  loadAllTasks: () => Promise<Task[]>
-  createTask: (input: CreateTaskInput) => Promise<Task>
+  loadAllTasks: (workspaceId?: string) => Promise<Task[]>
+  createTask: (input: CreateTaskInput, workspaceId?: string) => Promise<Task>
   updateTask: (id: string, data: UpdateTaskInput) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   getTask: (id: string) => Promise<Task | null>
+  getSession: (id: string) => Promise<Session | null>
 
   // Message operations
   loadMessages: (taskId: string) => Promise<Message[]>
@@ -46,7 +48,7 @@ interface UseDatabaseReturn {
   saveMessages: (taskId: string, messages: AgentMessage[]) => Promise<void>
 
   // Session operations
-  listSessions: () => Promise<{ id: string; prompt: string; task_count: number }[]>
+  listSessions: (workspaceId: string) => Promise<{ id: string; prompt: string; task_count: number }[]>
 }
 
 /**
@@ -144,10 +146,12 @@ export function useDatabase(): UseDatabaseReturn {
     setIsReady(true)
   }, [])
 
-  const loadAllTasks = useCallback(async (): Promise<Task[]> => {
+  const loadAllTasks = useCallback(async (workspaceId?: string): Promise<Task[]> => {
     try {
-      console.log('[useDatabase] loadAllTasks: Loading all tasks...')
-      const tasks = await dbGetAllTasks()
+      console.log('[useDatabase] loadAllTasks: Loading tasks...', { workspaceId: workspaceId ?? 'all' })
+      const tasks = workspaceId
+        ? await dbGetTasksByWorkspaceId(workspaceId)
+        : await dbGetAllTasks()
       console.log('[useDatabase] loadAllTasks: Total tasks loaded:', tasks.length)
       return tasks
     } catch (error) {
@@ -156,18 +160,25 @@ export function useDatabase(): UseDatabaseReturn {
     }
   }, [])
 
-  const createTask = useCallback(async (input: CreateTaskInput): Promise<Task> => {
-    console.log('[useDatabase] createTask: Creating task:', input)
+  const createTask = useCallback(async (
+    input: CreateTaskInput,
+    workspaceId?: string
+  ): Promise<Task> => {
+    console.log('[useDatabase] createTask: Creating task:', { ...input, workspaceId })
 
     // Ensure session exists with the same session_id
     const existingSession = await dbGetSession(input.session_id)
     console.log('[useDatabase] createTask: Existing session:', existingSession ? 'found' : 'not found')
 
     if (!existingSession) {
+      if (!workspaceId) {
+        throw new Error('workspaceId is required when creating a task for a new session')
+      }
       console.log('[useDatabase] createTask: Creating new session with id:', input.session_id)
       // Use the same session_id from input to ensure consistency
       const sessionInput: CreateSessionInput = {
         id: input.session_id,
+        workspace_id: workspaceId,
         prompt: input.prompt,
       }
       await dbCreateSession(sessionInput)
@@ -199,6 +210,15 @@ export function useDatabase(): UseDatabaseReturn {
       return await dbGetTask(id)
     } catch (error) {
       console.error('[useDatabase] Failed to get task:', error)
+      return null
+    }
+  }, [])
+
+  const getSession = useCallback(async (id: string): Promise<Session | null> => {
+    try {
+      return await dbGetSession(id)
+    } catch (error) {
+      console.error('[useDatabase] Failed to get session:', error)
       return null
     }
   }, [])
@@ -255,9 +275,9 @@ export function useDatabase(): UseDatabaseReturn {
     }
   }, [])
 
-  const listSessions = useCallback(async () => {
+  const listSessions = useCallback(async (workspaceId: string) => {
     try {
-      const sessions = await dbGetAllSessions()
+      const sessions = await dbGetSessionsByWorkspaceId(workspaceId)
       return sessions.map(s => ({
         id: s.id,
         prompt: s.prompt,
@@ -276,6 +296,7 @@ export function useDatabase(): UseDatabaseReturn {
     updateTask,
     deleteTask,
     getTask,
+    getSession,
     loadMessages,
     countMessages,
     saveMessage,

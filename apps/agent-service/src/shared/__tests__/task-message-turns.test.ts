@@ -6,7 +6,7 @@ import {
   getMessagesForTurn,
   groupIntoTurns,
   resolveSelectedRuntimeTurnId,
-} from '../../../../src/shared/lib/task-message-turns'
+} from '../../../../web/shared/lib/task-message-turns'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
   return {

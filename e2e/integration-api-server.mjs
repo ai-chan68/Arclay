@@ -3,7 +3,7 @@
 /**
  * Bootstrap script for integration E2E tests.
  *
- * Creates an isolated EASYWORK_HOME with a settings.json that uses
+ * Creates an isolated ARCLAY_HOME with a settings.json that uses
  * the fake provider, then starts the real API server.
  *
  * Playwright's webServer config calls this script instead of mock-api-server.
@@ -14,12 +14,12 @@ import path from 'node:path'
 import os from 'node:os'
 import { spawn } from 'node:child_process'
 
-const host = process.env.EASYWORK_E2E_API_HOST || '127.0.0.1'
-const port = process.env.EASYWORK_E2E_API_PORT || '2027'
-const frontendPort = process.env.EASYWORK_E2E_WEB_PORT || '1421'
+const host = process.env.ARCLAY_E2E_API_HOST || '127.0.0.1'
+const port = process.env.ARCLAY_E2E_API_PORT || '2027'
+const frontendPort = process.env.ARCLAY_E2E_WEB_PORT || '1421'
 
-// Create isolated EASYWORK_HOME
-const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-e2e-'))
+// Create isolated ARCLAY_HOME
+const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-e2e-'))
 
 // Create isolated workspace directory for test files
 const tempWorkspace = path.join(tempHome, 'workspace')
@@ -50,13 +50,13 @@ fs.writeFileSync(
   'utf8'
 )
 
-console.log(`[e2e-integration] EASYWORK_HOME: ${tempHome}`)
+console.log(`[e2e-integration] ARCLAY_HOME: ${tempHome}`)
 console.log(`[e2e-integration] WORKSPACE: ${tempWorkspace}`)
 console.log(`[e2e-integration] Starting real API on ${host}:${port}`)
 
 // Start the real API server
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
-const apiDir = path.join(rootDir, 'src-api')
+const apiDir = path.join(rootDir, 'apps/agent-service')
 
 const child = spawn('npx', ['tsx', 'src/index.ts'], {
   cwd: apiDir,
@@ -66,9 +66,9 @@ const child = spawn('npx', ['tsx', 'src/index.ts'], {
     PORT: port,
     HOST: host,
     FRONTEND_URL: `http://127.0.0.1:${frontendPort}`,
-    EASYWORK_HOME: tempHome,
-    EASYWORK_WORKSPACE: tempWorkspace,
-    EASYWORK_FAKE_PROVIDER: '1',
+    ARCLAY_HOME: tempHome,
+    ARCLAY_WORKSPACE: tempWorkspace,
+    ARCLAY_FAKE_PROVIDER: '1',
     NODE_ENV: 'test',
   },
 })

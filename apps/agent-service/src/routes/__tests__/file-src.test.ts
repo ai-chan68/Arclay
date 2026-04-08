@@ -14,10 +14,10 @@ describe('getFileSrc', () => {
       convertFileSrc: vi.fn(() => 'asset://should-not-be-used'),
     }))
 
-    const { getFileSrc } = await import('../../../../src/shared/lib/utils')
+    const { getFileSrc } = await import('../../../../web/shared/lib/utils')
 
-    await expect(getFileSrc('/workspace/easeWork/src-api/workspace/sessions/demo/image.png'))
+    await expect(getFileSrc('/workspace/Arclay/apps/agent-service/workspace/sessions/demo/image.png'))
       .resolves
-      .toBe('/api/files/serve?path=%2Fworkspace%2FeaseWork%2Fsrc-api%2Fworkspace%2Fsessions%2Fdemo%2Fimage.png')
+      .toBe('/api/files/serve?path=%2Fworkspace%2FArclay%2Fapps%2Fagent-service%2Fworkspace%2Fsessions%2Fdemo%2Fimage.png')
   })
 })

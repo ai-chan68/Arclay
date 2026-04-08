@@ -6,8 +6,8 @@
 
 import { expect, test } from '@playwright/test'
 
-const API_BASE = process.env.EASYWORK_E2E_API_PORT
-  ? `http://localhost:${process.env.EASYWORK_E2E_API_PORT}`
+const API_BASE = process.env.ARCLAY_E2E_API_PORT
+  ? `http://localhost:${process.env.ARCLAY_E2E_API_PORT}`
   : 'http://localhost:2026'
 
 test.describe('Knowledge Notes API', () => {

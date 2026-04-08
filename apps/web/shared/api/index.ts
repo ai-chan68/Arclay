@@ -1,4 +1,4 @@
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 import { getDesktopApiPort } from '../tauri/commands';
 
 // API client that adapts to the running environment
@@ -78,14 +78,22 @@ export async function apiFetch<T>(
     'Content-Type': 'application/json',
   };
 
+  // Set timeout for long-running operations (e.g., GitHub imports)
+  const timeout = (options as any).timeout || 120000; // Default 2 minutes
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   try {
     const response = await fetch(url, {
       ...options,
+      signal: controller.signal,
       headers: {
         ...defaultHeaders,
         ...options.headers,
       },
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -95,6 +103,11 @@ export async function apiFetch<T>(
 
     return response.json();
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.error('[API] Request timeout');
+      throw new Error('请求超时，请检查网络连接或稍后重试');
+    }
     if (err instanceof TypeError) {
       console.error('[API] Network error:', err);
       throw new Error('Failed to connect to API server. Please check if the app is running correctly.');
@@ -161,18 +174,20 @@ export async function apiStream(
 
 // Convenience methods
 export const api = {
-  get: <T>(path: string) => apiFetch<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) =>
+  get: <T>(path: string, options?: RequestInit) => apiFetch<T>(path, { method: 'GET', ...options }),
+  post: <T>(path: string, body?: unknown, options?: RequestInit) =>
     apiFetch<T>(path, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
+      ...options,
     }),
-  put: <T>(path: string, body?: unknown) =>
+  put: <T>(path: string, body?: unknown, options?: RequestInit) =>
     apiFetch<T>(path, {
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined,
+      ...options,
     }),
-  delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, options?: RequestInit) => apiFetch<T>(path, { method: 'DELETE', ...options }),
   stream: (path: string, body?: unknown) =>
     apiStream(path, {
       method: 'POST',

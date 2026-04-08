@@ -2,13 +2,20 @@ import { Hono } from 'hono'
 import { spawnSync } from 'node:child_process'
 import { platform } from 'node:os'
 import { getSettings } from '../settings-store'
+import { providerManager } from '../shared/provider/manager'
 
 export const healthRoutes = new Hono()
+const DESKTOP_SIDECAR_PROTOCOL = 1
 
 healthRoutes.get('/', (c) => {
+  // Check if provider manager is initialized
+  const ready = providerManager.isInitialized()
+
   return c.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
+    status: ready ? 'ok' : 'initializing',
+    timestamp: new Date().toISOString(),
+    desktopSidecarProtocol: DESKTOP_SIDECAR_PROTOCOL,
+    providerManagerReady: ready,
   })
 })
 

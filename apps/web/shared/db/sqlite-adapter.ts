@@ -1,4 +1,7 @@
 import type {
+  Workspace,
+  CreateWorkspaceInput,
+  UpdateWorkspaceInput,
   Session,
   Task,
   Message,
@@ -8,13 +11,13 @@ import type {
   UpdateTaskInput,
   CreateMessageInput,
   CreateFileInput,
-} from 'shared-types';
+} from '@arclay/shared-types';
 import {
   BooleanTransformer,
   TaskTransformer,
   MessageTransformer,
   FileTransformer,
-} from 'shared-types';
+} from '@arclay/shared-types';
 import type { IStorageAdapter } from './storage-adapter';
 
 // SQLite database connection
@@ -22,7 +25,7 @@ let sqliteDb: Awaited<
   ReturnType<typeof import('@tauri-apps/plugin-sql').default.load>
 > | null = null;
 
-const SQLITE_DB_NAME = 'sqlite:easywork.db';
+const SQLITE_DB_NAME = 'sqlite:arclay.db';
 
 /**
  * Get or create SQLite database connection
@@ -68,6 +71,89 @@ export class SQLiteAdapter implements IStorageAdapter {
 
   // ============ Session Operations ============
 
+  async createWorkspace(input: CreateWorkspaceInput): Promise<Workspace> {
+    const db = await getSQLiteDB();
+    const now = new Date().toISOString();
+
+    await db.execute(
+      'INSERT INTO workspaces (id, name, default_work_dir) VALUES ($1, $2, $3)',
+      [input.id, input.name, input.default_work_dir ?? null]
+    );
+
+    return {
+      id: input.id,
+      name: input.name,
+      default_work_dir: input.default_work_dir ?? null,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  async getWorkspace(id: string): Promise<Workspace | null> {
+    const db = await getSQLiteDB();
+    const result = await db.select<Workspace[]>(
+      'SELECT * FROM workspaces WHERE id = $1',
+      [id]
+    );
+    return result[0] || null;
+  }
+
+  async listWorkspaces(): Promise<Workspace[]> {
+    const db = await getSQLiteDB();
+    return db.select<Workspace[]>(
+      'SELECT * FROM workspaces ORDER BY created_at ASC'
+    );
+  }
+
+  async updateWorkspace(
+    id: string,
+    data: UpdateWorkspaceInput
+  ): Promise<Workspace | null> {
+    const db = await getSQLiteDB();
+    const updates: string[] = [];
+    const values: (string | null)[] = [];
+    let paramIndex = 1;
+
+    if (data.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(data.name);
+    }
+    if (data.default_work_dir !== undefined) {
+      updates.push(`default_work_dir = $${paramIndex++}`);
+      values.push(data.default_work_dir);
+    }
+
+    if (updates.length === 0) return this.getWorkspace(id);
+
+    updates.push(`updated_at = datetime('now')`);
+    values.push(id);
+    await db.execute(
+      `UPDATE workspaces SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+      values
+    );
+    return this.getWorkspace(id);
+  }
+
+  async deleteWorkspace(id: string, fallbackWorkspaceId: string): Promise<boolean> {
+    if (id === fallbackWorkspaceId) {
+      throw new Error('Cannot delete a workspace into itself');
+    }
+
+    const db = await getSQLiteDB();
+    const workspace = await this.getWorkspace(id);
+    const fallback = await this.getWorkspace(fallbackWorkspaceId);
+    if (!workspace || !fallback) return false;
+
+    await db.execute(
+      `UPDATE sessions
+       SET workspace_id = $1, updated_at = datetime('now')
+       WHERE workspace_id = $2`,
+      [fallbackWorkspaceId, id]
+    );
+    await db.execute('DELETE FROM workspaces WHERE id = $1', [id]);
+    return true;
+  }
+
   async createSession(input: CreateSessionInput): Promise<Session> {
     const db = await getSQLiteDB();
 
@@ -75,8 +161,8 @@ export class SQLiteAdapter implements IStorageAdapter {
     await this.ensureSessionsTable(db);
 
     await db.execute(
-      'INSERT INTO sessions (id, prompt, task_count) VALUES ($1, $2, $3)',
-      [input.id, input.prompt, 0]
+      'INSERT INTO sessions (id, workspace_id, prompt, task_count) VALUES ($1, $2, $3, $4)',
+      [input.id, input.workspace_id, input.prompt, 0]
     );
 
     const session = await this.getSession(input.id);
@@ -99,12 +185,13 @@ export class SQLiteAdapter implements IStorageAdapter {
     }
   }
 
-  async listSessions(): Promise<Session[]> {
+  async listSessions(workspaceId: string): Promise<Session[]> {
     const db = await getSQLiteDB();
 
     try {
       return await db.select<Session[]>(
-        'SELECT * FROM sessions ORDER BY created_at DESC'
+        'SELECT * FROM sessions WHERE workspace_id = $1 ORDER BY created_at DESC',
+        [workspaceId]
       );
     } catch {
       return [];
@@ -199,11 +286,15 @@ export class SQLiteAdapter implements IStorageAdapter {
     }
   }
 
-  async listAllTasks(): Promise<Task[]> {
+  async listAllTasks(workspaceId: string): Promise<Task[]> {
     const db = await getSQLiteDB();
 
     const tasks = await db.select<Record<string, unknown>[]>(
-      'SELECT * FROM tasks ORDER BY created_at DESC'
+      `SELECT t.* FROM tasks t
+       JOIN sessions s ON s.id = t.session_id
+       WHERE s.workspace_id = $1
+       ORDER BY t.created_at DESC`,
+      [workspaceId]
     );
 
     return tasks.map((t) => TaskTransformer.fromStorage(t) as unknown as Task);
@@ -438,7 +529,7 @@ export class SQLiteAdapter implements IStorageAdapter {
     { task: Task; files: LibraryFile[] }[]
   > {
     const allFiles = await this.listAllFiles();
-    const allTasks = await this.listAllTasks();
+    const allTasks = await this.getAllTasksForGrouping();
 
     // Create a map of task_id to files
     const filesByTask = new Map<string, LibraryFile[]>();
@@ -460,6 +551,15 @@ export class SQLiteAdapter implements IStorageAdapter {
     return result;
   }
 
+  private async getAllTasksForGrouping(): Promise<Task[]> {
+    const db = await getSQLiteDB();
+    const tasks = await db.select<Record<string, unknown>[]>(
+      'SELECT * FROM tasks ORDER BY created_at DESC'
+    );
+
+    return tasks.map((t) => TaskTransformer.fromStorage(t) as unknown as Task);
+  }
+
   // ============ Private Helpers ============
 
   private async ensureSessionsTable(
@@ -469,6 +569,7 @@ export class SQLiteAdapter implements IStorageAdapter {
       await db.execute(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY NOT NULL,
+          workspace_id TEXT NOT NULL,
           prompt TEXT NOT NULL,
           task_count INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),

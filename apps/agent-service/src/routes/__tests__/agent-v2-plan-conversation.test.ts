@@ -13,7 +13,7 @@ describe('V2 Agent Plan Conversation Context', () => {
 
   beforeAll(async () => {
     oldHome = process.env.HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-plan-conversation-'))
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-agent-v2-plan-conversation-'))
     process.env.HOME = tempHome
 
     vi.resetModules()

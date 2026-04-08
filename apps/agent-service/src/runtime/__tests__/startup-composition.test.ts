@@ -86,7 +86,7 @@ describe('API startup composition', () => {
     vi.clearAllMocks()
     vi.resetModules()
     createAppRuntimeMock.mockReturnValue({
-      workDir: '/tmp/easywork-workdir',
+      workDir: '/tmp/arclay-workdir',
       getAgentRuntimeState: vi.fn(() => ({
         agentService: null,
         agentServiceConfig: null,
@@ -107,22 +107,22 @@ describe('API startup composition', () => {
     const runtime = createAppRuntimeMock.mock.results[0]?.value
     expect(scheduledTaskSchedulerCtorMock.mock.calls[0]?.[0]).toEqual({
       getAgentRuntimeState: runtime.getAgentRuntimeState,
-      workDir: '/tmp/easywork-workdir',
+      workDir: '/tmp/arclay-workdir',
     })
     expect(createRoutesMock.mock.calls[0]?.[0]).toEqual({
       agentNew: {
         getAgentRuntimeState: runtime.getAgentRuntimeState,
-        workDir: '/tmp/easywork-workdir',
+        workDir: '/tmp/arclay-workdir',
       },
       settings: {
         getAgentRuntimeState: runtime.getAgentRuntimeState,
         setAgentRuntimeState: runtime.setAgentRuntimeState,
-        workDir: '/tmp/easywork-workdir',
+        workDir: '/tmp/arclay-workdir',
       },
       scheduledTasks: {
         getAgentRuntimeState: runtime.getAgentRuntimeState,
         scheduler: scheduledTaskSchedulerInstance,
-        workDir: '/tmp/easywork-workdir',
+        workDir: '/tmp/arclay-workdir',
       },
     })
     expect(bootstrapRuntimeRecoveryMock).toHaveBeenCalledTimes(1)

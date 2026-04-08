@@ -47,7 +47,7 @@ describe('ClaudeAgent maxTurns policy', () => {
         prompt?: string
       ) => Promise<{ maxTurns?: number | null }>
     }).buildQueryOptions(
-      '/tmp/easywork-session',
+      '/tmp/arclay-session',
       {
         complexityHint: 'simple',
         plan: createPlan(),

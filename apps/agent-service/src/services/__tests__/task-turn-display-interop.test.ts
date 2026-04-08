@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildTurnDisplayModel } from '../../../../src/shared/lib/task-turn-display'
+import { buildTurnDisplayModel } from '../../../../web/shared/lib/task-turn-display'
 
 describe('buildTurnDisplayModel interop with historical turns', () => {
   it('does not let latest-turn stopped or clarification state hide a historical successful turn', () => {

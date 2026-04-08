@@ -67,15 +67,15 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     ) => void
   }
   let oldHome: string | undefined
-  let oldEasyWorkHome: string | undefined
+  let oldArclayHome: string | undefined
   let tempHome = ''
 
   beforeAll(async () => {
     oldHome = process.env.HOME
-    oldEasyWorkHome = process.env.EASYWORK_HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-turn-runtime-'))
+    oldArclayHome = process.env.ARCLAY_HOME
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-agent-v2-turn-runtime-'))
     process.env.HOME = tempHome
-    process.env.EASYWORK_HOME = path.join(tempHome, '.easywork')
+    process.env.ARCLAY_HOME = path.join(tempHome, '.arclay')
 
     vi.resetModules()
     const { createAgentNewRoutes } = await import('../agent-new')
@@ -132,10 +132,10 @@ describe('V2 Agent Turn Runtime Dependency', () => {
 
   afterAll(() => {
     process.env.HOME = oldHome
-    if (oldEasyWorkHome === undefined) {
-      delete process.env.EASYWORK_HOME
+    if (oldArclayHome === undefined) {
+      delete process.env.ARCLAY_HOME
     } else {
-      process.env.EASYWORK_HOME = oldEasyWorkHome
+      process.env.ARCLAY_HOME = oldArclayHome
     }
     if (tempHome) {
       fs.rmSync(tempHome, { recursive: true, force: true })
@@ -341,7 +341,7 @@ describe('V2 Agent Turn Runtime Dependency', () => {
     )
 
     const now = Date.now()
-    const plansFile = path.join(tempHome, '.easywork', 'plans.json')
+    const plansFile = path.join(tempHome, '.arclay', 'plans.json')
     const text = fs.readFileSync(plansFile, 'utf-8')
     const parsed = JSON.parse(text) as { version: number; plans: Array<Record<string, unknown>> }
     parsed.plans = parsed.plans.map((item) => item.id === planId

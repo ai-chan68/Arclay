@@ -1,4 +1,4 @@
-# EasyWork E2E 测试
+# Arclay E2E 测试
 
 ## 测试套件概览
 
@@ -129,7 +129,7 @@ pnpm test:e2e --reporter=html
 
 启动真实 API 服务器的引导脚本：
 
-- 创建隔离的临时 `EASYWORK_HOME`
+- 创建隔离的临时 `ARCLAY_HOME`
 - 配置 Fake Provider（无需真实 API key）
 - 启动真实 Hono API 服务器
 - 测试完整链路：Frontend → Hono → AgentService → FakeAgent

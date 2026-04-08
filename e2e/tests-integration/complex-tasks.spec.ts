@@ -10,11 +10,11 @@ import os from 'node:os'
  * Verifies that complex tasks like "create a game" actually produce files.
  */
 
-const apiPort = process.env.EASYWORK_E2E_API_PORT || '2027'
+const apiPort = process.env.ARCLAY_E2E_API_PORT || '2027'
 
 // Helper: Create temporary workspace
 function createTempWorkspace(): string {
-  const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-test-'))
+  const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-test-'))
   return workspaceDir
 }
 
@@ -235,4 +235,3 @@ test.describe('Complex Tasks - Scenario Detection', () => {
     expect(bodyText).toContain('Echo')
   })
 })
-

@@ -3,8 +3,8 @@
 import http from 'node:http'
 import process from 'node:process'
 
-const host = process.env.EASYWORK_E2E_API_HOST || '127.0.0.1'
-const port = Number(process.env.EASYWORK_E2E_API_PORT || '2026')
+const host = process.env.ARCLAY_E2E_API_HOST || '127.0.0.1'
+const port = Number(process.env.ARCLAY_E2E_API_PORT || '2026')
 
 const defaultSettings = {
   activeProviderId: 'provider-mock',
@@ -125,6 +125,14 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && pathname === '/api/settings') {
     writeJson(res, 200, defaultSettings)
+    return
+  }
+
+  if (req.method === 'GET' && pathname === '/api/settings/runtime') {
+    writeJson(res, 200, {
+      workDir: '/tmp/arclay-default-workspace',
+      projectRoot: '/tmp/arclay-project',
+    })
     return
   }
 

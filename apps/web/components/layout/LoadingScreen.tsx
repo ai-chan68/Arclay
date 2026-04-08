@@ -1,5 +1,5 @@
 import React from 'react';
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 import {
   appInitializer,
   type InitState,
@@ -91,13 +91,14 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Only show error state, skip loading screen for better UX
   if (initState.phase === 'error') {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-zinc-900 text-red-400">
         <div className="text-center">
-          <p className="text-lg font-medium">Failed to start application</p>
+          <p className="text-lg font-medium">启动失败</p>
           <p className="mt-2 text-sm text-zinc-400">
-            {initState.error?.message || 'Initialization failed'}
+            {initState.error?.message || '初始化失败'}
           </p>
           <button
             className="mt-4 rounded bg-zinc-700 px-3 py-1 text-sm text-zinc-100 hover:bg-zinc-600"
@@ -108,21 +109,13 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
             }}
             type="button"
           >
-            Retry
+            重试
           </button>
         </div>
       </div>
     );
   }
 
-  if (initState.phase !== 'ready') {
-    return (
-      <LoadingScreen
-        message={initState.message || 'Initializing...'}
-        progress={initState.progress}
-      />
-    );
-  }
-
+  // Show main UI immediately, initialization happens in background
   return <>{children}</>;
 }

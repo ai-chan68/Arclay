@@ -8,7 +8,7 @@ describe('session-documents', () => {
   let tmpDir = ''
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-session-docs-'))
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-session-docs-'))
   })
 
   afterEach(() => {

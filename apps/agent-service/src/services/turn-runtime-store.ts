@@ -11,16 +11,16 @@ import type {
   TurnState,
   TurnTransitionResult,
 } from '../types/turn-runtime'
-import { resolveEasyWorkPath } from '../shared/easywork-home'
+import { resolveArclayPath } from '../shared/arclay-home'
 
 const STORE_VERSION = 1 as const
 
 function getStoreDir(): string {
-  return resolveEasyWorkPath()
+  return resolveArclayPath()
 }
 
 function getStoreFile(): string {
-  return resolveEasyWorkPath('turn-runtime.json')
+  return resolveArclayPath('turn-runtime.json')
 }
 
 const TERMINAL_STATES: TurnState[] = ['completed', 'failed', 'cancelled']

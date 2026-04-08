@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Artifact } from '../../../../src/shared/types/artifacts'
-import { filterArtifactsForDisplay } from '../../../../src/shared/lib/file-utils'
+import type { Artifact } from '../../utils/file-utils'
+import { filterArtifactsForDisplay } from '../../utils/file-utils'
 
 describe('filterArtifactsForDisplay', () => {
   it('keeps only canonical turn artifact files when explicit artifacts are available', () => {
@@ -119,7 +119,7 @@ describe('filterArtifactsForDisplay', () => {
     ])
   })
 
-  it('filters out lookalike sessions paths that do not match EasyWork session layout', () => {
+  it('filters out lookalike sessions paths that do not match the Arclay session layout', () => {
     const artifacts: Artifact[] = [
       {
         id: 'release-progress',

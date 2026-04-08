@@ -22,7 +22,7 @@ app.get('/:taskId/todos', async (c) => {
     const taskId = c.req.param('taskId')
     const workDir = c.req.query('workDir') || process.cwd()
 
-    const todosPath = join(workDir, 'sessions', taskId, '.easywork', 'todos.json')
+    const todosPath = join(workDir, 'sessions', taskId, '.arclay', 'todos.json')
 
     try {
       const content = await readFile(todosPath, 'utf-8')

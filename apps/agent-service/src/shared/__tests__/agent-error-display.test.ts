@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AgentMessage } from '@shared-types'
-import { getPreferredFailureDetail } from '../../../../src/shared/lib/agent-error-display'
-import { getWorkspaceDisplayState } from '../../../../src/shared/lib/task-turn-display'
+import { getPreferredFailureDetail } from '../../../../web/shared/lib/agent-error-display'
+import { getWorkspaceDisplayState } from '../../../../web/shared/lib/task-turn-display'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
   return {

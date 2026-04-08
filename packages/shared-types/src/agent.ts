@@ -167,7 +167,7 @@ export type DeliverableType =
   | 'unknown'           // Unclear (conservative fallback)
 
 /**
- * Task plan for approval workflow (easywork style)
+ * Task plan for the approval workflow (Arclay style)
  */
 export interface TaskPlan {
   id: string;

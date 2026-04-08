@@ -26,6 +26,7 @@ const taskPlanSchema: z.ZodType<TaskPlan> = z.object({
 })
 
 const createTaskSchema = z.object({
+  workspaceId: z.string().min(1),
   name: z.string().min(1).max(120),
   enabled: z.boolean().optional(),
   cronExpr: z.string().min(1),
@@ -200,6 +201,7 @@ scheduledTaskRoutes.get('/', (c) => {
     : undefined
 
   const query = {
+    workspaceId: c.req.query('workspaceId') || undefined,
     enabled: parseBooleanQuery(c.req.query('enabled')),
     breakerState,
     keyword: c.req.query('keyword'),

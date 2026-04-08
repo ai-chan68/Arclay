@@ -8,15 +8,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './'),
-      '@shared-types': path.resolve(__dirname, '../shared-types/src')
+      '@shared-types': path.resolve(__dirname, '../../packages/shared-types/src')
     }
   },
   server: {
     port: 1420,
     watch: {
       ignored: [
-        '**/src-api/workspace/**',
-        '**/.easywork/**',
+        '**/apps/agent-service/workspace/**',
+        '**/.arclay/**',
       ],
     },
     proxy: {

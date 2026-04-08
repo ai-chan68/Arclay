@@ -181,7 +181,7 @@ async function prepareSource(source: SkillSourceConfig, projectRoot: string): Pr
   }
 
   if (source.type === 'git') {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-skill-git-'))
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-skill-git-'))
     try {
       const args = ['clone', '--depth', '1']
       if (source.branch) {
@@ -205,7 +205,7 @@ async function prepareSource(source: SkillSourceConfig, projectRoot: string): Pr
   }
 
   if (source.type === 'http') {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-skill-http-'))
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-skill-http-'))
     const url = source.location.trim()
     if (!/^https?:\/\//i.test(url)) {
       fs.rmSync(tempRoot, { recursive: true, force: true })

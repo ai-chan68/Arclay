@@ -10,7 +10,7 @@ const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const logDir = resolve(rootDir, '.quality-gates');
 const apiLogFile = resolve(logDir, 'api.log');
 const smokeLogFile = resolve(logDir, 'smoke.log');
-const apiBaseUrl = process.env.EASYWORK_API_BASE_URL || 'http://localhost:2026';
+const apiBaseUrl = process.env.ARCLAY_API_BASE_URL || 'http://localhost:2026';
 
 async function waitForApiReady(timeoutMs = 45000) {
   const start = Date.now();

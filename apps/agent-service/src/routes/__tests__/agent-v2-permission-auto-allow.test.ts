@@ -22,7 +22,7 @@ describe('V2 Agent Permission Auto Allow', () => {
 
   beforeAll(async () => {
     oldHome = process.env.HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-permission-'))
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-agent-v2-permission-'))
     process.env.HOME = tempHome
 
     vi.resetModules()

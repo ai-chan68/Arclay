@@ -317,7 +317,7 @@ filesRoutes.post('/export-zip', async (c) => {
   let tmpDir: string | null = null
 
   try {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'easywork-export-'))
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'arclay-export-'))
     const zipFilePath = path.join(tmpDir, `${zipBaseName}.zip`)
 
     await execFileAsync('zip', ['-q', '-r', zipFilePath, ...relativePaths], {

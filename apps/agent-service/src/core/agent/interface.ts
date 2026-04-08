@@ -75,7 +75,7 @@ export interface IAgent {
 
   /**
    * Planning phase - Generate execution plan using LLM
-   * easywork-style two-phase execution
+   * Arclay-style two-phase execution
    */
   plan?(prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage>
 

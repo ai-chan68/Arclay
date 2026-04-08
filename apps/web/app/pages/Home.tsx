@@ -13,6 +13,7 @@ import { useSidebar } from '@/components/task-detail/SidebarContext'
 import { LeftSidebar, type UITask } from '@/components/task-detail/LeftSidebar'
 import { ChatInput } from '@/components/task-detail/ChatInput'
 import { useDatabase } from '@/shared/hooks/useDatabase'
+import { useWorkspace } from '@/shared/workspace/workspace-store'
 import type { MessageAttachment } from '@shared-types'
 import {
   generateSessionId,
@@ -43,6 +44,7 @@ function HomeContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const initialPromptHandledRef = useRef(false)
+  const { isReady: isWorkspaceReady, currentWorkspaceId } = useWorkspace()
   const { isReady, loadAllTasks, deleteTask, updateTask } = useDatabase()
 
   // Subscribe to background tasks
@@ -52,11 +54,12 @@ function HomeContent() {
 
   // Load tasks for sidebar - 每次导航到首页时重新加载
   useEffect(() => {
-    if (!isReady) return
+    if (!isReady || !isWorkspaceReady || !currentWorkspaceId) return
+    const workspaceId = currentWorkspaceId
     async function load() {
       try {
-        console.log('[Home] Loading all tasks from DB...')
-        const allTasks = await loadAllTasks()
+        console.log('[Home] Loading tasks from DB...', { workspaceId })
+        const allTasks = await loadAllTasks(workspaceId)
         console.log('[Home] Loaded tasks:', allTasks.length)
         setTasks(allTasks.map(t => ({
           ...t,
@@ -72,7 +75,7 @@ function HomeContent() {
       }
     }
     load()
-  }, [isReady, loadAllTasks, location.pathname])
+  }, [currentWorkspaceId, isReady, isWorkspaceReady, loadAllTasks, location.pathname])
   const handleDeleteTask = useCallback(async (taskId: string) => {
     try {
       await deleteTask(taskId)

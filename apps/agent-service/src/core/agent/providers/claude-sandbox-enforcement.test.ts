@@ -293,7 +293,7 @@ describe('Claude sandbox enforcement', () => {
       }>
     }).createPermissionHandler(
       {
-        cwd: '/tmp/easywork',
+        cwd: '/tmp/arclay',
         taskId: 'task-1',
       },
       'provider-session-write-scope'
@@ -302,7 +302,7 @@ describe('Claude sandbox enforcement', () => {
     const outsideResult = await handler(
       'Write',
       {
-        file_path: '/tmp/easywork/result.txt',
+        file_path: '/tmp/arclay/result.txt',
         content: 'bad path',
       },
       {
@@ -313,12 +313,12 @@ describe('Claude sandbox enforcement', () => {
 
     expect(outsideResult.behavior).toBe('deny')
     expect(outsideResult.interrupt).toBe(false)
-    expect(outsideResult.message).toContain('/tmp/easywork/sessions/task-1')
+    expect(outsideResult.message).toContain('/tmp/arclay/sessions/task-1')
 
     const insideResult = await handler(
       'Write',
       {
-        file_path: '/tmp/easywork/sessions/task-1/result.txt',
+        file_path: '/tmp/arclay/sessions/task-1/result.txt',
         content: 'good path',
       },
       {

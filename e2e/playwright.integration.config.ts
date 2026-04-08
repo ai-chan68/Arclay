@@ -36,14 +36,14 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         ...process.env,
-        EASYWORK_E2E_API_HOST: apiHost,
-        EASYWORK_E2E_API_PORT: String(apiPort),
-        EASYWORK_E2E_WEB_PORT: String(webPort),
+        ARCLAY_E2E_API_HOST: apiHost,
+        ARCLAY_E2E_API_PORT: String(apiPort),
+        ARCLAY_E2E_WEB_PORT: String(webPort),
       },
     },
     {
       command: `pnpm exec vite --host ${webHost} --port ${webPort}`,
-      cwd: path.join(rootDir, 'src'),
+      cwd: path.join(rootDir, 'apps/web'),
       port: webPort,
       reuseExistingServer: !process.env.CI,
       stdout: 'pipe',

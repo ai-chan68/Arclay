@@ -1,4 +1,5 @@
 import type {
+  CreateWorkspaceInput,
   CreateFileInput,
   CreateMessageInput,
   CreateSessionInput,
@@ -8,11 +9,13 @@ import type {
   Session,
   Task,
   UpdateTaskInput,
-} from 'shared-types';
+  UpdateWorkspaceInput,
+  Workspace,
+} from '@arclay/shared-types';
 
-const SQLITE_DB_NAME = 'sqlite:easywork.db';
-const IDB_NAME = 'easywork';
-const IDB_VERSION = 2; // Bump version for schema changes
+const SQLITE_DB_NAME = 'sqlite:arclay.db';
+const IDB_NAME = 'arclay';
+const IDB_VERSION = 4; // Workspace schema requires a fresh IndexedDB version
 
 // Check if running in Tauri environment synchronously
 function isTauriSync(): boolean {
@@ -20,12 +23,20 @@ function isTauriSync(): boolean {
     return false;
   }
 
-  // Check for Tauri v2 internals
-  const hasTauriInternals = '__TAURI_INTERNALS__' in window;
-  // Check for legacy Tauri v1
-  const hasTauri = '__TAURI__' in window;
+  const tauriWindow = window as typeof window & {
+    __TAURI__?: unknown;
+    __TAURI_INTERNALS__?: unknown;
+  };
+  const hasTauriInternals = tauriWindow.__TAURI_INTERNALS__ != null;
+  const legacyTauri = tauriWindow.__TAURI__;
+  const hasLegacyTauriApi = !!legacyTauri
+    && typeof legacyTauri === 'object'
+    && (
+      'invoke' in (legacyTauri as Record<string, unknown>)
+      || 'core' in (legacyTauri as Record<string, unknown>)
+    );
 
-  return hasTauriInternals || hasTauri;
+  return hasTauriInternals || hasLegacyTauriApi;
 }
 
 // ============ IndexedDB for Browser Mode ============
@@ -53,9 +64,21 @@ async function getIndexedDB(): Promise<IDBDatabase> {
       console.log('[IDB] Upgrading database...');
 
       // Create sessions store (v2)
+      if (!db.objectStoreNames.contains('workspaces')) {
+        const workspacesStore = db.createObjectStore('workspaces', {
+          keyPath: 'id',
+        });
+        workspacesStore.createIndex('created_at', 'created_at', {
+          unique: false,
+        });
+      }
+
       if (!db.objectStoreNames.contains('sessions')) {
         const sessionsStore = db.createObjectStore('sessions', {
           keyPath: 'id',
+        });
+        sessionsStore.createIndex('workspace_id', 'workspace_id', {
+          unique: false,
         });
         sessionsStore.createIndex('created_at', 'created_at', {
           unique: false,
@@ -123,6 +146,166 @@ async function getSQLiteDatabase() {
   return sqliteDb;
 }
 
+// ============ Workspace Operations ============
+export async function createWorkspace(
+  input: CreateWorkspaceInput
+): Promise<Workspace> {
+  const now = new Date().toISOString();
+  const workspace: Workspace = {
+    id: input.id,
+    name: input.name,
+    default_work_dir: input.default_work_dir ?? null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    await database.execute(
+      'INSERT INTO workspaces (id, name, default_work_dir) VALUES ($1, $2, $3)',
+      [workspace.id, workspace.name, workspace.default_work_dir]
+    );
+    return workspace;
+  }
+
+  const db = await getIndexedDB();
+  const tx = db.transaction('workspaces', 'readwrite');
+  const store = tx.objectStore('workspaces');
+  await idbRequest(store.put(workspace));
+  return workspace;
+}
+
+export async function getWorkspace(id: string): Promise<Workspace | null> {
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    const result = await database.select<Workspace[]>(
+      'SELECT * FROM workspaces WHERE id = $1',
+      [id]
+    );
+    return result[0] || null;
+  }
+
+  const db = await getIndexedDB();
+  const tx = db.transaction('workspaces', 'readonly');
+  const store = tx.objectStore('workspaces');
+  const result = await idbRequest(store.get(id));
+  return result || null;
+}
+
+export async function listWorkspaces(): Promise<Workspace[]> {
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    return database.select<Workspace[]>(
+      'SELECT * FROM workspaces ORDER BY created_at ASC'
+    );
+  }
+
+  const db = await getIndexedDB();
+  const tx = db.transaction('workspaces', 'readonly');
+  const store = tx.objectStore('workspaces');
+  const workspaces = await idbRequest(store.getAll());
+  return workspaces.sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
+export async function updateWorkspace(
+  id: string,
+  input: UpdateWorkspaceInput
+): Promise<Workspace | null> {
+  const current = await getWorkspace(id);
+  if (!current) return null;
+
+  const updated: Workspace = {
+    ...current,
+    ...input,
+    updated_at: new Date().toISOString(),
+  };
+
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    const updates: string[] = [];
+    const values: (string | null)[] = [];
+    let paramIndex = 1;
+
+    if (input.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(input.name);
+    }
+    if (input.default_work_dir !== undefined) {
+      updates.push(`default_work_dir = $${paramIndex++}`);
+      values.push(input.default_work_dir);
+    }
+
+    if (updates.length > 0) {
+      updates.push(`updated_at = datetime('now')`);
+      values.push(id);
+      await database.execute(
+        `UPDATE workspaces SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+        values
+      );
+    }
+
+    return getWorkspace(id);
+  }
+
+  const db = await getIndexedDB();
+  const tx = db.transaction('workspaces', 'readwrite');
+  const store = tx.objectStore('workspaces');
+  await idbRequest(store.put(updated));
+  return updated;
+}
+
+export async function deleteWorkspace(
+  id: string,
+  fallbackWorkspaceId: string
+): Promise<boolean> {
+  if (id === fallbackWorkspaceId) {
+    throw new Error('Cannot delete a workspace into itself');
+  }
+
+  const current = await getWorkspace(id);
+  const fallback = await getWorkspace(fallbackWorkspaceId);
+  if (!current || !fallback) return false;
+
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    await database.execute(
+      `UPDATE sessions
+       SET workspace_id = $1, updated_at = datetime('now')
+       WHERE workspace_id = $2`,
+      [fallbackWorkspaceId, id]
+    );
+    await database.execute(
+      'DELETE FROM workspaces WHERE id = $1',
+      [id]
+    );
+    return true;
+  }
+
+  const db = await getIndexedDB();
+  const sessions = await getSessionsByWorkspaceId(id);
+  const tx = db.transaction(['sessions', 'workspaces'], 'readwrite');
+  const sessionsStore = tx.objectStore('sessions');
+  const workspacesStore = tx.objectStore('workspaces');
+
+  await Promise.all(
+    sessions.map((session) => idbRequest(sessionsStore.put({
+      ...session,
+      workspace_id: fallbackWorkspaceId,
+      updated_at: new Date().toISOString(),
+    })))
+  );
+  await idbRequest(workspacesStore.delete(id));
+  return true;
+}
+
 // ============ Session Operations ============
 export async function createSession(
   input: CreateSessionInput
@@ -130,6 +313,7 @@ export async function createSession(
   const now = new Date().toISOString();
   const session: Session = {
     id: input.id,
+    workspace_id: input.workspace_id,
     prompt: input.prompt,
     task_count: 0,
     created_at: now,
@@ -140,8 +324,8 @@ export async function createSession(
 
   if (database) {
     await database.execute(
-      'INSERT INTO sessions (id, prompt, task_count) VALUES ($1, $2, $3)',
-      [input.id, input.prompt, 0]
+      'INSERT INTO sessions (id, workspace_id, prompt, task_count) VALUES ($1, $2, $3, $4)',
+      [input.id, input.workspace_id, input.prompt, 0]
     );
     return session;
   } else {
@@ -191,6 +375,29 @@ export async function getAllSessions(): Promise<Session[]> {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }
+}
+
+export async function getSessionsByWorkspaceId(
+  workspaceId: string
+): Promise<Session[]> {
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    return database.select<Session[]>(
+      'SELECT * FROM sessions WHERE workspace_id = $1 ORDER BY created_at DESC',
+      [workspaceId]
+    );
+  }
+
+  const db = await getIndexedDB();
+  const tx = db.transaction('sessions', 'readonly');
+  const store = tx.objectStore('sessions');
+  const index = store.index('workspace_id');
+  const sessions = await idbRequest(index.getAll(workspaceId));
+  return sessions.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 }
 
 export async function updateSessionTaskCount(
@@ -338,6 +545,37 @@ export async function getAllTasks(): Promise<Task[]> {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }
+}
+
+export async function getTasksByWorkspaceId(
+  workspaceId: string
+): Promise<Task[]> {
+  const database = await getSQLiteDatabase();
+
+  if (database) {
+    const tasks = await database.select<Task[]>(
+      `SELECT t.* FROM tasks t
+       JOIN sessions s ON s.id = t.session_id
+       WHERE s.workspace_id = $1
+       ORDER BY t.created_at DESC`,
+      [workspaceId]
+    );
+    return tasks.map((task) => ({
+      ...task,
+      favorite: task.favorite !== undefined ? Boolean(task.favorite) : false,
+    }));
+  }
+
+  const sessions = await getSessionsByWorkspaceId(workspaceId);
+  const tasksBySession = await Promise.all(
+    sessions.map((session) => getTasksBySessionId(session.id))
+  );
+  return tasksBySession
+    .flat()
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 }
 
 export async function updateTask(

@@ -4,14 +4,14 @@
  */
 
 import * as fs from 'fs'
-import { resolveEasyWorkPath } from './shared/easywork-home'
+import { resolveArclayPath } from './shared/arclay-home'
 
 function getSettingsDir(): string {
-  return resolveEasyWorkPath()
+  return resolveArclayPath()
 }
 
 function getSettingsFile(): string {
-  return resolveEasyWorkPath('settings.json')
+  return resolveArclayPath('settings.json')
 }
 
 // MCP Server 配置

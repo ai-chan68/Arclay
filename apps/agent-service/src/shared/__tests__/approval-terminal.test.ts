@@ -4,7 +4,7 @@ import type { AgentMessage } from '@shared-types'
 import {
   buildApprovalTerminalMessage,
   hasApprovalTerminalMessage,
-} from '../../../../src/shared/lib/approval-terminal'
+} from '../../../../web/shared/lib/approval-terminal'
 
 function createMessage(partial: Partial<AgentMessage>): AgentMessage {
   return {

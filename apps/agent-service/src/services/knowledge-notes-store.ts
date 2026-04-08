@@ -10,30 +10,22 @@ import { randomUUID } from 'crypto'
 
 export class KnowledgeNotesStore {
   private globalDir: string
-  private projectDir: string
 
-  constructor(globalDir: string, projectDir: string) {
+  constructor(globalDir: string) {
     this.globalDir = globalDir
-    this.projectDir = projectDir
   }
 
-  private getScopeDir(scope: KnowledgeNoteScope, taskId?: string): string {
-    if (scope === 'global') {
-      return this.globalDir
-    }
-    if (scope === 'task' && taskId) {
-      return join(this.projectDir, 'tasks', taskId)
-    }
-    return this.projectDir
+  private getScopeDir(scope: KnowledgeNoteScope): string {
+    return this.globalDir
   }
 
-  private getNotePath(id: string, scope: KnowledgeNoteScope, taskId?: string): string {
-    const dir = this.getScopeDir(scope, taskId)
+  private getNotePath(id: string, scope: KnowledgeNoteScope): string {
+    const dir = this.getScopeDir(scope)
     return join(dir, `${id}.json`)
   }
 
-  async list(scope: KnowledgeNoteScope, taskId?: string): Promise<KnowledgeNote[]> {
-    const dir = this.getScopeDir(scope, taskId)
+  async list(scope: KnowledgeNoteScope): Promise<KnowledgeNote[]> {
+    const dir = this.getScopeDir(scope)
 
     if (!existsSync(dir)) {
       return []
@@ -62,13 +54,13 @@ export class KnowledgeNotesStore {
     }
   }
 
-  async listEnabled(scope: KnowledgeNoteScope, taskId?: string): Promise<KnowledgeNote[]> {
-    const all = await this.list(scope, taskId)
+  async listEnabled(scope: KnowledgeNoteScope): Promise<KnowledgeNote[]> {
+    const all = await this.list(scope)
     return all.filter(note => note.enabled)
   }
 
-  async get(id: string, scope: KnowledgeNoteScope, taskId?: string): Promise<KnowledgeNote | null> {
-    const path = this.getNotePath(id, scope, taskId)
+  async get(id: string, scope: KnowledgeNoteScope): Promise<KnowledgeNote | null> {
+    const path = this.getNotePath(id, scope)
 
     if (!existsSync(path)) {
       return null
@@ -96,20 +88,19 @@ export class KnowledgeNotesStore {
       createdAt: now,
       updatedAt: now,
       tags: input.tags,
-      taskId: input.taskId,
     }
 
-    const dir = this.getScopeDir(input.scope, input.taskId)
+    const dir = this.getScopeDir(input.scope)
     await mkdir(dir, { recursive: true })
 
-    const path = this.getNotePath(id, input.scope, input.taskId)
+    const path = this.getNotePath(id, input.scope)
     await writeFile(path, JSON.stringify(note, null, 2), 'utf8')
 
     return note
   }
 
-  async update(id: string, scope: KnowledgeNoteScope, updates: UpdateKnowledgeNoteInput, taskId?: string): Promise<KnowledgeNote> {
-    const existing = await this.get(id, scope, taskId)
+  async update(id: string, scope: KnowledgeNoteScope, updates: UpdateKnowledgeNoteInput): Promise<KnowledgeNote> {
+    const existing = await this.get(id, scope)
     if (!existing) {
       throw new Error(`Knowledge note not found: ${id}`)
     }
@@ -120,14 +111,14 @@ export class KnowledgeNotesStore {
       updatedAt: new Date().toISOString(),
     }
 
-    const path = this.getNotePath(id, scope, taskId)
+    const path = this.getNotePath(id, scope)
     await writeFile(path, JSON.stringify(updated, null, 2), 'utf8')
 
     return updated
   }
 
-  async delete(id: string, scope: KnowledgeNoteScope, taskId?: string): Promise<void> {
-    const path = this.getNotePath(id, scope, taskId)
+  async delete(id: string, scope: KnowledgeNoteScope): Promise<void> {
+    const path = this.getNotePath(id, scope)
 
     if (existsSync(path)) {
       await unlink(path)

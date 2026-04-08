@@ -8,7 +8,7 @@ describe('planning-files bootstrap', () => {
   let tmpDir = ''
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-planning-files-'))
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-planning-files-'))
   })
 
   afterEach(() => {

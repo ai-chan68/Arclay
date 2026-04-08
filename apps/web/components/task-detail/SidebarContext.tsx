@@ -18,9 +18,9 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | null>(null)
 
-const SIDEBAR_LEFT_KEY = 'easywork.sidebar.left-open'
-const SIDEBAR_RIGHT_KEY = 'easywork.sidebar.right-open'
-const SIDEBAR_RIGHT_WIDTH_KEY = 'easywork.sidebar.right-width'
+const SIDEBAR_LEFT_KEY = 'arclay.sidebar.left-open'
+const SIDEBAR_RIGHT_KEY = 'arclay.sidebar.right-open'
+const SIDEBAR_RIGHT_WIDTH_KEY = 'arclay.sidebar.right-width'
 
 const RIGHT_PANEL_MIN_WIDTH = 320
 const RIGHT_PANEL_MAX_WIDTH = 560

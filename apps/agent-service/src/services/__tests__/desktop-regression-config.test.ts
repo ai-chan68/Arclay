@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-const repoRoot = path.resolve(__dirname, '../../../..')
+const repoRoot = path.resolve(__dirname, '../../../../..')
 
 function readJson<T>(relativePath: string): T {
   return JSON.parse(
@@ -15,9 +15,9 @@ function readText(relativePath: string): string {
 }
 
 describe('desktop regression tooling', () => {
-  it('defines root and src-api test coverage/e2e scripts', () => {
+  it('defines root and agent-service test coverage/e2e scripts', () => {
     const rootPackage = readJson<{ scripts?: Record<string, string> }>('package.json')
-    const apiPackage = readJson<{ scripts?: Record<string, string> }>('src-api/package.json')
+    const apiPackage = readJson<{ scripts?: Record<string, string> }>('apps/agent-service/package.json')
 
     expect(rootPackage.scripts?.['test:e2e']).toBeTruthy()
     expect(rootPackage.scripts?.['test:coverage']).toBeTruthy()

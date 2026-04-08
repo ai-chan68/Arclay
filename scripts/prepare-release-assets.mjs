@@ -98,8 +98,8 @@ async function main() {
   }
 
   const safeVersion = sanitizeSegment(version);
-  const bundleDir = resolve(rootDir, 'src-tauri', 'target', 'release', 'bundle');
-  const binariesDir = resolve(rootDir, 'src-tauri', 'binaries');
+  const bundleDir = resolve(rootDir, 'apps', 'desktop', 'target', 'release', 'bundle');
+  const binariesDir = resolve(rootDir, 'apps', 'desktop', 'binaries');
   const outputDir = resolve(rootDir, 'dist', 'release', target);
   const targetTriple = resolveTargetTriple(target);
 
@@ -129,7 +129,7 @@ async function main() {
 
   for (const source of desktopFiles) {
     const originalName = sanitizeSegment(basename(source));
-    const destinationName = `easywork-${safeVersion}-${target}-${originalName}`;
+    const destinationName = `arclay-${safeVersion}-${target}-${originalName}`;
     const destination = resolve(outputDir, destinationName);
     await cp(source, destination);
     publishedFiles.push(destination);
@@ -137,7 +137,7 @@ async function main() {
 
   for (const source of sidecarCandidates) {
     const extension = extname(source).toLowerCase() === '.exe' ? '.exe' : '';
-    const destinationName = `easywork-api-${safeVersion}-${target}${extension}`;
+    const destinationName = `arclay-api-${safeVersion}-${target}${extension}`;
     const destination = resolve(outputDir, destinationName);
     await cp(source, destination);
     publishedFiles.push(destination);
@@ -152,7 +152,7 @@ async function main() {
   }
 
   const metadata = {
-    product: 'easywork',
+    product: 'arclay',
     version,
     commit,
     buildTimestamp: timestamp,

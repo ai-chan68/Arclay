@@ -1,6 +1,6 @@
 import { access, copyFile, mkdir, readFile, writeFile } from 'fs/promises'
 import path from 'path'
-import { isSessionDocumentFile } from '../../../src/shared/lib/file-utils'
+import { isSessionDocumentFile } from '../utils/file-utils'
 import type { TaskPlan } from '../types/agent-new'
 import type { TurnRecord } from '../types/turn-runtime'
 import {

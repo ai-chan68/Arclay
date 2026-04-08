@@ -5,10 +5,11 @@
  */
 
 import { createRequire } from 'module';
+import { spawn as spawnChildProcess } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, rmSync } from 'fs';
 import { appendFile, mkdir, writeFile } from 'fs/promises';
 import { homedir, platform, arch } from 'os';
-import { join, dirname, relative, resolve, sep } from 'path';
+import { join, dirname, relative, resolve, sep, basename } from 'path';
 import {
   createSdkMcpServer,
   Options,
@@ -64,6 +65,204 @@ const DEFAULT_APPROVAL_TIMEOUT_MS = 10 * 60 * 1000;
 const MIN_PLAN_STEPS = 2;
 
 type WebTaskIntent = 'none' | 'information_retrieval' | 'interaction' | 'hybrid';
+
+export function getClaudeSdkResolveBasePath(
+  currentFilename: string | undefined = typeof __filename === 'string' ? __filename : undefined,
+  cwd: string = process.cwd(),
+): string {
+  if (typeof currentFilename === 'string' && currentFilename.length > 0) {
+    return currentFilename;
+  }
+
+  return join(cwd, '__arclay_claude_require__.cjs');
+}
+
+export function getBundledClaudeSdkCliCandidatePaths(
+  execPath: string | undefined = process.execPath,
+): string[] {
+  if (typeof execPath !== 'string' || execPath.length === 0) {
+    return [];
+  }
+
+  const executableDir = dirname(resolve(execPath));
+  return Array.from(new Set([
+    join(executableDir, 'claude-agent-sdk', 'cli.js'),
+    join(executableDir, '..', 'Resources', 'claude-agent-sdk', 'cli.js'),
+    join(executableDir, '..', 'Resources', 'resources', 'claude-agent-sdk', 'cli.js'),
+    join(executableDir, '..', 'resources', 'claude-agent-sdk', 'cli.js'),
+  ]));
+}
+
+export function shouldRetryClaudeCodeSelfSpawn(errorMessage: string): boolean {
+  return /Failed to spawn Claude Code process: spawn .*\/arclay-api(?:-[^/\s]+)?(?:\.exe)? ENOENT/i
+    .test(errorMessage);
+}
+
+export function getClaudeCodeRuntimeExecutable(input?: {
+  currentExecPath?: string;
+  pathEnv?: string;
+  homeDir?: string;
+  isWindows?: boolean;
+  exists?: (path: string) => boolean;
+}): string | undefined {
+  const currentExecPath = input?.currentExecPath ?? process.execPath;
+  const pathEnv = input?.pathEnv ?? process.env.PATH ?? '';
+  const homeDir = input?.homeDir ?? homedir();
+  const isWindows = input?.isWindows ?? platform() === 'win32';
+  const exists = input?.exists ?? existsSync;
+  const executableNames = isWindows ? ['node.exe', 'bun.exe'] : ['node', 'bun'];
+  const pathSeparator = isWindows ? ';' : ':';
+  const nodeCandidates: string[] = [];
+  const bunCandidates: string[] = [];
+  const pushCandidate = (candidate: string) => {
+    const normalized = basename(candidate).toLowerCase();
+    if (normalized.startsWith('node')) {
+      nodeCandidates.push(candidate);
+      return;
+    }
+    if (normalized.startsWith('bun')) {
+      bunCandidates.push(candidate);
+    }
+  };
+
+  if (typeof currentExecPath === 'string' && currentExecPath.length > 0) {
+    const currentName = basename(currentExecPath).toLowerCase();
+    if (executableNames.includes(currentName)) {
+      pushCandidate(currentExecPath);
+    }
+  }
+
+  const pathEntries = pathEnv
+    .split(pathSeparator)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  for (const entry of pathEntries) {
+    for (const executableName of executableNames) {
+      pushCandidate(join(entry, executableName));
+    }
+  }
+
+  if (isWindows) {
+    [
+      join(homeDir, 'AppData', 'Local', 'Programs', 'nodejs', 'node.exe'),
+      join(homeDir, '.volta', 'bin', 'node.exe'),
+      'C:\\Program Files\\nodejs\\node.exe'
+    ].forEach(pushCandidate);
+  } else {
+    [
+      '/opt/homebrew/bin/node',
+      '/usr/local/bin/node',
+      join(homeDir, '.volta', 'bin', 'node'),
+      join(homeDir, '.local', 'bin', 'node'),
+      join(homeDir, '.bun', 'bin', 'bun')
+    ].forEach(pushCandidate);
+  }
+
+  const nodeCommand = nodeCandidates.find((candidate, index, list) =>
+    list.indexOf(candidate) === index && exists(candidate)
+  );
+  if (nodeCommand) {
+    return nodeCommand;
+  }
+
+  return bunCandidates.find((candidate, index, list) =>
+    list.indexOf(candidate) === index && exists(candidate)
+  );
+}
+
+type ClaudeCodeRuntimeOptions = Pick<
+  Options,
+  'pathToClaudeCodeExecutable' | 'executable' | 'spawnClaudeCodeProcess'
+>;
+
+function createClaudeCodeSpawnProcess(
+  runtimeCommand: string,
+): NonNullable<Options['spawnClaudeCodeProcess']> {
+  return (options) => {
+    const childProcess = spawnChildProcess(runtimeCommand, options.args, {
+      cwd: options.cwd,
+      env: options.env,
+      signal: options.signal,
+      stdio: ['pipe', 'pipe', options.env?.DEBUG_CLAUDE_AGENT_SDK ? 'pipe' : 'ignore'],
+      windowsHide: true,
+    });
+    const stdin = childProcess.stdin;
+    const stdout = childProcess.stdout;
+
+    if (!stdin || !stdout) {
+      throw new Error('Claude SDK custom spawn requires piped stdin/stdout');
+    }
+
+    if (options.env?.DEBUG_CLAUDE_AGENT_SDK && childProcess.stderr) {
+      childProcess.stderr.on('data', (data) => {
+        console.error(`[Claude SDK STDERR] ${data.toString()}`);
+      });
+    }
+
+    return {
+      stdin,
+      stdout,
+      get killed() {
+        return childProcess.killed;
+      },
+      get exitCode() {
+        return childProcess.exitCode;
+      },
+      kill: childProcess.kill.bind(childProcess),
+      on: childProcess.on.bind(childProcess),
+      once: childProcess.once.bind(childProcess),
+      off: childProcess.off.bind(childProcess),
+    };
+  };
+}
+
+function buildClaudeCodeRuntimeOptionsForPath(
+  claudeCodePath?: string,
+  input?: {
+    currentExecPath?: string;
+    pathEnv?: string;
+    homeDir?: string;
+    isWindows?: boolean;
+    exists?: (path: string) => boolean;
+  },
+): ClaudeCodeRuntimeOptions {
+  const runtimeCommand = getClaudeCodeRuntimeExecutable(input);
+  const runtimeName = runtimeCommand
+    ? basename(runtimeCommand).toLowerCase().startsWith('bun')
+      ? 'bun'
+      : 'node'
+    : undefined;
+
+  return runtimeCommand
+    ? {
+        pathToClaudeCodeExecutable: claudeCodePath,
+        executable: runtimeName,
+        spawnClaudeCodeProcess: createClaudeCodeSpawnProcess(runtimeCommand),
+      }
+    : {
+        pathToClaudeCodeExecutable: claudeCodePath,
+      };
+}
+
+export function buildBundledClaudeCodeRetryOptions(input?: {
+  currentExecPath?: string;
+  pathEnv?: string;
+  homeDir?: string;
+  isWindows?: boolean;
+  exists?: (path: string) => boolean;
+}): ClaudeCodeRuntimeOptions | null {
+  const currentExecPath = input?.currentExecPath ?? process.execPath;
+  const exists = input?.exists ?? existsSync;
+  const bundledCliPath = getBundledClaudeSdkCliCandidatePaths(currentExecPath)
+    .find((candidate) => exists(candidate));
+
+  if (!bundledCliPath) {
+    return null;
+  }
+
+  return buildClaudeCodeRuntimeOptionsForPath(bundledCliPath, input);
+}
 
 async function appendProviderDiagnostics(
   sessionCwd: string,
@@ -320,6 +519,8 @@ User's request (answer this AFTER reading the images):
       runtimeToolNamespaces,
       allowedTools: queryOptions.allowedTools || [],
       settingSources: queryOptions.settingSources || [],
+      claudeCodePath: queryOptions.pathToClaudeCodeExecutable ?? null,
+      claudeExecutable: queryOptions.executable ?? null,
     });
 
     try {
@@ -330,12 +531,11 @@ User's request (answer this AFTER reading the images):
       while (true) {
         providerCompletionMetadata = null;
 
-        for await (const message of query({
-          prompt: currentPrompt,
-          options: queryOptions,
-        })) {
+        for await (const message of this.runQueryWithPackagedFallback(currentPrompt, queryOptions)) {
           sdkMessageCount += 1;
-          if (signal.aborted) break;
+          if (signal.aborted) {
+            break;
+          }
 
           const completionMetadata = this.extractProviderCompletionMetadata(message);
           if (completionMetadata) {
@@ -413,7 +613,7 @@ User's request (answer this AFTER reading the images):
 
   /**
    * Planning phase - Generate execution plan using LLM
-   * easywork-style two-phase execution
+   * Arclay-style two-phase execution
    */
   async *plan(prompt: string, options?: AgentRunOptions): AsyncIterable<AgentMessage> {
     this.abortController = options?.abortController || new AbortController();
@@ -492,8 +692,8 @@ User's request (answer this AFTER reading the images):
         abortController: signal ? { signal } as AbortController : undefined,
         env: this.buildEnvConfig(),
         model: this.config.model,
-        pathToClaudeCodeExecutable: claudeCodePath,
         maxTurns: 1, // Single turn for planning
+        ...this.buildClaudeCodeRuntimeOptions(claudeCodePath),
       };
 
       const firstAttempt = await this.collectPlanningResponse(
@@ -645,28 +845,29 @@ IMPORTANT:
       attempt,
       promptLength: planningPrompt.length,
       maxTurns: queryOptions.maxTurns ?? null,
+      claudeCodePath: queryOptions.pathToClaudeCodeExecutable ?? null,
+      claudeExecutable: queryOptions.executable ?? null,
     });
 
     try {
-      for await (const message of query({
-        prompt: planningPrompt,
-        options: queryOptions,
-      })) {
-        sdkMessageCount += 1;
-        if (signal.aborted) break;
+      for await (const message of this.runQueryWithPackagedFallback(planningPrompt, queryOptions)) {
+          sdkMessageCount += 1;
+          if (signal.aborted) {
+            break;
+          }
 
-        if (message.type === 'assistant' && message.message?.content) {
-          for (const block of message.message.content as Record<string, unknown>[]) {
-            if ('text' in block) {
-              fullResponse += block.text as string;
-            }
-            // Only treat explicit tool_use content blocks as tool usage.
-            // Some non-tool blocks can carry name/id-like fields and caused false positives.
-            if ('type' in block && block.type === 'tool_use') {
-              hasToolUse = true;
+          if (message.type === 'assistant' && message.message?.content) {
+            for (const block of message.message.content as Record<string, unknown>[]) {
+              if ('text' in block) {
+                fullResponse += block.text as string;
+              }
+              // Only treat explicit tool_use content blocks as tool usage.
+              // Some non-tool blocks can carry name/id-like fields and caused false positives.
+              if ('type' in block && block.type === 'tool_use') {
+                hasToolUse = true;
+              }
             }
           }
-        }
       }
     } catch (error) {
       const errorMessage = this.mapError(error);
@@ -695,6 +896,57 @@ IMPORTANT:
     }
 
     return { fullResponse, hasToolUse };
+  }
+
+  private async *runQueryWithPackagedFallback(
+    prompt: string,
+    queryOptions: Options,
+  ): AsyncIterable<any> {
+    try {
+      for await (const message of query({
+        prompt,
+        options: queryOptions,
+      })) {
+        yield message;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!shouldRetryClaudeCodeSelfSpawn(errorMessage)) {
+        throw error;
+      }
+
+      const retryRuntimeOptions = buildBundledClaudeCodeRetryOptions();
+      if (!retryRuntimeOptions) {
+        throw error;
+      }
+
+      const alreadyUsingRetryOptions =
+        queryOptions.pathToClaudeCodeExecutable === retryRuntimeOptions.pathToClaudeCodeExecutable &&
+        queryOptions.executable === retryRuntimeOptions.executable;
+
+      if (alreadyUsingRetryOptions) {
+        throw error;
+      }
+
+      const retryOptions: Options = {
+        ...queryOptions,
+        ...retryRuntimeOptions,
+      };
+
+      console.warn('[ClaudeAgent] Retrying Claude SDK query with bundled CLI runtime', {
+        previousPath: queryOptions.pathToClaudeCodeExecutable ?? null,
+        previousExecutable: queryOptions.executable ?? null,
+        retryPath: retryOptions.pathToClaudeCodeExecutable ?? null,
+        retryExecutable: retryOptions.executable ?? null,
+      });
+
+      for await (const message of query({
+        prompt,
+        options: retryOptions,
+      })) {
+        yield message;
+      }
+    }
   }
 
   private extractJsonObject(text: string, startIndex = 0): string | null {
@@ -1651,8 +1903,8 @@ IMPORTANT:
       abortController: signal ? { signal } as AbortController : undefined,
       env: this.buildEnvConfig(),
       model: this.config.model,
-      pathToClaudeCodeExecutable: claudeCodePath,
       maxTurns,
+      ...this.buildClaudeCodeRuntimeOptions(claudeCodePath),
     };
 
     // 添加 MCP Servers
@@ -1677,6 +1929,17 @@ IMPORTANT:
     }
 
     return queryOptions;
+  }
+
+  private buildClaudeCodeRuntimeOptions(
+    claudeCodePath?: string,
+  ): ClaudeCodeRuntimeOptions {
+    const retryOptions = buildBundledClaudeCodeRetryOptions();
+    if (retryOptions) {
+      return retryOptions;
+    }
+
+    return buildClaudeCodeRuntimeOptionsForPath(claudeCodePath);
   }
 
   /**
@@ -1864,7 +2127,7 @@ Prioritize these skills when they are relevant.
     delete env.CLAUDE_CODE_SESSION;
     delete env.CLAUDE_SESSION_ID;
 
-    // 当用户在 EasyWork 中配置了自定义 API 时，需要确保配置优先于 ~/.claude/settings.json
+    // 当用户在 Arclay 中配置了自定义 API 时，需要确保配置优先于 ~/.claude/settings.json
     // 通过使用 ANTHROPIC_AUTH_TOKEN 并删除 ANTHROPIC_API_KEY 来实现优先级控制
     if (this.config.apiKey) {
       // 使用 ANTHROPIC_AUTH_TOKEN 作为主要认证方式
@@ -2000,16 +2263,29 @@ Prioritize these skills when they are relevant.
     // Tauri sidecar 环境 PATH 被剥离，需要提前写回扩展 PATH
     process.env.PATH = this.getExtendedPath();
 
-    const require = createRequire(import.meta.url);
-    const sdkCliPath = require.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
-    if (!existsSync(sdkCliPath)) {
-      console.error(`[Claude] SDK cli.js not found at: ${sdkCliPath}`);
-      return undefined;
+    for (const candidate of getBundledClaudeSdkCliCandidatePaths()) {
+      if (existsSync(candidate)) {
+        this.claudeCodePath = candidate;
+        console.log(`[Claude] Using bundled desktop SDK cli.js at: ${candidate}`);
+        return this.claudeCodePath;
+      }
     }
 
-    this.claudeCodePath = sdkCliPath;
-    console.log(`[Claude] Using bundled SDK cli.js at: ${sdkCliPath}`);
-    return this.claudeCodePath;
+    try {
+      const require = createRequire(getClaudeSdkResolveBasePath());
+      const sdkCliPath = require.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
+      if (!existsSync(sdkCliPath)) {
+        console.error(`[Claude] SDK cli.js not found at resolved path: ${sdkCliPath}`);
+        return undefined;
+      }
+
+      this.claudeCodePath = sdkCliPath;
+      console.log(`[Claude] Using bundled SDK cli.js at: ${sdkCliPath}`);
+      return this.claudeCodePath;
+    } catch (error) {
+      console.error('[Claude] Failed to resolve SDK cli.js', error);
+      return undefined;
+    }
   }
 
   /**

@@ -15,13 +15,67 @@ import { cancelTurnsForExpiredPlans } from './services/plan-turn-sync'
 import { bootstrapRuntimeRecovery } from './services/runtime-recovery-bootstrap'
 import { turnRuntimeStore } from './services/turn-runtime-store'
 import { createAppRuntime } from './runtime/app-runtime'
+import { homedir, platform } from 'os'
+import { join } from 'path'
+import { existsSync, readdirSync } from 'fs'
 
 // Detect if running as Tauri sidecar
 const isTauriSidecar = process.env.TAURI_FAMILY === 'sidecar'
 
+// Extend PATH early for Tauri sidecar environment
+if (isTauriSidecar || !process.env.PATH?.includes('/opt/homebrew/bin')) {
+  const home = homedir()
+  const os = platform()
+  const isWindows = os === 'win32'
+  const pathSeparator = isWindows ? ';' : ':'
+
+  const paths = [process.env.PATH || '']
+
+  if (isWindows) {
+    paths.push(
+      join(home, 'AppData', 'Roaming', 'npm'),
+      join(home, 'AppData', 'Local', 'Programs', 'nodejs'),
+      join(home, '.volta', 'bin'),
+      'C:\\Program Files\\nodejs'
+    )
+  } else {
+    paths.push(
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      join(home, '.local', 'bin'),
+      join(home, '.npm-global', 'bin'),
+      join(home, '.volta', 'bin')
+    )
+
+    // Add nvm paths
+    const nvmDir = join(home, '.nvm', 'versions', 'node')
+    try {
+      if (existsSync(nvmDir)) {
+        const versions = readdirSync(nvmDir)
+        for (const version of versions) {
+          paths.push(join(nvmDir, version, 'bin'))
+        }
+      }
+    } catch {
+      // nvm not installed
+    }
+  }
+
+  process.env.PATH = paths.join(pathSeparator)
+  console.log('[Startup] Extended PATH for Tauri sidecar environment')
+}
+
 // Initialize agent providers
 initializeProviders()
-void providerManager.initialize()
+
+// Initialize provider manager and wait for it to complete
+providerManager.initialize()
+  .then(() => {
+    console.log('[Startup] Provider manager initialized')
+  })
+  .catch((error) => {
+    console.error('[Startup] Failed to initialize provider manager:', error)
+  })
 
 const runtime = createAppRuntime()
 const scheduledTaskScheduler = new ScheduledTaskScheduler({
@@ -70,9 +124,20 @@ void initializeSandboxServices().catch((error) => {
 
 logInitialAgentRuntime()
 
+const allowedCorsOrigins = Array.from(new Set([
+  getFrontendUrl(),
+  'http://localhost:1420',
+  'http://127.0.0.1:1420',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://tauri.localhost',
+  'https://tauri.localhost',
+  'tauri://localhost',
+]))
+
 // Middleware
 app.use('*', cors({
-  origin: [getFrontendUrl(), 'http://localhost:1420', 'http://localhost:5173'],
+  origin: allowedCorsOrigins,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization']
 }))

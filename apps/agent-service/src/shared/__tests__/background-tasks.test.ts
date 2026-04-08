@@ -5,7 +5,7 @@ import {
   clearAllBackgroundTasks,
   getBackgroundTask,
   updateBackgroundTaskPhase,
-} from '../../../../src/shared/lib/background-tasks'
+} from '../../../../web/shared/lib/background-tasks'
 
 describe('background task runtime phase tracking', () => {
   afterEach(() => {

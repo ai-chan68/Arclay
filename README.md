@@ -1,70 +1,169 @@
-# 🚀 EasyWork
+# 🚀 Arclay
 
 <p align="center">
-  <img src="./app-icon.png" alt="EasyWork Banner" width="100">
+  <img src="./app-icon.png" alt="Arclay Logo" width="100">
 </p>
 
 <p align="center">
-  <a href="https://github.com/workany-ai/workany/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/workany-ai/workany" alt="License">
+  <a href="https://github.com/WhiteSnoopy/Arclay/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/WhiteSnoopy/Arclay" alt="License">
   </a>
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome">
 </p>
 
-> **EasyWork** 是一个基于 **Harness Engineering（装备工程）** 理念构建的专业 AI 开发者工作台。它通过确定的 `规划 -> 审批 -> 执行` 流程，将自然语言转化为 stable、可控的本地开发产出。
+> **Arclay** is a desktop AI assistant for ordinary users who want reliable local automation. It turns plain-language requests into files, reports, and task results through a controlled `Planning -> Approval -> Execution` workflow.
 
----
+## Features
 
-### 📺 场景演示 (Showcases)
+- **Ask in natural language**: describe what you want in plain words
+- **Review before action**: see the plan before the app executes it
+- **Desktop-first**: runs as a local desktop app with local data storage
+- **Safer execution**: guarded command execution with runtime checks
+- **Extensible when needed**: supports MCP and skills without exposing that complexity by default
 
-| 任务场景 | 预览 |
-| :--- | :--- |
-| **自动化代码重构** | ![Refactor Demo](./docs/assets/refactor-demo.gif) |
-| **环境初始化与配置** | ![Setup Demo](./docs/assets/setup-demo.gif) |
+## Quick Start
 
-### ✨ 核心特性 (Key Features)
+### Prerequisites
 
-- 🛠️ **Harness 驱动**: Agent 是模型，Harness（工具、观测、权限）才是工程师编写的代码。
-- 🔒 **原生沙箱 (Sandbox)**: 安全的本地命令执行，具备完善的错误恢复契约。
-- 🏗️ **确定的执行流**: 拒绝黑盒，遵循 `Planning -> Approval -> Execution` 范式。
-- 🧩 **动态扩展**: 深度集成 MCP (Model Context Protocol) 与 Skills 路由器。
+- Node.js `>= 20`
+- pnpm `>= 9`
+- Rust stable
+- Git
 
-### 🏗️ 技术架构 (Architecture)
+### Install
 
-<p align="center">
-  <img src="./docs/assets/architecture-diagram.png" alt="Architecture" width="600">
-</p>
-
-EasyWork 采用三层架构确保跨平台稳定性与高性能：
-- **Frontend**: React 19 + Vite + Tailwind CSS 4
-- **API Service**: Hono + Node.js + Claude Agent SDK
-- **Desktop Layer**: Tauri 2 + Rust + SQLite
-
-### ⚡ 快速开始 (Quick Start)
-
-#### 环境要求
-- Node.js >= 20, pnpm >= 9, Git, Rust (Stable)
-
-#### 安装运行
 ```bash
-# 克隆仓库
-git clone <repo-url> && cd EasyWork
-
-# 安装依赖并启动
-pnpm install && pnpm dev:all
+git clone https://github.com/WhiteSnoopy/Arclay.git
+cd Arclay
+pnpm install
 ```
 
-| 命令 | 描述 |
-| :--- | :--- |
-| `pnpm dev:all` | 启动 Web 联调模式 (API + Frontend) |
-| `pnpm build` | 全量构建项目 |
-| `pnpm test` | 执行后端自动化测试 |
+### Run
 
-### ⚙️ 配置 (Configuration)
+Desktop mode:
 
-编辑 `~/.easywork/settings.json` 或在 UI 界面配置 `ANTHROPIC_API_KEY` 等环境变量。
+```bash
+pnpm dev
+```
 
-### 🤝 贡献与许可
+Web development mode:
 
-- [MIT License](./LICENSE)
-- [English README](./README_EN.md)
+```bash
+pnpm dev:all
+```
+
+Useful commands:
+
+```bash
+pnpm dev:web
+pnpm dev:api
+pnpm build
+pnpm build:desktop
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:coverage
+pnpm test:e2e
+```
+
+### Configure
+
+Configure your provider and API key in the app Settings page, or edit:
+
+```text
+~/.arclay/settings.json
+```
+
+Supported providers:
+
+- `claude`
+- `glm`
+- `openai`
+- `openrouter`
+- `kimi`
+
+## Documentation
+
+- [Getting Started](./docs/getting-started.md)
+- [中文文档](./README.zh-CN.md)
+- [Architecture](./ARCHITECTURE.md) - advanced technical overview
+
+## Project Layout
+
+```text
+apps/
+  web/            React frontend
+  agent-service/  Node.js API sidecar
+  desktop/        Tauri / Rust desktop shell
+packages/
+  shared-types/   shared frontend/backend types
+```
+
+## Core Ideas
+
+### Guided execution
+
+1. **Planning**: the model produces a `TaskPlan`
+2. **Approval**: the user reviews the plan
+3. **Execution**: the system executes with streaming feedback and runtime verification
+
+### Different result types
+
+Plans classify the expected output as one of:
+
+- `static_files`
+- `local_service`
+- `deployed_service`
+- `script_execution`
+- `data_output`
+- `unknown`
+
+This helps Arclay decide whether it should verify a local service, produce static files, or return a one-time result.
+
+### Runtime modes
+
+- Desktop mode uses SQLite and the real production shell
+- Web mode uses IndexedDB and is intended for iteration and E2E only
+
+## Developer Notes
+
+<details>
+<summary>Expand for development and verification details</summary>
+
+### Stack
+
+- Desktop: Tauri 2 + Rust + SQLite
+- UI: React 19 + Vite + Tailwind CSS 4 + React Router 7
+- API: Hono + Node.js + Claude Agent SDK + Zod
+- Monorepo: pnpm workspace
+
+### Recommended workflow
+
+- Frontend work: `pnpm dev:all`
+- API work: `pnpm dev:api`
+- Production-behavior verification: `pnpm dev`
+
+### Pre-PR checks
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:coverage
+pnpm test:e2e
+pnpm build
+```
+
+### Read next
+
+- Getting started: [docs/getting-started.md](./docs/getting-started.md)
+- Detailed architecture: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Contributor guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Developer operations: [AGENTS.md](./AGENTS.md)
+- AI collaboration rules: [CLAUDE.md](./CLAUDE.md)
+
+</details>
+
+## License
+
+[MIT License](./LICENSE)

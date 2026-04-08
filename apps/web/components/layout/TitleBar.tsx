@@ -1,12 +1,12 @@
 import React from 'react';
 import { useEnvironment, useWindowControls } from '../../shared/hooks';
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 
 interface TitleBarProps {
   title?: string;
 }
 
-export function TitleBar({ title = 'EasyWork' }: TitleBarProps) {
+export function TitleBar({ title = 'Arclay' }: TitleBarProps) {
   const { environment, platform } = useEnvironment();
   const { minimize, toggleMaximize, close, startDragging, onDoubleClick } = useWindowControls();
 

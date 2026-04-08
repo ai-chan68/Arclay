@@ -24,6 +24,7 @@ export type ScheduledTaskRunStatus =
 
 export interface ScheduledTask {
   id: string
+  workspaceId: string
   name: string
   enabled: boolean
   cronExpr: string
@@ -66,12 +67,13 @@ export interface ScheduledTaskRun {
 }
 
 export interface ScheduledTaskStoreData {
-  version: 1
+  version: 2
   tasks: ScheduledTask[]
   runs: ScheduledTaskRun[]
 }
 
 export interface ScheduledTaskListQuery {
+  workspaceId?: string
   enabled?: boolean
   breakerState?: ScheduledTaskBreakerState
   keyword?: string
@@ -86,6 +88,7 @@ export interface ScheduledTaskRunListQuery {
 }
 
 export interface CreateScheduledTaskInput {
+  workspaceId: string
   name: string
   enabled?: boolean
   cronExpr: string
@@ -100,6 +103,7 @@ export interface CreateScheduledTaskInput {
 }
 
 export interface UpdateScheduledTaskInput {
+  workspaceId?: string
   name?: string
   enabled?: boolean
   cronExpr?: string

@@ -9,16 +9,16 @@ import type {
   ApprovalStoreData,
 } from '../types/approval'
 import type { PendingQuestion, PermissionRequest } from '../types/agent-new'
-import { resolveEasyWorkPath } from '../shared/easywork-home'
+import { resolveArclayPath } from '../shared/arclay-home'
 
 const STORE_VERSION = 1 as const
 
 function getStoreDir(): string {
-  return resolveEasyWorkPath()
+  return resolveArclayPath()
 }
 
 function getStoreFile(): string {
-  return resolveEasyWorkPath('approval-requests.json')
+  return resolveArclayPath('approval-requests.json')
 }
 
 function createInitialData(): ApprovalStoreData {

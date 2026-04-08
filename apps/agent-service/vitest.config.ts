@@ -7,7 +7,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     env: process.env.CI ? undefined : { ...process.env },
-    setupFiles: ['./src/test/setup-easywork-home.ts'],
+    setupFiles: ['./src/test/setup-arclay-home.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -15,6 +15,11 @@ export default defineConfig({
       exclude: [
         'src/**/*.test.ts',
         'src/test/**',
+        '**/*.d.ts',
+        '**/types.ts',
+        '**/interface.ts',
+        '**/index.ts',
+        'scripts/**',
       ],
     },
   },

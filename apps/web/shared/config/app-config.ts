@@ -35,14 +35,14 @@ export interface AppConfig {
 
 const DEFAULT_CONFIG: AppConfig = {
   api: {
-    startupTimeout: 30000,    // 30 seconds
+    startupTimeout: 10000,    // 10 seconds (reduced from 30s)
     retryInterval: 200,       // 200ms
-    maxRetries: 150,          // 30s / 200ms
+    maxRetries: 50,           // 10s / 200ms
     defaultPort: 2026,
   },
   database: {
-    indexedDBVersion: 3,
-    indexedDBName: 'easywork-db',
+    indexedDBVersion: 4,
+    indexedDBName: 'arclay-db',
   },
   ui: {
     sidebarWidth: 280,

@@ -12,7 +12,7 @@ describe('getDesktopApiPort', () => {
   })
 
   it('returns 0 outside Tauri', async () => {
-    const { getDesktopApiPort } = await import('../../../../src/shared/tauri/commands')
+    const { getDesktopApiPort } = await import('../../../../web/shared/tauri/commands')
 
     await expect(getDesktopApiPort()).resolves.toBe(0)
   })
@@ -23,7 +23,7 @@ describe('getDesktopApiPort', () => {
     const { invoke } = await import('@tauri-apps/api/core')
     vi.mocked(invoke).mockResolvedValue(0)
 
-    const { getDesktopApiPort } = await import('../../../../src/shared/tauri/commands')
+    const { getDesktopApiPort } = await import('../../../../web/shared/tauri/commands')
 
     await expect(getDesktopApiPort()).resolves.toBe(0)
   })

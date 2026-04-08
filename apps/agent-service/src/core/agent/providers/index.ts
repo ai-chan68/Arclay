@@ -54,7 +54,7 @@ export function initializeProviders(): void {
   registerAgentPlugin(claudePlugin)
 
   // 注册 Fake Provider（测试或显式启用时）
-  if (process.env.NODE_ENV === 'test' || process.env.EASYWORK_FAKE_PROVIDER === '1') {
+  if (process.env.NODE_ENV === 'test' || process.env.ARCLAY_FAKE_PROVIDER === '1') {
     registerAgentPlugin(fakePlugin)
   }
 

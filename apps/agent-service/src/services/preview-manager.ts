@@ -2,7 +2,7 @@
  * Preview Manager Service
  * 
  * Manages Vite development server instances for live preview
- * Migrated and enhanced from easywork architecture
+ * Migrated and enhanced from the original Arclay architecture
  */
 
 import { spawn, ChildProcess } from 'child_process';

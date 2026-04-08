@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renameMcpServerRecord, syncMcpNameDrafts } from '../../../../src/shared/lib/mcp-server-utils'
+import { renameMcpServerRecord, syncMcpNameDrafts } from '../../../../web/shared/lib/mcp-server-utils'
 
 describe('renameMcpServerRecord', () => {
   it('renames a server only when the final name is committed', () => {

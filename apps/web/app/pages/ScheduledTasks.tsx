@@ -18,6 +18,7 @@ import { LeftSidebar, type UITask } from '@/components/task-detail/LeftSidebar'
 import { useDatabase } from '@/shared/hooks/useDatabase'
 import { api, apiFetchRaw } from '@/shared/api'
 import { cn } from '@/shared/lib/utils'
+import { useWorkspace } from '@/shared/workspace/workspace-store'
 import type { Task, TaskPlan } from '@shared-types'
 
 type BreakerState = 'closed' | 'open' | 'half_open'
@@ -25,6 +26,7 @@ type RunStatus = 'running' | 'success' | 'failed' | 'timeout' | 'cancelled' | 's
 
 interface ScheduledTaskItem {
   id: string
+  workspaceId: string
   name: string
   enabled: boolean
   cronExpr: string
@@ -268,6 +270,7 @@ function ScheduledTasksContent() {
   const location = useLocation()
   const locationState = location.state as ScheduledTaskLocationState | null
   const prefillHandledRef = useRef(false)
+  const { isReady: isWorkspaceReady, currentWorkspaceId, currentWorkspace } = useWorkspace()
 
   const { isReady, loadAllTasks, deleteTask, updateTask } = useDatabase()
   const [sidebarTasks, setSidebarTasks] = useState<Task[]>([])
@@ -302,20 +305,26 @@ function ScheduledTasksContent() {
   const [runDetailError, setRunDetailError] = useState<string | null>(null)
 
   const loadSidebarTasks = useCallback(async () => {
-    if (!isReady) return
+    if (!isReady || !isWorkspaceReady || !currentWorkspaceId) return
     try {
-      const all = await loadAllTasks()
+      const all = await loadAllTasks(currentWorkspaceId)
       setSidebarTasks(all)
     } catch (err) {
       console.error('[ScheduledTasks] Failed to load sidebar tasks:', err)
     }
-  }, [isReady, loadAllTasks])
+  }, [currentWorkspaceId, isReady, isWorkspaceReady, loadAllTasks])
 
   const loadScheduledTasks = useCallback(async () => {
+    if (!isWorkspaceReady || !currentWorkspaceId) return
     setLoading(true)
     setError(null)
     try {
-      const data = await api.get<PaginatedResult<ScheduledTaskItem>>('/api/scheduled-tasks?page=1&pageSize=200')
+      const query = new URLSearchParams({
+        page: '1',
+        pageSize: '200',
+        workspaceId: currentWorkspaceId,
+      })
+      const data = await api.get<PaginatedResult<ScheduledTaskItem>>(`/api/scheduled-tasks?${query.toString()}`)
       setTaskItems(data.items)
     } catch (err) {
       console.error('[ScheduledTasks] Failed to load scheduled tasks:', err)
@@ -323,7 +332,7 @@ function ScheduledTasksContent() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [currentWorkspaceId, isWorkspaceReady])
 
   useEffect(() => {
     void loadSidebarTasks()
@@ -512,6 +521,7 @@ function ScheduledTasksContent() {
     try {
       const approvedPlan = parsePlan(form.approvedPlanJson)
       const payload = {
+        workspaceId: currentWorkspaceId,
         name: form.name.trim(),
         enabled: form.enabled,
         cronExpr: form.cronExpr.trim(),
@@ -519,12 +529,13 @@ function ScheduledTasksContent() {
         sourcePrompt: form.sourcePrompt.trim(),
         approvedPlan,
         executionPromptSnapshot: form.executionPromptSnapshot.trim() || undefined,
+        workDir: currentWorkspace?.default_work_dir || undefined,
         maxConsecutiveFailures: Number(form.maxConsecutiveFailures),
         cooldownSeconds: Number(form.cooldownSeconds),
         timeoutSeconds: Number(form.timeoutSeconds),
       }
 
-      if (!payload.name || !payload.sourcePrompt || !payload.cronExpr) {
+      if (!payload.workspaceId || !payload.name || !payload.sourcePrompt || !payload.cronExpr) {
         throw new Error('名称、Cron 和指令为必填项')
       }
 
@@ -541,7 +552,7 @@ function ScheduledTasksContent() {
     } finally {
       setSaving(false)
     }
-  }, [closeFormModal, editingTaskId, form, loadScheduledTasks, parsePlan])
+  }, [closeFormModal, currentWorkspace?.default_work_dir, currentWorkspaceId, editingTaskId, form, loadScheduledTasks, parsePlan])
 
   const handleDeleteScheduledTask = useCallback(async (taskId: string) => {
     if (!confirm('确定要删除这个定时任务吗？')) return

@@ -9,7 +9,7 @@ import { AgentService } from '../agent-service'
 describe('AgentService', () => {
   let workDir: string
   let provider: ProviderConfig
-  let originalEasyWorkHome: string | undefined
+  let originalArclayHome: string | undefined
 
   beforeEach(() => {
     workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-service-'))
@@ -18,16 +18,16 @@ describe('AgentService', () => {
       apiKey: 'test-key',
       model: 'test-model',
     } as ProviderConfig
-    originalEasyWorkHome = process.env.EASYWORK_HOME
+    originalArclayHome = process.env.ARCLAY_HOME
   })
 
   afterEach(() => {
-    if (originalEasyWorkHome === undefined) {
-      delete process.env.EASYWORK_HOME
+    if (originalArclayHome === undefined) {
+      delete process.env.ARCLAY_HOME
       return
     }
 
-    process.env.EASYWORK_HOME = originalEasyWorkHome
+    process.env.ARCLAY_HOME = originalArclayHome
   })
 
   it('loads and saves session context, and injects it into system prompt', async () => {
@@ -200,8 +200,8 @@ describe('AgentService', () => {
   it('writes append-only metrics with artifacts and attempt numbers when a task run completes', async () => {
     const sessionId = 'session-metrics'
     const taskId = 'task_metrics'
-    const metricsHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-home-'))
-    process.env.EASYWORK_HOME = metricsHome
+    const metricsHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-home-'))
+    process.env.ARCLAY_HOME = metricsHome
 
     const fakeAgent: IAgent = {
       async run() {

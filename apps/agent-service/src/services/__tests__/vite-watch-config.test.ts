@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import viteConfig from '../../../../src/vite.config'
+import viteConfig from '../../../../web/vite.config'
 
 describe('vite dev watch config', () => {
   it('ignores runtime workspace artifacts to avoid dev-page reload loops', () => {
@@ -12,8 +12,8 @@ describe('vite dev watch config', () => {
         : []
 
     expect(patterns).toEqual(expect.arrayContaining([
-      '**/src-api/workspace/**',
-      '**/.easywork/**',
+      '**/apps/agent-service/workspace/**',
+      '**/.arclay/**',
     ]))
   })
 })

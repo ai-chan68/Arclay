@@ -25,7 +25,10 @@ workspace/
 docs/
 !docs/
 docs/*
-!docs/architecture.md
+!docs/getting-started.md
+!docs/development.md
+!docs/testing.md
+!docs/deployment.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/
@@ -49,13 +52,13 @@ logs/
 coverage/
 
 # Tauri
-src-tauri/target/
+apps/desktop/target/
 
 # Cache
 .cache/
 .parcel-cache/
 .turbo/
-src-api/workspace/sessions/
+apps/agent-service/workspace/sessions/
 
 # Auto-generated skills directory (synced from SKILLs/)
 .codex/skills/
@@ -63,12 +66,12 @@ src-api/workspace/sessions/
 **/.claude/settings.local.json
 
 # Runtime state (generated locally)
-.easywork/
+.arclay/
 .playwright-cli/
 playwright-report/
 playwright-report-integration/
 test-results/
-src-tauri/binaries/
+apps/desktop/binaries/
 .worktrees/
 .e2e/
 .docs/

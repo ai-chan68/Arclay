@@ -9,7 +9,7 @@ describe('TurnRuntimeStore dependency resolution', () => {
 
   beforeEach(() => {
     oldHome = process.env.HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-turn-runtime-store-'))
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-turn-runtime-store-'))
     process.env.HOME = tempHome
     vi.resetModules()
   })

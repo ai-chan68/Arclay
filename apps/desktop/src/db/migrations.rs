@@ -9,7 +9,7 @@ struct Migration {
     name: &'static str,
 }
 
-const MIGRATIONS: [Migration; 5] = [
+const MIGRATIONS: [Migration; 6] = [
     Migration {
         version: 1,
         name: "initial-schema",
@@ -29,6 +29,10 @@ const MIGRATIONS: [Migration; 5] = [
     Migration {
         version: 5,
         name: "task-preview-columns",
+    },
+    Migration {
+        version: 6,
+        name: "workspace-schema",
     },
 ];
 
@@ -171,6 +175,11 @@ async fn validate_schema_shape(pool: &SqlitePool, current_version: i64) -> Resul
         .await?;
     }
 
+    if current_version >= 6 {
+        ensure_table_shape(pool, current_version, "workspaces", &["name", "default_work_dir"]).await?;
+        ensure_table_shape(pool, current_version, "sessions", &["workspace_id"]).await?;
+    }
+
     Ok(())
 }
 
@@ -196,6 +205,7 @@ async fn apply_migration(pool: &SqlitePool, version: i64) -> Result<(), DbInitEr
         3 => apply_message_columns(pool).await,
         4 => apply_file_columns(pool).await,
         5 => apply_task_preview_columns(pool).await,
+        6 => apply_workspace_schema(pool).await,
         _ => Ok(()),
     }
 }
@@ -362,6 +372,28 @@ async fn apply_task_preview_columns(pool: &SqlitePool) -> Result<(), DbInitError
     ensure_column(pool, "tasks", "selected_artifact_id", "TEXT").await?;
     ensure_column(pool, "tasks", "preview_mode", "TEXT DEFAULT 'static'").await?;
     ensure_column(pool, "tasks", "is_right_sidebar_visible", "INTEGER DEFAULT 0").await?;
+
+    Ok(())
+}
+
+async fn apply_workspace_schema(pool: &SqlitePool) -> Result<(), DbInitError> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS workspaces (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            default_work_dir TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    ensure_column(pool, "sessions", "workspace_id", "TEXT").await?;
+
+    maybe_create_index(pool, "idx_sessions_workspace_id", "sessions", "workspace_id").await?;
 
     Ok(())
 }
@@ -778,7 +810,7 @@ mod tests {
             .expect("system time should be after epoch")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "easywork-migrations-{}-{}-{}.db",
+            "arclay-migrations-{}-{}-{}.db",
             name,
             std::process::id(),
             suffix

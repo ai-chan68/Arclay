@@ -48,7 +48,16 @@ export function detectEnvironment(): RuntimeEnvironment {
       __TAURI__?: unknown;
       __TAURI_INTERNALS__?: unknown;
     };
-    if ('__TAURI__' in g || '__TAURI_INTERNALS__' in g) {
+    const hasTauriInternals = g.__TAURI_INTERNALS__ != null;
+    const tauriObject = g.__TAURI__;
+    const hasLegacyTauriApi = !!tauriObject
+      && typeof tauriObject === 'object'
+      && (
+        'invoke' in (tauriObject as Record<string, unknown>)
+        || 'core' in (tauriObject as Record<string, unknown>)
+      );
+
+    if (hasTauriInternals || hasLegacyTauriApi) {
       return 'tauri';
     }
   }

@@ -1,7 +1,7 @@
 /**
- * TaskDetail - 任务详情页面 (easywork Style Two-Phase Execution)
+ * TaskDetail - 任务详情页面 (Arclay Style Two-Phase Execution)
  *
- * easywork-style workflow:
+ * Arclay-style workflow:
  *   Phase 1: Planning - POST /v2/agent/plan → receive plan → awaiting approval
  *   Phase 2: Execution - user approves → POST /v2/agent/execute → stream execution
  *
@@ -39,6 +39,7 @@ import {
 import { getApiUrl } from '@/shared/api'
 import { useAgentNew } from '@/shared/hooks/useAgentNew'
 import { useDatabase, dbMessageToAgentMessage } from '@/shared/hooks/useDatabase'
+import { useWorkspace } from '@/shared/workspace/workspace-store'
 import type { AgentMessage, TaskStatus, AgentPhase, TaskPlan, MessageAttachment, AgentError } from '@shared-types'
 import {
   generateSessionId,
@@ -83,7 +84,7 @@ interface RuntimeSnapshotPayload {
   }>
 }
 
-const TASK_TURN_SELECTION_STORAGE_KEY = 'easywork-task-turn-selection'
+const TASK_TURN_SELECTION_STORAGE_KEY = 'arclay-task-turn-selection'
 
 /** Generate task title from prompt */
 function generateTaskTitle(prompt: string): string {
@@ -197,12 +198,17 @@ function TaskDetailContent() {
     rightPanelWidth,
     setRightPanelWidth,
   } = useSidebar()
+  const {
+    isReady: isWorkspaceReady,
+    currentWorkspaceId,
+    currentWorkspace,
+  } = useWorkspace()
 
   // Database
   const {
     isReady: isDbReady, loadAllTasks, createTask: dbCreateTask,
     updateTask: dbUpdateTask, deleteTask: dbDeleteTask,
-    loadMessages, countMessages, saveMessage, getTask,
+    loadMessages, countMessages, saveMessage, getTask, getSession,
   } = useDatabase()
 
   // Task state
@@ -230,12 +236,13 @@ function TaskDetailContent() {
 
   // Load task list from DB on mount - 只在任务列表为空时加载，避免覆盖已有数据
   useEffect(() => {
-    if (!isDbReady || tasks.length > 0) return
+    if (!isDbReady || !isWorkspaceReady || !currentWorkspaceId || tasks.length > 0) return
+    const workspaceId = currentWorkspaceId
     let cancelled = false
     async function load() {
       try {
         console.log('[TaskDetail] Loading tasks from DB...')
-        const dbTasks = await loadAllTasks()
+        const dbTasks = await loadAllTasks(workspaceId)
         console.log('[TaskDetail] Loaded tasks:', dbTasks.length)
         if (!cancelled) {
           const messageCounts = await Promise.all(
@@ -267,7 +274,7 @@ function TaskDetailContent() {
     }
     load()
     return () => { cancelled = true }
-  }, [countMessages, isDbReady, loadAllTasks, tasks.length])
+  }, [countMessages, currentWorkspaceId, isDbReady, isWorkspaceReady, loadAllTasks, tasks.length])
 
   // Message persistence callback
   const handleMessageReceived = useCallback(async (message: AgentMessage, msgTaskId?: string) => {
@@ -439,7 +446,8 @@ function TaskDetailContent() {
   }, [taskId, resetTransientState])
 
   useEffect(() => {
-    if (!taskId || !isDbReady || hasInitializedRef.current) return
+    if (!taskId || !isDbReady || !isWorkspaceReady || !currentWorkspaceId || hasInitializedRef.current) return
+    const workspaceId = currentWorkspaceId
     hasInitializedRef.current = true
 
     async function initialize() {
@@ -447,6 +455,12 @@ function TaskDetailContent() {
       const existingTask = await getTask(taskId!)
 
       if (existingTask) {
+        const existingSession = await getSession(existingTask.session_id)
+        if (existingSession && existingSession.workspace_id !== currentWorkspaceId) {
+          navigate('/', { replace: true })
+          return
+        }
+
         // === EXISTING TASK: load from DB ===
         console.log('[TaskDetail] Loading existing task:', taskId)
         const uiTask: UITask = {
@@ -534,13 +548,17 @@ function TaskDetailContent() {
             session_id: sessionId,
             task_index: taskIndex,
             prompt: initialPrompt,
-          })
+          }, workspaceId)
         } catch (err) {
           console.error('[TaskDetail] Failed to persist task:', err)
         }
 
         // Start two-phase execution
-        runAgent(initialPrompt, taskId!, { sessionId, taskIndex }, initialAttachments)
+        runAgent(initialPrompt, taskId!, {
+          sessionId,
+          taskIndex,
+          sessionFolder: currentWorkspace?.default_work_dir || undefined,
+        }, initialAttachments)
       } else {
         // No prompt and task not in DB - redirect to home
         console.log('[TaskDetail] No prompt and no existing task, redirecting to home')
@@ -548,8 +566,27 @@ function TaskDetailContent() {
       }
     }
 
-    initialize()
-  }, [taskId, isDbReady]) // eslint-disable-line react-hooks/exhaustive-deps
+    void initialize()
+  }, [currentWorkspace?.default_work_dir, currentWorkspaceId, getSession, getTask, initialAttachments, initialPrompt, initialSessionId, initialTaskIndex, isDbReady, isWorkspaceReady, navigate, runAgent, taskId, dbCreateTask]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!currentTask || !currentWorkspaceId) return
+
+    let cancelled = false
+    const sessionId = currentTask.session_id
+
+    async function ensureTaskWorkspaceVisibility() {
+      const session = await getSession(sessionId)
+      if (!cancelled && session && session.workspace_id !== currentWorkspaceId) {
+        navigate('/', { replace: true })
+      }
+    }
+
+    void ensureTaskWorkspaceVisibility()
+    return () => {
+      cancelled = true
+    }
+  }, [currentTask, currentWorkspaceId, getSession, navigate])
 
   // Update task status when messages/running state changes
   useEffect(() => {
@@ -760,6 +797,37 @@ function TaskDetailContent() {
     }
   }, [isCurrentTaskRunning, selectedTurnDetail]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Force artifact re-evaluation when task completes
+  const prevRunningRef = useRef(isCurrentTaskRunning)
+  useEffect(() => {
+    const wasRunning = prevRunningRef.current
+    const isNowStopped = wasRunning && !isCurrentTaskRunning
+    prevRunningRef.current = isCurrentTaskRunning
+
+    if (!isNowStopped || !selectedTurnDetail) return
+
+    const detailArtifacts = Array.isArray(selectedTurnDetail?.detail?.output?.artifacts)
+      ? selectedTurnDetail.detail.output.artifacts
+      : []
+    const explicitArtifacts = filterArtifactsForDisplay(
+      detailArtifacts
+        .filter((artifact): artifact is TurnDetailArtifactPayload => !!artifact.path)
+        .map((artifact) => ({
+          id: artifact.id || `artifact-${artifact.path}`,
+          name: artifact.name,
+          path: artifact.path,
+          type: artifact.type as Artifact['type'],
+        }))
+    )
+
+    const sortedArtifacts = sortArtifactsForPreview(explicitArtifacts)
+    const preferredArtifact = pickPrimaryArtifactForPreview(sortedArtifacts)
+
+    if (preferredArtifact) {
+      setSelectedArtifact(preferredArtifact)
+    }
+  }, [isCurrentTaskRunning, selectedTurnDetail])
+
   const handleRightResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!isRightSidebarVisible) return
 
@@ -871,10 +939,14 @@ function TaskDetailContent() {
     await runAgent(
       text,
       taskId,
-      { sessionId, taskIndex },
+      {
+        sessionId,
+        taskIndex,
+        sessionFolder: currentWorkspace?.default_work_dir || undefined,
+      },
       attachments
     )
-  }, [isCurrentTaskRunning, taskId, currentPhase, isDbReady, dbUpdateTask, getTask, currentTask, runAgent])
+  }, [isCurrentTaskRunning, taskId, currentPhase, isDbReady, dbUpdateTask, getTask, currentTask, currentWorkspace?.default_work_dir, runAgent])
 
   // Handle plan approval
   const handleApprovePlan = useCallback(async () => {

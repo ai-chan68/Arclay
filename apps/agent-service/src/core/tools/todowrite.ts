@@ -91,7 +91,7 @@ export class TodoWriteTool implements ITool {
 
     try {
       const workDir = context?.workDir || process.cwd()
-      const todosPath = join(workDir, '.easywork', 'todos.json')
+      const todosPath = join(workDir, '.arclay', 'todos.json')
       const todosData = {
         todos,
         updatedAt: new Date().toISOString()

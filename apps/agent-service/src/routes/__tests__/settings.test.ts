@@ -28,6 +28,21 @@ describe('Settings API', () => {
     })
   })
 
+  describe('GET /api/settings/runtime', () => {
+    it('应返回 runtime 默认工作目录', async () => {
+      const res = await app.request('/api/settings/runtime')
+      expect(res.status).toBe(200)
+      const body = await res.json() as {
+        workDir: string
+        projectRoot: string
+      }
+      expect(typeof body.workDir).toBe('string')
+      expect(body.workDir.length).toBeGreaterThan(0)
+      expect(typeof body.projectRoot).toBe('string')
+      expect(body.projectRoot.length).toBeGreaterThan(0)
+    })
+  })
+
   describe('Approval settings', () => {
     it('GET /api/settings/approval 应返回默认结构', async () => {
       const res = await app.request('/api/settings/approval')

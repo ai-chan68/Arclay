@@ -4,7 +4,7 @@
 
 export type KnowledgeNoteType = 'context' | 'instruction' | 'reference'
 
-export type KnowledgeNoteScope = 'global' | 'project' | 'task'
+export type KnowledgeNoteScope = 'global'
 
 export interface KnowledgeNote {
   id: string
@@ -16,7 +16,6 @@ export interface KnowledgeNote {
   createdAt: string
   updatedAt: string
   tags?: string[]
-  taskId?: string  // Only for task-scoped notes
 }
 
 export interface CreateKnowledgeNoteInput {
@@ -26,7 +25,6 @@ export interface CreateKnowledgeNoteInput {
   enabled?: boolean
   scope: KnowledgeNoteScope
   tags?: string[]
-  taskId?: string
 }
 
 export interface UpdateKnowledgeNoteInput {

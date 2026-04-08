@@ -7,6 +7,7 @@ import type { AgentProviderConfig, AgentProviderType } from './core/agent/types'
 import type { ProviderConfig, LLMProvider } from '@shared-types';
 import * as path from 'path';
 import { getSettings, getActiveProviderConfig } from './settings-store';
+import { resolveArclayHome, resolveArclayPath } from './shared/arclay-home';
 
 /**
  * Provider 默认值
@@ -36,6 +37,10 @@ const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl?: string }> = {
     baseUrl: 'https://api.moonshot.cn/v1',
   },
 };
+
+function isPackagedRuntime(): boolean {
+  return Boolean((process as NodeJS.Process & { pkg?: unknown }).pkg);
+}
 
 /**
  * 获取 Agent Provider 配置
@@ -130,21 +135,25 @@ export function getAllProviderConfigs(): Record<string, AgentProviderConfig> {
 
 /**
  * Get working directory from environment
- * The workspace is located at src-api/workspace where session files are stored.
- * Can be overridden with EASYWORK_WORKSPACE env var (useful for E2E tests).
+ * The workspace is located at apps/agent-service/workspace where session files are stored.
+ * Can be overridden with ARCLAY_WORKSPACE env var (useful for E2E tests).
  */
 export function getWorkDir(): string {
   // Allow override via environment variable (for E2E tests)
-  if (process.env.EASYWORK_WORKSPACE) {
-    return path.resolve(process.env.EASYWORK_WORKSPACE);
+  if (process.env.ARCLAY_WORKSPACE) {
+    return path.resolve(process.env.ARCLAY_WORKSPACE);
+  }
+
+  if (isPackagedRuntime()) {
+    return resolveArclayPath('workspace');
   }
 
   const cwd = process.cwd();
-  // When running from within src-api/ (e.g. pnpm dev:api), avoid doubling the path
-  if (cwd.endsWith('/src-api') || cwd.endsWith('\\src-api')) {
+  // When running from within apps/agent-service/ (e.g. pnpm dev:api), avoid doubling the path
+  if (cwd.endsWith('/apps/agent-service') || cwd.endsWith('\\apps\\agent-service')) {
     return path.resolve(cwd, 'workspace');
   }
-  return path.resolve(cwd, 'src-api/workspace');
+  return path.resolve(cwd, 'apps/agent-service/workspace');
 }
 
 /**
@@ -152,10 +161,14 @@ export function getWorkDir(): string {
  * This is the directory where SKILLs/ folder should be located
  */
 export function getProjectRoot(): string {
+  if (isPackagedRuntime()) {
+    return resolveArclayHome();
+  }
+
   const cwd = process.cwd();
-  // When running from within src-api/, project root is the parent directory
-  if (cwd.endsWith('/src-api') || cwd.endsWith('\\src-api')) {
-    return path.resolve(cwd, '..');
+  // When running from within apps/agent-service/, project root is two levels up
+  if (cwd.endsWith('/apps/agent-service') || cwd.endsWith('\\apps\\agent-service')) {
+    return path.resolve(cwd, '../..');
   }
   return cwd;
 }

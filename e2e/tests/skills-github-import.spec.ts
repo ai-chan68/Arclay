@@ -4,6 +4,11 @@
 
 import { test, expect } from '@playwright/test'
 
+async function openSettings(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: '设置' }).click()
+  await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible()
+}
+
 test.describe('Skills GitHub Import', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:1420')
@@ -11,16 +16,11 @@ test.describe('Skills GitHub Import', () => {
   })
 
   test('should show two import methods in import dialog', async ({ page }) => {
-    // Open settings
-    const settingsButton = page.locator('button[aria-label="设置"], button:has-text("设置")').first()
-    await settingsButton.click()
-
-    // Wait for settings modal
-    await page.waitForSelector('text=设置')
+    await openSettings(page)
 
     // Navigate to Skills tab
-    await page.locator('button:has-text("Skills")').click()
-    await page.waitForSelector('text=Skills')
+    await page.getByRole('button', { name: 'Skills' }).click()
+    await page.getByText('保存 Skills 设置').waitFor()
 
     // Click import button
     const importButton = page.locator('button:has-text("导入已有")')
@@ -39,12 +39,9 @@ test.describe('Skills GitHub Import', () => {
   })
 
   test('should switch between folder and GitHub import methods', async ({ page }) => {
-    // Open settings and navigate to Skills
-    const settingsButton = page.locator('button[aria-label="设置"], button:has-text("设置")').first()
-    await settingsButton.click()
-    await page.waitForSelector('text=设置')
-    await page.locator('button:has-text("Skills")').click()
-    await page.waitForSelector('text=Skills')
+    await openSettings(page)
+    await page.getByRole('button', { name: 'Skills' }).click()
+    await page.getByText('保存 Skills 设置').waitFor()
 
     // Click import button
     const importButton = page.locator('button:has-text("导入已有")')
@@ -66,12 +63,9 @@ test.describe('Skills GitHub Import', () => {
   })
 
   test('should accept GitHub URL in GitHub import mode', async ({ page }) => {
-    // Open settings and navigate to Skills
-    const settingsButton = page.locator('button[aria-label="设置"], button:has-text("设置")').first()
-    await settingsButton.click()
-    await page.waitForSelector('text=设置')
-    await page.locator('button:has-text("Skills")').click()
-    await page.waitForSelector('text=Skills')
+    await openSettings(page)
+    await page.getByRole('button', { name: 'Skills' }).click()
+    await page.getByText('保存 Skills 设置').waitFor()
 
     // Click import button
     const importButton = page.locator('button:has-text("导入已有")')
@@ -91,12 +85,9 @@ test.describe('Skills GitHub Import', () => {
   })
 
   test('should accept repository root URL', async ({ page }) => {
-    // Open settings and navigate to Skills
-    const settingsButton = page.locator('button[aria-label="设置"], button:has-text("设置")').first()
-    await settingsButton.click()
-    await page.waitForSelector('text=设置')
-    await page.locator('button:has-text("Skills")').click()
-    await page.waitForSelector('text=Skills')
+    await openSettings(page)
+    await page.getByRole('button', { name: 'Skills' }).click()
+    await page.getByText('保存 Skills 设置').waitFor()
 
     // Click import button
     const importButton = page.locator('button:has-text("导入已有")')

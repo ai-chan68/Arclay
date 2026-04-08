@@ -10,14 +10,14 @@ import type {
   PlanStoreSweepResult,
   StoredTaskPlan,
 } from '../types/plan-store'
-import { resolveEasyWorkPath } from '../shared/easywork-home'
+import { resolveArclayPath } from '../shared/arclay-home'
 
 const STORE_VERSION = 1 as const
 const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 function getDefaultStoreFile(): string {
-  return resolveEasyWorkPath('plans.json')
+  return resolveArclayPath('plans.json')
 }
 
 const TERMINAL_STATUSES: PlanRecordStatus[] = [

@@ -7,12 +7,32 @@
  */
 export type TaskStatus = 'running' | 'completed' | 'error' | 'stopped';
 
+export interface Workspace {
+  id: string;
+  name: string;
+  default_work_dir: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateWorkspaceInput {
+  id: string;
+  name: string;
+  default_work_dir?: string | null;
+}
+
+export interface UpdateWorkspaceInput {
+  name?: string;
+  default_work_dir?: string | null;
+}
+
 /**
  * Session represents a conversation context that can contain multiple tasks
  * Session ID format: YYYYMMDDHHmmss_slug
  */
 export interface Session {
   id: string;
+  workspace_id: string;
   prompt: string;
   task_count: number;
   created_at: string;
@@ -93,6 +113,7 @@ export interface Message {
 
 export interface CreateSessionInput {
   id: string;
+  workspace_id: string;
   prompt: string;
 }
 
@@ -146,16 +167,21 @@ export interface DatabaseAdapter {
   init(): Promise<void>;
 
   // Session operations
+  createWorkspace(input: CreateWorkspaceInput): Promise<Workspace>;
+  getWorkspace(id: string): Promise<Workspace | null>;
+  listWorkspaces(): Promise<Workspace[]>;
+  updateWorkspace(id: string, data: UpdateWorkspaceInput): Promise<Workspace | null>;
+  deleteWorkspace(id: string, fallbackWorkspaceId: string): Promise<boolean>;
   createSession(input: CreateSessionInput): Promise<Session>;
   getSession(id: string): Promise<Session | null>;
-  listSessions(): Promise<Session[]>;
+  listSessions(workspaceId: string): Promise<Session[]>;
   updateSessionTaskCount(sessionId: string, taskCount: number): Promise<void>;
 
   // Task operations
   createTask(input: CreateTaskInput): Promise<Task>;
   getTask(id: string): Promise<Task | null>;
   listTasks(sessionId: string): Promise<Task[]>;
-  listAllTasks(): Promise<Task[]>;
+  listAllTasks(workspaceId: string): Promise<Task[]>;
   updateTask(id: string, data: UpdateTaskInput): Promise<Task | null>;
   deleteTask(id: string): Promise<boolean>;
 

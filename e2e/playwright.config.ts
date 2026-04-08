@@ -2,9 +2,9 @@ import { defineConfig } from '@playwright/test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const webHost = '127.0.0.1'
+const webHost = 'localhost'
 const webPort = 1420
-const apiHost = '127.0.0.1'
+const apiHost = 'localhost'
 const apiPort = 2026
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -30,13 +30,13 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         ...process.env,
-        EASYWORK_E2E_API_HOST: apiHost,
-        EASYWORK_E2E_API_PORT: String(apiPort),
+        ARCLAY_E2E_API_HOST: apiHost,
+        ARCLAY_E2E_API_PORT: String(apiPort),
       },
     },
     {
       command: `pnpm exec vite --host ${webHost} --port ${webPort}`,
-      cwd: path.join(rootDir, 'src'),
+      cwd: path.join(rootDir, 'apps/web'),
       port: webPort,
       reuseExistingServer: !process.env.CI,
       stdout: 'pipe',

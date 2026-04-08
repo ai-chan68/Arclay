@@ -1,4 +1,4 @@
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 
 /**
  * Notification options
@@ -165,14 +165,14 @@ class TauriNotificationService implements INotificationService {
 
   async notifyTaskCompleted(taskTitle: string): Promise<void> {
     await this.notify({
-      title: 'EasyWork',
+      title: 'Arclay',
       body: `任务「${taskTitle || '未命名任务'}」已完成`,
     });
   }
 
   async notifyTaskError(taskTitle: string, errorMessage?: string): Promise<void> {
     await this.notify({
-      title: 'EasyWork',
+      title: 'Arclay',
       body: `任务「${taskTitle || '未命名任务'}」执行失败${
         errorMessage ? `: ${errorMessage}` : ''
       }`,

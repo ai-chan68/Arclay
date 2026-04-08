@@ -4,7 +4,7 @@ import type { ComponentType } from 'react';
  * Artifact Types and Interfaces
  * 
  * Unified file type system supporting multiple application scenarios
- * Migrated from easywork architecture
+ * Migrated from the original Arclay architecture
  */
 
 export type ArtifactType =

@@ -205,11 +205,12 @@ export class AppInitializer {
    */
   private async waitForApi(signal: AbortSignal): Promise<void> {
     const config = getApiConfig();
+    const apiPort = config.defaultPort; // Fixed port: 2026
     const startTime = Date.now();
     let lastLoggedProgress = 10;
 
     console.log(
-      `[AppInitializer] Waiting for API (timeout: ${config.startupTimeout}ms)`
+      `[AppInitializer] Waiting for API on port ${apiPort} (timeout: ${config.startupTimeout}ms)`
     );
 
     // Reduce retry interval for faster detection (200ms instead of 500ms)
@@ -220,16 +221,10 @@ export class AppInitializer {
         throw new Error('初始化已取消');
       }
 
-      let preferredPort = config.defaultPort;
-      const port = await getDesktopApiPort();
-      if (port > 0) {
-        preferredPort = port;
-      }
-
-      const foundPort = await this.findHealthyApiPort(preferredPort, signal);
-      if (foundPort > 0) {
-        setCachedPort(foundPort);
-        console.log(`[AppInitializer] API ready on port ${foundPort}`);
+      const healthy = await this.isApiHealthy(apiPort);
+      if (healthy) {
+        setCachedPort(apiPort);
+        console.log(`[AppInitializer] API ready on port ${apiPort}`);
         return;
       }
 
@@ -262,41 +257,6 @@ export class AppInitializer {
   }
 
   /**
-   * Find API port by probing health endpoints on nearby ports
-   */
-  private async findHealthyApiPort(
-    startPort: number,
-    signal: AbortSignal
-  ): Promise<number> {
-    const fallbackPort = getApiConfig().defaultPort;
-    // Expand port scan range to 10 ports to handle port conflicts
-    const ports = [
-      startPort,
-      fallbackPort,
-      ...Array.from({ length: 8 }, (_, i) => startPort + i + 1),
-    ].filter((port, index, all) => port > 0 && all.indexOf(port) === index);
-
-    // Probe ports in parallel for faster detection
-    const results = await Promise.allSettled(
-      ports.map(async (port) => {
-        if (signal.aborted) {
-          throw new Error('初始化已取消');
-        }
-        const healthy = await this.isApiHealthy(port);
-        return { port, healthy };
-      })
-    );
-
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value.healthy) {
-        return result.value.port;
-      }
-    }
-
-    return 0;
-  }
-
-  /**
    * Check API health on a specific port
    */
   private async isApiHealthy(port: number): Promise<boolean> {
@@ -304,7 +264,12 @@ export class AppInitializer {
       const response = await fetch(`http://localhost:${port}/api/health`, {
         signal: AbortSignal.timeout(500),
       });
-      return response.ok;
+
+      if (!response.ok) return false;
+
+      // Check if provider manager is ready
+      const data = await response.json();
+      return data.status === 'ok';
     } catch {
       return false;
     }

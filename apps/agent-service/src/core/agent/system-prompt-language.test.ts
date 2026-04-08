@@ -3,10 +3,10 @@ import { getDefaultSystemPrompt, getPlanningInstruction } from './system-prompt'
 
 describe('agent language instructions', () => {
   it('keeps only the business-specific default system prompt guidance', () => {
-    const prompt = getDefaultSystemPrompt('/tmp/easywork-session')
+    const prompt = getDefaultSystemPrompt('/tmp/arclay-session')
 
     expect(prompt).toContain('Simplified Chinese')
-    expect(prompt).toContain('MANDATORY OUTPUT DIRECTORY: /tmp/easywork-session')
+    expect(prompt).toContain('MANDATORY OUTPUT DIRECTORY: /tmp/arclay-session')
     expect(prompt).toContain('Use the append tool to write each item one at a time')
     expect(prompt).toContain('.xlsx')
     expect(prompt).toContain('pandas')

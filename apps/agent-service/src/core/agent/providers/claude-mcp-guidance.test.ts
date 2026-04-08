@@ -52,7 +52,7 @@ describe('Claude MCP execution guidance', () => {
 
     const prompt = agent.formatPlanForExecution(
       createPlan(),
-      '/tmp/easywork-session'
+      '/tmp/arclay-session'
     )
 
     expect(prompt).toContain('Use only the MCP servers that are already available in this session')
@@ -72,7 +72,7 @@ describe('Claude MCP execution guidance', () => {
 
     const prompt = agent.formatPlanForExecution(
       createInformationRetrievalPlan(),
-      '/tmp/easywork-session'
+      '/tmp/arclay-session'
     )
 
     expect(prompt).toContain('When the goal is to gather or summarize information from the web')

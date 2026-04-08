@@ -2,7 +2,7 @@
  * Artifact Preview Component
  * 
  * Main preview component that routes to specific preview components based on artifact type
- * Migrated and enhanced from easywork architecture
+ * Migrated and enhanced from the original Arclay architecture
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';

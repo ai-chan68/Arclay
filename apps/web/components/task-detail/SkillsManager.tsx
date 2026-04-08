@@ -13,7 +13,7 @@ import { Download, Trash2, Search, Plus, BookOpen, FolderOpen, X } from 'lucide-
 import { cn } from '@/shared/lib/utils'
 import { api } from '@/shared/api'
 import { getFileSystem } from '@/shared/fs'
-import { isTauri } from 'shared-types'
+import { isTauri } from '@arclay/shared-types'
 // Skill 信息
 interface SkillInfo {
   id: string
@@ -21,6 +21,15 @@ interface SkillInfo {
   description: string
   source: 'project'
   path: string
+  sourceInfo?: {
+    sourceId: string
+    name: string
+    type: 'local' | 'git' | 'http'
+    location: string
+    branch?: string
+    canUpdate: boolean
+    canRepair: boolean
+  }
   metadata?: {
     name: string
     description: string
@@ -253,10 +262,6 @@ export function SkillsManager({ globalEnabled, skillsConfig = {}, onConfigChange
           <span className="ew-subtext">
             已安装: <span className="ew-text font-medium">{stats.total}</span>
           </span>
-          <span className="ew-subtext">·</span>
-          <span className="ew-subtext">
-            项目级: <span className="ew-text font-medium">{stats.project}</span>
-          </span>
         </div>
       </div>
 
@@ -286,7 +291,7 @@ export function SkillsManager({ globalEnabled, skillsConfig = {}, onConfigChange
         {projectSkills.length > 0 && (
           <div>
             <h4 className="ew-subtext mb-2 text-xs font-medium uppercase">
-              项目级 Skills (SKILLs/)
+              Skills
             </h4>
             <div className="space-y-2">
               {projectSkills.map((skill) => (
@@ -382,14 +387,6 @@ function SkillCard({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="ew-text text-sm font-medium">{skill.name}</h3>
-              <span
-                className={cn(
-                  'ew-status-chip rounded px-1.5 py-0.5 text-xs'
-                )}
-                data-tone="success"
-              >
-                项目
-              </span>
               {healthStatus && (
                 <span
                   className={cn(
@@ -478,22 +475,26 @@ function SkillCard({
             >
               {actionLoading === 'health' ? '检查中' : '健康检查'}
             </button>
-            <button
-              onClick={onUpdate}
-              disabled={actionLoading !== undefined}
-              className="ew-subtext rounded px-2 py-1 text-xs hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] hover:text-[color:var(--ui-text)] disabled:opacity-50"
-              title="更新 Skill"
-            >
-              {actionLoading === 'update' ? '更新中' : '更新'}
-            </button>
-            <button
-              onClick={onRepair}
-              disabled={actionLoading !== undefined}
-              className="ew-subtext rounded px-2 py-1 text-xs hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] hover:text-[color:var(--ui-text)] disabled:opacity-50"
-              title="修复 Skill"
-            >
-              {actionLoading === 'repair' ? '修复中' : '修复'}
-            </button>
+            {skill.sourceInfo?.canUpdate && (
+              <button
+                onClick={onUpdate}
+                disabled={actionLoading !== undefined}
+                className="ew-subtext rounded px-2 py-1 text-xs hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] hover:text-[color:var(--ui-text)] disabled:opacity-50"
+                title="更新 Skill"
+              >
+                {actionLoading === 'update' ? '更新中' : '更新'}
+              </button>
+            )}
+            {skill.sourceInfo?.canRepair && (
+              <button
+                onClick={onRepair}
+                disabled={actionLoading !== undefined}
+                className="ew-subtext rounded px-2 py-1 text-xs hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] hover:text-[color:var(--ui-text)] disabled:opacity-50"
+                title="修复 Skill"
+              >
+                {actionLoading === 'repair' ? '修复中' : '修复'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -540,11 +541,31 @@ interface ImportSkillsModalProps {
   onSuccess: () => void
 }
 
+interface GitHubSkillCandidate {
+  name: string
+  description: string
+  path: string
+  selected: boolean
+}
+
+interface GitHubSkillAnalysis {
+  mode: 'single' | 'multiple'
+  owner: string
+  repo: string
+  branch: string
+  skills: GitHubSkillCandidate[]
+  analysisKey?: string
+}
+
 function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
   const [importMethod, setImportMethod] = useState<'folder' | 'github'>('folder')
   const [importPath, setImportPath] = useState('')
+  const [analyzedImportPath, setAnalyzedImportPath] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingLabel, setLoadingLabel] = useState('导入中...')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [githubAnalysis, setGitHubAnalysis] = useState<GitHubSkillAnalysis | null>(null)
+  const [selectedSkillPaths, setSelectedSkillPaths] = useState<string[]>([])
 
   // 显示消息
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -552,16 +573,78 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
     setTimeout(() => setMessage(null), 3000)
   }
 
+  const resetGitHubSelection = () => {
+    setGitHubAnalysis(null)
+    setAnalyzedImportPath('')
+    setSelectedSkillPaths([])
+  }
+
   const handleImport = async () => {
-    if (!importPath.trim()) {
+    const currentImportPath = (githubAnalysis ? analyzedImportPath : importPath).trim()
+
+    if (!currentImportPath) {
       showMessage('error', importMethod === 'folder' ? '请选择 Skill 文件夹' : '请输入 GitHub URL')
       return
     }
 
     try {
       setLoading(true)
-      await api.post('/api/settings/skills/import', { path: importPath.trim() })
-      showMessage('success', 'Skill 已成功导入')
+      const isGitHub = currentImportPath.startsWith('http://') || currentImportPath.startsWith('https://')
+
+      if (importMethod === 'github') {
+        if (!githubAnalysis) {
+          setLoadingLabel('分析中...')
+          const analysis = await api.post<GitHubSkillAnalysis>(
+            '/api/settings/skills/import/analyze',
+            { path: currentImportPath },
+            { timeout: 180000 } as any,
+          )
+
+          if (analysis.mode === 'multiple') {
+            setGitHubAnalysis(analysis)
+            setAnalyzedImportPath(currentImportPath)
+            setSelectedSkillPaths(analysis.skills.map((skill) => skill.path))
+            showMessage('success', `已识别 ${analysis.skills.length} 个 skills，请确认安装范围`)
+            return
+          }
+
+          setLoadingLabel('导入中...')
+          const response = await api.post<{ skills?: SkillInfo[] }>(
+            '/api/settings/skills/import',
+            {
+              path: currentImportPath,
+              analysisKey: analysis.analysisKey,
+              skillPaths: analysis.skills.map((skill) => skill.path),
+            },
+            { timeout: 180000 } as any,
+          )
+          const importedCount = response.skills?.length ?? analysis.skills.length
+          showMessage('success', importedCount > 1 ? `已成功导入 ${importedCount} 个 Skills` : 'Skill 已成功导入')
+        } else {
+          if (selectedSkillPaths.length === 0) {
+            showMessage('error', '请至少保留一个 Skill')
+            return
+          }
+
+          setLoadingLabel('导入中...')
+          const response = await api.post<{ skills?: SkillInfo[] }>(
+            '/api/settings/skills/import',
+            {
+              path: currentImportPath,
+              analysisKey: githubAnalysis.analysisKey,
+              skillPaths: selectedSkillPaths,
+            },
+            { timeout: 180000 } as any,
+          )
+          const importedCount = response.skills?.length ?? selectedSkillPaths.length
+          showMessage('success', importedCount > 1 ? `已成功导入 ${importedCount} 个 Skills` : 'Skill 已成功导入')
+        }
+      } else {
+        setLoadingLabel('导入中...')
+        await api.post('/api/settings/skills/import', { path: currentImportPath }, { timeout: isGitHub ? 180000 : 30000 } as any)
+        showMessage('success', 'Skill 已成功导入')
+      }
+
       setTimeout(() => {
         onSuccess()
         onClose()
@@ -576,12 +659,33 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className={cn('absolute inset-0 bg-black/50', loading ? 'cursor-wait' : '')}
+        onClick={() => {
+          if (!loading) {
+            onClose()
+          }
+        }}
+      />
       <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-[color:color-mix(in_oklab,var(--ui-panel)_94%,transparent)] p-6 shadow-xl">
+        {loading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-[color:color-mix(in_oklab,var(--ui-panel)_86%,white_14%)] backdrop-blur-sm">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[color:var(--ui-accent)]/20 border-t-[color:var(--ui-accent)]" />
+            <p className="ew-text mt-4 text-sm font-medium">{loadingLabel}</p>
+            <p className="ew-subtext mt-2 max-w-xs text-center text-xs">
+              GitHub 仓库分析和下载可能需要几秒到几十秒，请勿关闭当前弹窗。
+            </p>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <h3 className="ew-text text-lg font-semibold">导入 Skill</h3>
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (!loading) {
+                onClose()
+              }
+            }}
+            disabled={loading}
             className="ew-subtext rounded-lg p-2 hover:bg-[color:color-mix(in_oklab,var(--ui-accent-soft)_68%,transparent)] hover:text-[color:var(--ui-text)]"
           >
             <X className="size-5" />
@@ -598,6 +702,7 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
             onClick={() => {
               setImportMethod('folder')
               setImportPath('')
+              resetGitHubSelection()
             }}
             className={cn(
               'flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors',
@@ -613,6 +718,7 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
             onClick={() => {
               setImportMethod('github')
               setImportPath('')
+              resetGitHubSelection()
             }}
             className={cn(
               'flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors',
@@ -693,14 +799,67 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
               </label>
               <input
                 type="text"
-                value={importPath}
-                onChange={(e) => setImportPath(e.target.value)}
+                value={githubAnalysis ? analyzedImportPath : importPath}
+                onChange={(e) => {
+                  setImportPath(e.target.value)
+                  resetGitHubSelection()
+                }}
                 placeholder="https://github.com/user/repo 或 https://github.com/user/repo/tree/main/path"
                 className="ew-input w-full rounded-lg px-3 py-2 text-sm"
               />
               <p className="mt-2 text-xs text-[color:var(--ui-subtext)]">
-                支持仓库根目录、tree 和 blob 格式的 GitHub URL
+                支持仓库根目录、tree 和 blob 格式的 GitHub URL。多 Skill 仓库会先分析并默认全选。
               </p>
+
+              {githubAnalysis?.mode === 'multiple' && (
+                <div className="mt-3 rounded-lg border border-border bg-[color:color-mix(in_oklab,var(--ui-panel-2)_76%,transparent)] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="ew-text text-sm font-medium">
+                        检测到 {githubAnalysis.skills.length} 个 Skills
+                      </p>
+                      <p className="ew-subtext mt-1 text-xs">
+                        默认全选。取消不需要安装的项后，点击“确认导入”。
+                      </p>
+                    </div>
+                    <span className="ew-subtext text-xs">
+                      已选 {selectedSkillPaths.length}/{githubAnalysis.skills.length}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                    {githubAnalysis.skills.map((skill) => {
+                      const checked = selectedSkillPaths.includes(skill.path)
+                      return (
+                        <label
+                          key={skill.path}
+                          className="flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 hover:border-[color:var(--ui-accent)]/40"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedSkillPaths((current) => (
+                                e.target.checked
+                                  ? [...current, skill.path]
+                                  : current.filter((path) => path !== skill.path)
+                              ))
+                            }}
+                            className="mt-0.5 h-4 w-4"
+                          />
+                          <div className="min-w-0">
+                            <p className="ew-text text-sm font-medium">{skill.name}</p>
+                            {skill.description && (
+                              <p className="ew-subtext mt-1 text-xs">{skill.description}</p>
+                            )}
+                            <p className="ew-subtext mt-1 break-all text-[11px]">{skill.path}</p>
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -729,10 +888,14 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
           </button>
           <button
             onClick={handleImport}
-            disabled={loading || !importPath.trim()}
+            disabled={loading || (importMethod === 'github'
+              ? (githubAnalysis ? selectedSkillPaths.length === 0 || !analyzedImportPath.trim() : !importPath.trim())
+              : !importPath.trim())}
             className={cn(
               'ew-button-primary flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium',
-              loading || !importPath.trim()
+              loading || (importMethod === 'github'
+                ? (githubAnalysis ? selectedSkillPaths.length === 0 || !analyzedImportPath.trim() : !importPath.trim())
+                : !importPath.trim())
                 ? 'cursor-not-allowed opacity-50'
                 : ''
             )}
@@ -740,12 +903,12 @@ function ImportSkillsModal({ onClose, onSuccess }: ImportSkillsModalProps) {
             {loading ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                导入中...
+                {loadingLabel}
               </>
             ) : (
               <>
                 <Plus className="size-4" />
-                导入
+                {importMethod === 'github' && githubAnalysis?.mode === 'multiple' ? '确认导入' : '导入'}
               </>
             )}
           </button>

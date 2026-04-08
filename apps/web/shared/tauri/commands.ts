@@ -1,4 +1,4 @@
-import { isTauri } from 'shared-types'
+import { isTauri } from '@arclay/shared-types'
 
 type TauriCommandName = 'get_api_port'
 

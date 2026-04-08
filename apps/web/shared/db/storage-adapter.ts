@@ -1,4 +1,7 @@
 import type {
+  Workspace,
+  CreateWorkspaceInput,
+  UpdateWorkspaceInput,
   Session,
   Task,
   Message,
@@ -8,7 +11,7 @@ import type {
   UpdateTaskInput,
   CreateMessageInput,
   CreateFileInput,
-} from 'shared-types';
+} from '@arclay/shared-types';
 
 /**
  * Storage adapter interface
@@ -32,6 +35,12 @@ export interface IStorageAdapter {
   close(): Promise<void>;
 
   // === Session Operations ===
+  createWorkspace(input: CreateWorkspaceInput): Promise<Workspace>;
+  getWorkspace(id: string): Promise<Workspace | null>;
+  listWorkspaces(): Promise<Workspace[]>;
+  updateWorkspace(id: string, data: UpdateWorkspaceInput): Promise<Workspace | null>;
+  deleteWorkspace(id: string, fallbackWorkspaceId: string): Promise<boolean>;
+
   /**
    * Create a new session
    */
@@ -45,7 +54,7 @@ export interface IStorageAdapter {
   /**
    * List all sessions
    */
-  listSessions(): Promise<Session[]>;
+  listSessions(workspaceId: string): Promise<Session[]>;
 
   /**
    * Update session task count
@@ -76,7 +85,7 @@ export interface IStorageAdapter {
   /**
    * List all tasks
    */
-  listAllTasks(): Promise<Task[]>;
+  listAllTasks(workspaceId: string): Promise<Task[]>;
 
   /**
    * Update a task
@@ -141,7 +150,7 @@ export interface IStorageAdapter {
  * Creates appropriate adapter based on environment
  */
 export async function createStorageAdapter(): Promise<IStorageAdapter> {
-  const { isTauri } = await import('shared-types');
+  const { isTauri } = await import('@arclay/shared-types');
 
   if (isTauri()) {
     const { SQLiteAdapter } = await import('./sqlite-adapter');

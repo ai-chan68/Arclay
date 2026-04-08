@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AgentMessage } from '@shared-types'
-import type { Artifact } from '../../../../src/shared/types/artifacts'
-import * as taskTurnDisplay from '../../../../src/shared/lib/task-turn-display'
+import type { Artifact } from '../../../../web/shared/types/artifacts'
+import * as taskTurnDisplay from '../../../../web/shared/lib/task-turn-display'
 
 function createArtifact(partial: Partial<Artifact>): Artifact {
   return {

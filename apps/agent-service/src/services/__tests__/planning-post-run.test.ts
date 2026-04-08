@@ -63,7 +63,7 @@ describe('resolvePlanningPostRun', () => {
     }
 
     const result = resolvePlanningPostRun({
-      prompt: '帮我梳理 easywork 下一步改造方向',
+      prompt: '帮我梳理 arclay 下一步改造方向',
       planningState,
       runAborted: false,
       activeTurn: planningTurn,

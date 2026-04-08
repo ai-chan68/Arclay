@@ -1,5 +1,5 @@
 {
-  "name": "src-api",
+  "name": "@arclay/agent-service",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -21,7 +21,7 @@
     "mime-types": "^3.0.2",
     "nanoid": "^5.0.7",
     "semver": "^7.7.4",
-    "shared-types": "workspace:*",
+    "@arclay/shared-types": "workspace:*",
     "tree-kill": "^1.2.2",
     "yaml": "^2.8.2",
     "zod": "^4.0.0"

@@ -4,43 +4,28 @@
 
 import { Hono } from 'hono'
 import { join } from 'path'
-import { homedir } from 'os'
 import type { CreateKnowledgeNoteInput, UpdateKnowledgeNoteInput, KnowledgeNoteScope } from '@shared-types'
 import { KnowledgeNotesStore } from '../services/knowledge-notes-store'
+import { resolveArclayHome } from '../shared/arclay-home'
 
 const app = new Hono()
 
-function resolveEasyWorkHome(): string {
-  const configuredHome = process.env.EASYWORK_HOME?.trim()
-  if (configuredHome) {
-    return configuredHome
-  }
-  return join(homedir(), '.easywork')
-}
-
-function getKnowledgeNotesStore(workDir: string): KnowledgeNotesStore {
-  const globalDir = join(resolveEasyWorkHome(), 'knowledge-notes')
-  const projectDir = join(workDir, '.easywork', 'knowledge-notes')
-  return new KnowledgeNotesStore(globalDir, projectDir)
+function getKnowledgeNotesStore(): KnowledgeNotesStore {
+  const globalDir = join(resolveArclayHome(), 'knowledge-notes')
+  return new KnowledgeNotesStore(globalDir)
 }
 
 // List knowledge notes
-app.get('/knowledge-notes', async (c) => {
+app.get('/', async (c) => {
   try {
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
-    const taskId = c.req.query('taskId')
-    const workDir = c.req.query('workDir') || process.cwd()
 
-    if (!scope || !['global', 'project', 'task'].includes(scope)) {
+    if (!scope || scope !== 'global') {
       return c.json({ error: 'Invalid scope parameter' }, 400)
     }
 
-    if (scope === 'task' && !taskId) {
-      return c.json({ error: 'taskId required for task scope' }, 400)
-    }
-
-    const store = getKnowledgeNotesStore(workDir)
-    const notes = await store.list(scope, taskId)
+    const store = getKnowledgeNotesStore()
+    const notes = await store.list(scope)
 
     return c.json({ notes })
   } catch (error) {
@@ -50,19 +35,17 @@ app.get('/knowledge-notes', async (c) => {
 })
 
 // Get single knowledge note
-app.get('/knowledge-notes/:id', async (c) => {
+app.get('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
-    const taskId = c.req.query('taskId')
-    const workDir = c.req.query('workDir') || process.cwd()
 
-    if (!scope || !['global', 'project', 'task'].includes(scope)) {
+    if (!scope || scope !== 'global') {
       return c.json({ error: 'Invalid scope parameter' }, 400)
     }
 
-    const store = getKnowledgeNotesStore(workDir)
-    const note = await store.get(id, scope, taskId)
+    const store = getKnowledgeNotesStore()
+    const note = await store.get(id, scope)
 
     if (!note) {
       return c.json({ error: 'Knowledge note not found' }, 404)
@@ -76,9 +59,8 @@ app.get('/knowledge-notes/:id', async (c) => {
 })
 
 // Create knowledge note
-app.post('/knowledge-notes', async (c) => {
+app.post('/', async (c) => {
   try {
-    const workDir = c.req.query('workDir') || process.cwd()
     const body = await c.req.json() as CreateKnowledgeNoteInput
 
     if (!body.type || !body.title || !body.content || !body.scope) {
@@ -89,15 +71,11 @@ app.post('/knowledge-notes', async (c) => {
       return c.json({ error: 'Invalid type' }, 400)
     }
 
-    if (!['global', 'project', 'task'].includes(body.scope)) {
+    if (body.scope !== 'global') {
       return c.json({ error: 'Invalid scope' }, 400)
     }
 
-    if (body.scope === 'task' && !body.taskId) {
-      return c.json({ error: 'taskId required for task scope' }, 400)
-    }
-
-    const store = getKnowledgeNotesStore(workDir)
+    const store = getKnowledgeNotesStore()
     const note = await store.create(body)
 
     return c.json({ note }, 201)
@@ -108,20 +86,18 @@ app.post('/knowledge-notes', async (c) => {
 })
 
 // Update knowledge note
-app.put('/knowledge-notes/:id', async (c) => {
+app.put('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
-    const taskId = c.req.query('taskId')
-    const workDir = c.req.query('workDir') || process.cwd()
     const body = await c.req.json() as UpdateKnowledgeNoteInput
 
-    if (!scope || !['global', 'project', 'task'].includes(scope)) {
+    if (!scope || scope !== 'global') {
       return c.json({ error: 'Invalid scope parameter' }, 400)
     }
 
-    const store = getKnowledgeNotesStore(workDir)
-    const note = await store.update(id, scope, body, taskId)
+    const store = getKnowledgeNotesStore()
+    const note = await store.update(id, scope, body)
 
     return c.json({ note })
   } catch (error) {
@@ -132,19 +108,17 @@ app.put('/knowledge-notes/:id', async (c) => {
 })
 
 // Delete knowledge note
-app.delete('/knowledge-notes/:id', async (c) => {
+app.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const scope = c.req.query('scope') as KnowledgeNoteScope | undefined
-    const taskId = c.req.query('taskId')
-    const workDir = c.req.query('workDir') || process.cwd()
 
-    if (!scope || !['global', 'project', 'task'].includes(scope)) {
+    if (!scope || scope !== 'global') {
       return c.json({ error: 'Invalid scope parameter' }, 400)
     }
 
-    const store = getKnowledgeNotesStore(workDir)
-    await store.delete(id, scope, taskId)
+    const store = getKnowledgeNotesStore()
+    await store.delete(id, scope)
 
     return c.json({ success: true })
   } catch (error) {

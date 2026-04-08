@@ -16,7 +16,7 @@ function mockDesktopDatabase(db: MockDatabase) {
     __TAURI_INTERNALS__: {
       invoke: async (cmd: string, args?: Record<string, unknown>) => {
         if (cmd === 'plugin:sql|load') {
-          return args?.db ?? 'sqlite:easywork.db'
+          return args?.db ?? 'sqlite:arclay.db'
         }
         if (cmd === 'plugin:sql|execute') {
           const result = await db.execute(args?.query, args?.values)
@@ -49,7 +49,7 @@ describe('desktop database schema invariants', () => {
     }
     mockDesktopDatabase(db)
 
-    const { createSession } = await import('../../../../src/shared/db/database')
+    const { createSession } = await import('../../../../web/shared/db/database')
 
     await expect(
       createSession({
@@ -59,6 +59,49 @@ describe('desktop database schema invariants', () => {
     ).rejects.toThrow('no such table: sessions')
 
     expect(db.execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails createWorkspace when migrated workspaces table is missing', async () => {
+    const db: MockDatabase = {
+      execute: vi.fn(async () => {
+        throw new Error('no such table: workspaces')
+      }),
+      select: vi.fn(),
+    }
+    mockDesktopDatabase(db)
+
+    const { createWorkspace } = await import('../../../../web/shared/db/database')
+
+    await expect(
+      createWorkspace({
+        id: 'workspace_missing_schema',
+        name: 'Default Workspace',
+        default_work_dir: '/tmp/arclay-default',
+      })
+    ).rejects.toThrow('no such table: workspaces')
+  })
+
+  it('fails createSession when the migrated workspace_id column is missing', async () => {
+    const db: MockDatabase = {
+      execute: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO sessions')) {
+          throw new Error('table sessions has no column named workspace_id')
+        }
+        return { rowsAffected: 1, lastInsertId: 1 }
+      }),
+      select: vi.fn(),
+    }
+    mockDesktopDatabase(db)
+
+    const { createSession } = await import('../../../../web/shared/db/database')
+
+    await expect(
+      createSession({
+        id: 'session_missing_workspace_id',
+        workspace_id: 'workspace_default',
+        prompt: 'hello',
+      })
+    ).rejects.toThrow('table sessions has no column named workspace_id')
   })
 
   it('fails createTask when the migrated tasks columns are missing', async () => {
@@ -83,7 +126,7 @@ describe('desktop database schema invariants', () => {
     }
     mockDesktopDatabase(db)
 
-    const { createTask } = await import('../../../../src/shared/db/database')
+    const { createTask } = await import('../../../../web/shared/db/database')
 
     await expect(
       createTask({
@@ -128,7 +171,7 @@ describe('desktop database schema invariants', () => {
     }
     mockDesktopDatabase(db)
 
-    const { createMessage } = await import('../../../../src/shared/db/database')
+    const { createMessage } = await import('../../../../web/shared/db/database')
 
     await expect(
       createMessage({
@@ -154,10 +197,26 @@ describe('desktop database schema invariants', () => {
     }
     mockDesktopDatabase(db)
 
-    const { getTasksBySessionId } = await import('../../../../src/shared/db/database')
+    const { getTasksBySessionId } = await import('../../../../web/shared/db/database')
 
     await expect(getTasksBySessionId('session_missing_column')).rejects.toThrow(
       'no such column: session_id'
+    )
+  })
+
+  it('fails getTasksByWorkspaceId when the migrated workspace schema is missing', async () => {
+    const db: MockDatabase = {
+      execute: vi.fn(),
+      select: vi.fn(async () => {
+        throw new Error('no such column: s.workspace_id')
+      }),
+    }
+    mockDesktopDatabase(db)
+
+    const { getTasksByWorkspaceId } = await import('../../../../web/shared/db/database')
+
+    await expect(getTasksByWorkspaceId('workspace_missing_column')).rejects.toThrow(
+      'no such column: s.workspace_id'
     )
   })
 })

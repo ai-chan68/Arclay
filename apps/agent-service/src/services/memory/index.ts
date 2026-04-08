@@ -1,7 +1,7 @@
 /**
  * Memory System — public API
  *
- * Three-layer memory for EasyWork Agent:
+ * Three-layer memory for the Arclay agent:
  *   Working memory  = SDK messages[] (managed by SDK)
  *   Procedural memory = Skills files (managed by skills service)
  *   Episodic/Semantic memory = This module

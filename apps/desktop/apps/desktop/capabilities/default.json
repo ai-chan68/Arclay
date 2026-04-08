@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for the application",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "sql:default",
+    "fs:default",
+    "dialog:default",
+    "notification:default",
+    "clipboard-manager:default",
+    "http:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://localhost:2026/*"
+        },
+        {
+          "url": "http://127.0.0.1:2026/*"
+        }
+      ]
+    }
+  ]
+}

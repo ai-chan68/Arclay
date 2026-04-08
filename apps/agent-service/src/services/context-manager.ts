@@ -209,28 +209,16 @@ export class ContextManager {
 
     const parts: string[] = []
 
-    // Load global notes
+    // Load global notes only
     const globalNotes = await this.knowledgeNotesStore.listEnabled('global')
 
-    // Load project notes
-    const projectNotes = await this.knowledgeNotesStore.listEnabled('project')
-
-    // Load task notes (if storageRootId is set)
-    let taskNotes: KnowledgeNote[] = []
-    if (this.storageRootId) {
-      taskNotes = await this.knowledgeNotesStore.listEnabled('task', this.storageRootId)
-    }
-
-    // Combine all notes
-    const allNotes = [...globalNotes, ...projectNotes, ...taskNotes]
-
-    if (allNotes.length === 0) return ''
+    if (globalNotes.length === 0) return ''
 
     // Group by type
     const byType = {
-      context: allNotes.filter(n => n.type === 'context'),
-      instruction: allNotes.filter(n => n.type === 'instruction'),
-      reference: allNotes.filter(n => n.type === 'reference'),
+      context: globalNotes.filter(n => n.type === 'context'),
+      instruction: globalNotes.filter(n => n.type === 'instruction'),
+      reference: globalNotes.filter(n => n.type === 'reference'),
     }
 
     if (byType.context.length > 0) {

@@ -90,7 +90,7 @@ function scanSkillsDirectory(dirPath: string): SkillInfo[] {
 /**
  * 解析 SKILL.md 文件的元数据
  */
-function parseSkillMetadata(content: string): SkillMetadata {
+export function parseSkillMetadata(content: string): SkillMetadata {
   const result: SkillMetadata = {
     name: '',
     description: '',
@@ -124,7 +124,7 @@ function parseSkillMetadata(content: string): SkillMetadata {
  * 获取项目 SKILLs/ 目录路径
  */
 function getProjectSkillsDir(projectDir?: string): string {
-  const baseDir = projectDir || process.env.EASYWORK_PROJECT_DIR || process.cwd()
+  const baseDir = projectDir || process.env.ARCLAY_PROJECT_DIR || process.cwd()
   return path.join(baseDir, 'SKILLs')
 }
 

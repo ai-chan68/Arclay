@@ -1,4 +1,7 @@
 import type {
+  Workspace,
+  CreateWorkspaceInput,
+  UpdateWorkspaceInput,
   Session,
   Task,
   Message,
@@ -8,12 +11,12 @@ import type {
   UpdateTaskInput,
   CreateMessageInput,
   CreateFileInput,
-} from 'shared-types';
+} from '@arclay/shared-types';
 import {
   TaskTransformer,
   MessageTransformer,
   FileTransformer,
-} from 'shared-types';
+} from '@arclay/shared-types';
 import { getDatabaseConfig } from '../config/app-config';
 import type { IStorageAdapter } from './storage-adapter';
 
@@ -83,6 +86,24 @@ const MIGRATIONS: Migration[] = [
         // Verify indexes exist
         if (!store.indexNames.contains('session_id')) {
           // Need to recreate store to add index - handled by version upgrade
+        }
+      }
+    },
+  },
+  {
+    version: 4,
+    description: 'Add workspaces and workspace-owned sessions',
+    apply: (db) => {
+      if (!db.objectStoreNames.contains('workspaces')) {
+        const workspacesStore = db.createObjectStore('workspaces', { keyPath: 'id' });
+        workspacesStore.createIndex('created_at', 'created_at', { unique: false });
+      }
+
+      if (db.objectStoreNames.contains('sessions')) {
+        const tx = db.transaction('sessions', 'readonly');
+        const store = tx.objectStore('sessions');
+        if (!store.indexNames.contains('workspace_id')) {
+          // Requires version bump and store recreation in a future migration if needed.
         }
       }
     },
@@ -161,10 +182,94 @@ export class IndexedDBAdapter implements IStorageAdapter {
 
   // ============ Session Operations ============
 
+  async createWorkspace(input: CreateWorkspaceInput): Promise<Workspace> {
+    const now = new Date().toISOString();
+    const workspace: Workspace = {
+      id: input.id,
+      name: input.name,
+      default_work_dir: input.default_work_dir ?? null,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const db = await this.getDB();
+    const tx = db.transaction('workspaces', 'readwrite');
+    const store = tx.objectStore('workspaces');
+    await this.idbRequest(store.put(workspace));
+    return workspace;
+  }
+
+  async getWorkspace(id: string): Promise<Workspace | null> {
+    const db = await this.getDB();
+    const tx = db.transaction('workspaces', 'readonly');
+    const store = tx.objectStore('workspaces');
+    const result = await this.idbRequest(store.get(id));
+    return result || null;
+  }
+
+  async listWorkspaces(): Promise<Workspace[]> {
+    const db = await this.getDB();
+    const tx = db.transaction('workspaces', 'readonly');
+    const store = tx.objectStore('workspaces');
+    const workspaces = await this.idbRequest(store.getAll());
+
+    return workspaces.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  }
+
+  async updateWorkspace(
+    id: string,
+    data: UpdateWorkspaceInput
+  ): Promise<Workspace | null> {
+    const current = await this.getWorkspace(id);
+    if (!current) return null;
+
+    const updated: Workspace = {
+      ...current,
+      ...data,
+      updated_at: new Date().toISOString(),
+    };
+
+    const db = await this.getDB();
+    const tx = db.transaction('workspaces', 'readwrite');
+    const store = tx.objectStore('workspaces');
+    await this.idbRequest(store.put(updated));
+    return updated;
+  }
+
+  async deleteWorkspace(id: string, fallbackWorkspaceId: string): Promise<boolean> {
+    if (id === fallbackWorkspaceId) {
+      throw new Error('Cannot delete a workspace into itself');
+    }
+
+    const current = await this.getWorkspace(id);
+    const fallback = await this.getWorkspace(fallbackWorkspaceId);
+    if (!current || !fallback) return false;
+
+    const sessions = await this.listSessions(id);
+    const db = await this.getDB();
+    const tx = db.transaction(['workspaces', 'sessions'], 'readwrite');
+    const workspaceStore = tx.objectStore('workspaces');
+    const sessionStore = tx.objectStore('sessions');
+
+    await Promise.all(
+      sessions.map((session) => this.idbRequest(sessionStore.put({
+        ...session,
+        workspace_id: fallbackWorkspaceId,
+        updated_at: new Date().toISOString(),
+      })))
+    );
+    await this.idbRequest(workspaceStore.delete(id));
+    return true;
+  }
+
   async createSession(input: CreateSessionInput): Promise<Session> {
     const now = new Date().toISOString();
     const session: Session = {
       id: input.id,
+      workspace_id: input.workspace_id,
       prompt: input.prompt,
       task_count: 0,
       created_at: now,
@@ -188,16 +293,18 @@ export class IndexedDBAdapter implements IStorageAdapter {
     return result || null;
   }
 
-  async listSessions(): Promise<Session[]> {
+  async listSessions(workspaceId: string): Promise<Session[]> {
     const db = await this.getDB();
     const tx = db.transaction('sessions', 'readonly');
     const store = tx.objectStore('sessions');
-    const sessions = await this.idbRequest(store.getAll());
+    const allSessions = await this.idbRequest(store.getAll());
 
-    return sessions.sort(
+    return allSessions
+      .filter((session) => session.workspace_id === workspaceId)
+      .sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+      );
   }
 
   async updateSessionTaskCount(
@@ -292,14 +399,14 @@ export class IndexedDBAdapter implements IStorageAdapter {
     }
   }
 
-  async listAllTasks(): Promise<Task[]> {
-    const db = await this.getDB();
-    const tx = db.transaction('tasks', 'readonly');
-    const store = tx.objectStore('tasks');
-    const tasks = await this.idbRequest(store.getAll());
+  async listAllTasks(workspaceId: string): Promise<Task[]> {
+    const sessions = await this.listSessions(workspaceId);
+    const tasksBySession = await Promise.all(
+      sessions.map((session) => this.listTasks(session.id))
+    );
 
-    return tasks
-      .map((t) => TaskTransformer.fromStorage(t as Record<string, unknown>) as unknown as Task)
+    return tasksBySession
+      .flat()
       .sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -521,7 +628,7 @@ export class IndexedDBAdapter implements IStorageAdapter {
     { task: Task; files: LibraryFile[] }[]
   > {
     const allFiles = await this.listAllFiles();
-    const allTasks = await this.listAllTasks();
+    const allTasks = await this.getAllTasksForGrouping();
 
     // Create a map of task_id to files
     const filesByTask = new Map<string, LibraryFile[]>();
@@ -541,5 +648,19 @@ export class IndexedDBAdapter implements IStorageAdapter {
     }
 
     return result;
+  }
+
+  private async getAllTasksForGrouping(): Promise<Task[]> {
+    const db = await this.getDB();
+    const tx = db.transaction('tasks', 'readonly');
+    const store = tx.objectStore('tasks');
+    const tasks = await this.idbRequest(store.getAll());
+
+    return tasks
+      .map((t) => TaskTransformer.fromStorage(t as Record<string, unknown>) as unknown as Task)
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
   }
 }

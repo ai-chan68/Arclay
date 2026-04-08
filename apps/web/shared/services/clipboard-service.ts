@@ -1,4 +1,4 @@
-import { isTauri } from 'shared-types';
+import { isTauri } from '@arclay/shared-types';
 
 /**
  * Clipboard service interface

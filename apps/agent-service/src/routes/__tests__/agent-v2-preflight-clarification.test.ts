@@ -42,7 +42,7 @@ describe('V2 Agent Preflight Clarification Guard', () => {
 
   beforeAll(async () => {
     oldHome = process.env.HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-preflight-'))
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-agent-v2-preflight-'))
     process.env.HOME = tempHome
 
     vi.resetModules()

@@ -46,8 +46,9 @@ async function main() {
   }
 
   for (const packageDir of packageDirs) {
-    const { manifest } = await loadPackageManifest(packageDir);
+    const { manifest, packageJsonPath } = await loadPackageManifest(packageDir);
     const packageName = manifest.name || packageDir;
+    const packageDirPath = dirname(packageJsonPath);
     const scripts = manifest.scripts || {};
     if (!Object.prototype.hasOwnProperty.call(scripts, scriptName)) {
       console.error(
@@ -57,7 +58,7 @@ async function main() {
     }
 
     console.log(`[quality-gate] START package=${packageName} script=${scriptName}`);
-    const exitCode = await run('pnpm', ['--filter', packageName, 'run', scriptName]);
+    const exitCode = await run('pnpm', ['run', scriptName], { cwd: packageDirPath });
     if (exitCode !== 0) {
       console.error(
         `QUALITY_GATE_STEP_FAILED: package="${packageName}" script="${scriptName}" exitCode=${exitCode}`

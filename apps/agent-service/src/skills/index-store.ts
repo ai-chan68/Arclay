@@ -4,7 +4,7 @@ import * as path from 'path'
 import { getAllSkills } from './skill-scanner'
 import type { SkillInfo } from './types'
 
-const EASYWORK_DIR = '.easywork'
+const ARCLAY_DIR = '.arclay'
 const SKILL_INDEX_FILE = 'skill-index.json'
 const SKILL_RUNTIME_FILE = 'skill-runtime.json'
 
@@ -50,20 +50,20 @@ export interface SkillExecutionOutcome {
   error?: string
 }
 
-function ensureEaseworkDir(projectRoot: string): string {
-  const easyworkDir = path.join(projectRoot, EASYWORK_DIR)
-  if (!fs.existsSync(easyworkDir)) {
-    fs.mkdirSync(easyworkDir, { recursive: true })
+function ensureArclayDir(projectRoot: string): string {
+  const arclayDir = path.join(projectRoot, ARCLAY_DIR)
+  if (!fs.existsSync(arclayDir)) {
+    fs.mkdirSync(arclayDir, { recursive: true })
   }
-  return easyworkDir
+  return arclayDir
 }
 
 function getIndexFilePath(projectRoot: string): string {
-  return path.join(ensureEaseworkDir(projectRoot), SKILL_INDEX_FILE)
+  return path.join(ensureArclayDir(projectRoot), SKILL_INDEX_FILE)
 }
 
 function getRuntimeFilePath(projectRoot: string): string {
-  return path.join(ensureEaseworkDir(projectRoot), SKILL_RUNTIME_FILE)
+  return path.join(ensureArclayDir(projectRoot), SKILL_RUNTIME_FILE)
 }
 
 function readJsonFile<T>(filePath: string, fallback: T): T {

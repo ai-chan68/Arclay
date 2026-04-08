@@ -129,7 +129,7 @@ export function WelcomePage() {
               <Bot className="size-4" />
             </div>
             <div>
-              <p className="ew-welcome-kicker">EasyWork</p>
+              <p className="ew-welcome-kicker">Arclay</p>
               <p className="text-sm font-semibold tracking-[0.01em] text-[color:var(--ui-text)]">Execution Desk</p>
             </div>
           </div>

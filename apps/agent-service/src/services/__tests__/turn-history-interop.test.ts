@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Artifact } from '../../../../src/shared/types/artifacts'
-import { filterArtifactsForDisplay, isSessionDocumentFile } from '../../../../src/shared/lib/file-utils'
+import type { Artifact } from '../../utils/file-utils'
+import { filterArtifactsForDisplay, isSessionDocumentFile } from '../../utils/file-utils'
 
 describe('turn history interop', () => {
   it('keeps history.jsonl as a visible session document artifact', () => {

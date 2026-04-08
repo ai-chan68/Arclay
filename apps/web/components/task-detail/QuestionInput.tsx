@@ -2,7 +2,7 @@
  * QuestionInput Component
  *
  * Displays a pending question to the user and collects their response.
- * Part of the easywork-style interactive execution workflow.
+ * Part of the Arclay interactive execution workflow.
  */
 
 import { useState } from 'react'

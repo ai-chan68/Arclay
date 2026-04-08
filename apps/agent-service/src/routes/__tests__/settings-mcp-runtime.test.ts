@@ -49,8 +49,8 @@ vi.mock('../../services/agent-service', () => ({
 }))
 
 vi.mock('../../config', () => ({
-  getWorkDir: () => '/tmp/easywork-workdir',
-  getProjectRoot: () => '/tmp/easywork-project',
+  getWorkDir: () => '/tmp/arclay-workdir',
+  getProjectRoot: () => '/tmp/arclay-project',
 }))
 
 vi.mock('../../settings-store', () => ({
@@ -164,7 +164,7 @@ describe('Settings MCP runtime integration', () => {
     const settingsRoutes = createSettingsRoutes({
       getAgentRuntimeState: () => initialRuntimeState,
       setAgentRuntimeState: setAgentRuntimeStateMock,
-      workDir: '/tmp/easywork-workdir',
+      workDir: '/tmp/arclay-workdir',
     })
 
     const response = await settingsRoutes.request('/mcp', {
@@ -194,7 +194,7 @@ describe('Settings MCP runtime integration', () => {
     expect(setAgentRuntimeStateMock).toHaveBeenCalledWith({
       agentService: { id: 'agent-service' },
       agentServiceConfig: expect.objectContaining({
-        workDir: '/tmp/easywork-workdir',
+        workDir: '/tmp/arclay-workdir',
         mcp: {
           enabled: true,
           userDirEnabled: false,
@@ -219,7 +219,7 @@ describe('Settings MCP runtime integration', () => {
     const settingsRoutes = createSettingsRoutes({
       getAgentRuntimeState: () => initialRuntimeState,
       setAgentRuntimeState: setAgentRuntimeStateMock,
-      workDir: '/tmp/easywork-workdir',
+      workDir: '/tmp/arclay-workdir',
     })
 
     const response = await settingsRoutes.request('/providers/provider-1/activate', {
@@ -244,5 +244,85 @@ describe('Settings MCP runtime integration', () => {
       },
     })
     expect(setAgentRuntimeStateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('recreates the agent service when saving the first provider', async () => {
+    mockSettings = {
+      activeProviderId: null,
+      providers: [],
+      mcp: {
+        enabled: true,
+        mcpServers: {
+          feishu: {
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', '@company/feishu-mcp'],
+          },
+        },
+      },
+      skills: {
+        enabled: true,
+      },
+      sandbox: {
+        enabled: false,
+      },
+    }
+    activeProvider = null
+
+    const { createSettingsRoutes } = await import('../settings')
+    const settingsRoutes = createSettingsRoutes({
+      getAgentRuntimeState: () => initialRuntimeState,
+      setAgentRuntimeState: setAgentRuntimeStateMock,
+      workDir: '/tmp/arclay-workdir',
+    })
+
+    const response = await settingsRoutes.request('/providers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Kimi',
+        provider: 'claude',
+        apiKey: 'sk-kimi-test',
+        model: 'Kimi K2 Thinking',
+        baseUrl: 'https://api.kimi.com/coding/',
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(createAgentServiceMock).toHaveBeenCalledTimes(1)
+    expect(createAgentServiceMock.mock.calls[0]?.[0]).toEqual({
+      provider: 'claude',
+      apiKey: 'sk-kimi-test',
+      model: 'Kimi K2 Thinking',
+      baseUrl: 'https://api.kimi.com/coding/',
+    })
+    expect(createAgentServiceMock.mock.calls[0]?.[3]).toEqual({
+      enabled: true,
+      userDirEnabled: false,
+      appDirEnabled: false,
+      mcpServers: {
+        feishu: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', '@company/feishu-mcp'],
+          env: undefined,
+          url: undefined,
+          headers: undefined,
+        },
+      },
+    })
+    expect(setAgentRuntimeStateMock).toHaveBeenCalledTimes(1)
+    expect(setAgentRuntimeStateMock).toHaveBeenCalledWith({
+      agentService: { id: 'agent-service' },
+      agentServiceConfig: expect.objectContaining({
+        workDir: '/tmp/arclay-workdir',
+        provider: {
+          provider: 'claude',
+          apiKey: 'sk-kimi-test',
+          model: 'Kimi K2 Thinking',
+          baseUrl: 'https://api.kimi.com/coding/',
+        },
+      }),
+    })
   })
 })

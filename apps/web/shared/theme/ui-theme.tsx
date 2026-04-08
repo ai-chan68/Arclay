@@ -10,7 +10,7 @@ interface UIThemeContextValue {
   toggleTheme: () => void
 }
 
-const STORAGE_KEY = 'easywork-ui-theme'
+const STORAGE_KEY = 'arclay-ui-theme'
 
 const UIThemeContext = createContext<UIThemeContextValue | null>(null)
 

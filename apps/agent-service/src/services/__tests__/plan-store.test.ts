@@ -25,7 +25,7 @@ describe('PlanStore', () => {
   let storeFile = ''
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-plan-store-'))
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-plan-store-'))
     storeFile = path.join(tmpDir, 'plans.json')
   })
 

@@ -12,14 +12,12 @@ import type { CreateKnowledgeNoteInput } from '@shared-types'
 describe('KnowledgeNotesStore', () => {
   let tempDir: string
   let globalDir: string
-  let projectDir: string
   let store: KnowledgeNotesStore
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'knowledge-notes-test-'))
     globalDir = join(tempDir, 'global')
-    projectDir = join(tempDir, 'project')
-    store = new KnowledgeNotesStore(globalDir, projectDir)
+    store = new KnowledgeNotesStore(globalDir)
   })
 
   afterEach(() => {
@@ -45,36 +43,6 @@ describe('KnowledgeNotesStore', () => {
       expect(note.enabled).toBe(true)
       expect(note.createdAt).toBeDefined()
       expect(note.updatedAt).toBeDefined()
-    })
-
-    it('should create a project knowledge note', async () => {
-      const input: CreateKnowledgeNoteInput = {
-        type: 'instruction',
-        title: 'Test Instruction',
-        content: 'Always use TypeScript',
-        scope: 'project',
-        enabled: false,
-      }
-
-      const note = await store.create(input)
-
-      expect(note.scope).toBe('project')
-      expect(note.enabled).toBe(false)
-    })
-
-    it('should create a task-scoped knowledge note', async () => {
-      const input: CreateKnowledgeNoteInput = {
-        type: 'reference',
-        title: 'API Reference',
-        content: 'API docs here',
-        scope: 'task',
-        taskId: 'task-123',
-      }
-
-      const note = await store.create(input)
-
-      expect(note.scope).toBe('task')
-      expect(note.taskId).toBe('task-123')
     })
   })
 
@@ -106,7 +74,7 @@ describe('KnowledgeNotesStore', () => {
     })
 
     it('should return empty array for non-existent scope', async () => {
-      const notes = await store.list('project')
+      const notes = await store.list('global')
       expect(notes).toEqual([])
     })
   })

@@ -5,7 +5,7 @@
  */
 import { expect, test } from '@playwright/test'
 
-const apiPort = process.env.EASYWORK_E2E_API_PORT || '2027'
+const apiPort = process.env.ARCLAY_E2E_API_PORT || '2027'
 const apiBase = `http://127.0.0.1:${apiPort}`
 
 // Integration tests run in WEB mode (no __TAURI__ injection)

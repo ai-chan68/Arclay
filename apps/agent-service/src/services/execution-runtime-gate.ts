@@ -23,7 +23,7 @@ export interface RuntimeGateResult {
   backendHealthy: boolean
 }
 
-const EASYWORK_INTERNAL_PORTS = new Set([1420, 2026, 2027])
+const ARCLAY_INTERNAL_PORTS = new Set([1420, 2026, 2027])
 
 export function createExecutionObservation(): ExecutionObservation {
   return {
@@ -173,7 +173,7 @@ function shouldExcludeRuntimeUrl(url: string, workDir: string): boolean {
     const parsed = new URL(url)
     const port = Number.parseInt(parsed.port, 10)
     if (!Number.isFinite(port)) return false
-    return EASYWORK_INTERNAL_PORTS.has(port)
+    return ARCLAY_INTERNAL_PORTS.has(port)
   } catch {
     return false
   }

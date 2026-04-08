@@ -1,7 +1,7 @@
 /**
  * Agent Service - 编排 Agent 执行
  *
- * 架构（easywork 模式）：
+ * 架构（Arclay 模式）：
  *   所有 provider 统一通过 Claude Agent SDK 执行。
  *   非 Anthropic 原生 API（OpenRouter、火山引擎等）通过设置 ANTHROPIC_BASE_URL 透传。
  *   SDK 内部完成多轮 tool-use loop，无需手动管理循环。
@@ -11,7 +11,6 @@
  */
 
 import { join } from 'path'
-import { homedir } from 'os'
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises'
 import type {
   AgentMessage,
@@ -30,6 +29,7 @@ import { HistoryLogger } from './memory/history-logger'
 import { generateDailySummary } from './memory/daily-memory'
 import { resolveTaskInputsDir, resolveTaskWorkspaceDir } from './workspace-layout'
 import { KnowledgeNotesStore } from './knowledge-notes-store'
+import { resolveArclayHome } from '../shared/arclay-home'
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -39,14 +39,6 @@ import { KnowledgeNotesStore } from './knowledge-notes-store'
  */
 function getSessionWorkDir(baseWorkDir: string, storageRootId: string): string {
   return resolveTaskWorkspaceDir(baseWorkDir, storageRootId)
-}
-
-function resolveEasyWorkHome(): string {
-  const configuredHome = process.env.EASYWORK_HOME?.trim()
-  if (configuredHome) {
-    return configuredHome
-  }
-  return join(homedir(), '.easywork')
 }
 
 function collectArtifactsFromToolOutput(toolOutput?: string): string[] {
@@ -76,7 +68,7 @@ async function appendTaskMetricsRecord(input: {
   warningCount?: number
   errorCount?: number
 }): Promise<void> {
-  const metricsDir = join(resolveEasyWorkHome(), 'metrics')
+  const metricsDir = join(resolveArclayHome(), 'metrics')
   const month = input.timestamp.toISOString().slice(0, 7)
   const metricsPath = join(metricsDir, `${month}.jsonl`)
 
@@ -478,9 +470,8 @@ ${categoryInstructions.join('\n---\n')}
 
     // --- Context management (Tasks 5.3–5.5) ---
     const memoryStore = new MemoryStore(baseWorkDir, storageRootId)
-    const globalKnowledgeDir = join(resolveEasyWorkHome(), 'knowledge-notes')
-    const projectKnowledgeDir = join(baseWorkDir, '.easywork', 'knowledge-notes')
-    const knowledgeNotesStore = new KnowledgeNotesStore(globalKnowledgeDir, projectKnowledgeDir)
+    const globalKnowledgeDir = join(resolveArclayHome(), 'knowledge-notes')
+    const knowledgeNotesStore = new KnowledgeNotesStore(globalKnowledgeDir)
     const contextManager = new ContextManager(baseWorkDir, memoryStore, storageRootId, knowledgeNotesStore)
     await contextManager.load(effectiveSessionId)
     const contextPrompt = await contextManager.buildContextPrompt()

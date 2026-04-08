@@ -8,7 +8,7 @@
 
 ## 背景
 
-基于 [EasyWork 改进路线图](../research/2026-04-04-easywork-improvement-roadmap.md) 的调研，发现 Claude SDK 的 thinking 输出在 `claude.ts:2615` 被主动屏蔽（`continue` 跳过）。前端已有完整的 `ThinkingSection` 组件，只需打通数据流即可启用推理过程展示。
+基于 [Arclay 改进路线图](../../../../docs/research/2026-04-04-arclay-improvement-roadmap.md) 的调研，发现 Claude SDK 的 thinking 输出在 `claude.ts:2615` 被主动屏蔽（`continue` 跳过）。前端已有完整的 `ThinkingSection` 组件，只需打通数据流即可启用推理过程展示。
 
 ## 实施内容
 
@@ -149,6 +149,6 @@ src/components/task-detail/TaskMessageList.tsx |  15 +++
 
 ## 相关文档
 
-- [EasyWork 改进路线图](../research/2026-04-04-easywork-improvement-roadmap.md)
+- [Arclay 改进路线图](../../../../docs/research/2026-04-04-arclay-improvement-roadmap.md)
 - [Accomplish 调研报告](../research/2026-04-04-accomplish-research.md)
 - [实施计划](/Users/chanyun/.claude/plans/piped-knitting-reddy.md)

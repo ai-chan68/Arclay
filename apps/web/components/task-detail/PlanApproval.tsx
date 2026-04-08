@@ -1,8 +1,8 @@
 /**
- * PlanApproval Component - easywork Style
+ * PlanApproval Component - Arclay Style
  *
  * Displays the execution plan and allows user to approve or reject it.
- * Part of the easywork-style two-phase execution workflow.
+ * Part of the Arclay two-phase execution workflow.
  */
 
 import { useState } from 'react'

@@ -2,10 +2,10 @@
  * File Utilities
  * 
  * File type detection and processing utilities
- * Migrated and enhanced from easywork
+ * Migrated and enhanced from the original Arclay implementation
  */
 
-import type { AgentMessage } from '../../../shared-types/src/agent';
+import type { AgentMessage } from '@arclay/shared-types';
 import type { 
   Artifact, 
   ArtifactType
@@ -500,7 +500,7 @@ export const MAX_PREVIEW_SIZE = 10 * 1024 * 1024;
  * Open file with external application
  */
 export async function openFileExternal(path: string): Promise<void> {
-  const { isTauri } = await import('shared-types');
+  const { isTauri } = await import('@arclay/shared-types');
 
   if (isTauri()) {
     const { open } = await import('@tauri-apps/plugin-shell');

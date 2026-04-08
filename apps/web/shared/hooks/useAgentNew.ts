@@ -1,5 +1,5 @@
 /**
- * useAgentNew hook - easywork style two-phase execution
+ * useAgentNew hook - Arclay-style two-phase execution
  *
  * Two-phase execution:
  *   Phase 1: Planning - POST /v2/agent/plan → receive plan → awaiting approval
@@ -949,7 +949,13 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
    * Approve plan - Phase 2: Execution
    */
   const approvePlan = useCallback(async (): Promise<void> => {
-    if (!planRef.current || !internalTaskId) return
+    if (!planRef.current || !internalTaskId) {
+      console.error('[useAgentNew] approvePlan called but missing required data:', {
+        hasPlan: !!planRef.current,
+        hasTaskId: !!internalTaskId,
+      })
+      return
+    }
 
     console.log('[useAgentNew] Approving plan:', planRef.current.id)
     updatePhase('executing')
@@ -959,26 +965,30 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
 
     try {
       const apiUrl = await getApiUrl('/api/v2/agent/execute')
-      console.log('[useAgentNew] Calling execute API:', apiUrl)
+      const requestBody = {
+        planId: planRef.current.id,
+        prompt: initialPromptRef.current,
+        workDir: sessionFolder || undefined,
+        taskId: internalTaskId,
+        sessionId: sessionIdRef.current,
+        attachments: attachmentsRef.current,
+        turnId: turnIdRef.current,
+        readVersion: taskVersionRef.current,
+      }
+      console.log('[useAgentNew] Calling execute API:', apiUrl, 'with body:', requestBody)
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: planRef.current.id,
-          prompt: initialPromptRef.current,
-          workDir: sessionFolder || undefined,
-          taskId: internalTaskId,
-          sessionId: sessionIdRef.current,
-          attachments: attachmentsRef.current,
-          turnId: turnIdRef.current,
-          readVersion: taskVersionRef.current,
-        }),
+        body: JSON.stringify(requestBody),
         signal: abortControllerRef.current.signal,
       })
 
+      console.log('[useAgentNew] Execute API response status:', response.status, response.statusText)
+
       if (!response.ok) {
         const apiError = await parseApiError(response)
+        console.error('[useAgentNew] Execute API error:', apiError)
         const mappedError = toAgentError(apiError, 'EXECUTION_ERROR')
         setError(mappedError)
 
@@ -1000,21 +1010,29 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         return
       }
 
+      console.log('[useAgentNew] Starting to process execution stream')
       await processStream(response, internalTaskId, abortControllerRef.current)
+      console.log('[useAgentNew] Execution stream completed')
     } catch (err) {
+      console.error('[useAgentNew] Error in approvePlan:', err)
       const isDetachedBackgroundTask = !!(
         getBackgroundTask(internalTaskId)?.isRunning &&
         taskIdRef.current &&
         taskIdRef.current !== internalTaskId
       )
 
-      if (err instanceof Error && err.name === 'AbortError') return
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[useAgentNew] Execution aborted')
+        return
+      }
 
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[useAgentNew] Setting error:', errorMessage)
       if (!isDetachedBackgroundTask) {
         setError({ code: 'EXECUTION_ERROR', message: errorMessage })
       }
     } finally {
+      console.log('[useAgentNew] approvePlan finally block, cleaning up')
       const backgroundTask = getBackgroundTask(internalTaskId)
       const isDetachedBackgroundTask = !!(
         backgroundTask?.isRunning &&
@@ -1027,11 +1045,17 @@ export function useAgentNew(options: UseAgentNewOptions = {}): UseAgentNewReturn
         updateBackgroundTaskStatus(internalTaskId, false)
       }
       setIsRunning(false)
-      updatePlan(null)
+
+      // Only clear plan if we're not in blocked state (which means we need to keep the plan for re-approval)
+      if (phaseRef.current !== 'blocked' && phaseRef.current !== 'awaiting_approval') {
+        updatePlan(null)
+      }
+
       if (!isDetachedBackgroundTask && phaseRef.current !== 'blocked') {
         updatePhase('idle')
       }
       abortControllerRef.current = null
+      console.log('[useAgentNew] approvePlan cleanup complete, phase:', phaseRef.current)
       onRunCompleteRef.current?.(internalTaskId, completionMessages)
     }
   }, [internalTaskId, sessionFolder, updatePhase, updatePlan])

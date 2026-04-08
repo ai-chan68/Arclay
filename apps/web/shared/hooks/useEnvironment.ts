@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RuntimeEnvironment, PlatformInfo, isTauri, WindowBounds, WindowState } from 'shared-types';
+import { RuntimeEnvironment, PlatformInfo, isTauri, WindowBounds, WindowState } from '@arclay/shared-types';
 
 interface EnvironmentState {
   environment: RuntimeEnvironment;

@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { isTauri } from '@arclay/shared-types'
 import {
   X,
   Plus,
@@ -34,6 +35,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { api } from '@/shared/api'
+import { appInitializer, type InitPhase } from '@/shared/initialization/app-initializer'
 import { renameMcpServerRecord, syncMcpNameDrafts } from '@/shared/lib/mcp-server-utils'
 import { SkillsManager } from './SkillsManager'
 import { SkillRoutingPanel, type SkillRoutingSettings } from './SkillRoutingPanel'
@@ -127,7 +129,6 @@ interface Settings {
 
 interface DependencyStatus {
   success: boolean
-  claudeCode: boolean
   providers: number
   providerConfigured: boolean
   activeProvider: boolean
@@ -239,14 +240,42 @@ function StatusItem({ label, ok }: { label: string; ok: boolean }) {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { theme, setTheme } = useUITheme()
   const [activeTab, setActiveTab] = useState<SettingsTab>('provider')
-  const [settings, setSettings] = useState<Settings>({
-    activeProviderId: null,
-    providers: [],
-    mcp: { enabled: false, mcpServers: {} },
-    skills: DEFAULT_SKILL_SETTINGS,
-    approval: DEFAULT_APPROVAL_SETTINGS,
-    sandbox: DEFAULT_SANDBOX_SETTINGS,
+
+  // Initialize settings from cache if available
+  const [settings, setSettings] = useState<Settings>(() => {
+    try {
+      const cached = sessionStorage.getItem('settings-cache')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        console.log('[SettingsModal] Loaded settings from cache:', {
+          providersCount: parsed.providers?.length || 0,
+        })
+        return parsed
+      }
+    } catch (e) {
+      console.warn('[SettingsModal] Failed to load settings from cache:', e)
+    }
+    return {
+      activeProviderId: null,
+      providers: [],
+      mcp: { enabled: false, mcpServers: {} },
+      skills: DEFAULT_SKILL_SETTINGS,
+      approval: DEFAULT_APPROVAL_SETTINGS,
+      sandbox: DEFAULT_SANDBOX_SETTINGS,
+    }
   })
+
+  // Cache settings whenever they change
+  useEffect(() => {
+    if (settings.providers.length > 0) {
+      try {
+        sessionStorage.setItem('settings-cache', JSON.stringify(settings))
+      } catch (e) {
+        console.warn('[SettingsModal] Failed to cache settings:', e)
+      }
+    }
+  }, [settings])
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -255,6 +284,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [mcpDraft, setMcpDraft] = useState<McpSettings>({ enabled: false, mcpServers: {} })
   const [systemStatus, setSystemStatus] = useState<DependencyStatus | null>(null)
   const [systemLoading, setSystemLoading] = useState(false)
+  const [systemError, setSystemError] = useState<string | null>(null)
+  const [initPhase, setInitPhase] = useState<InitPhase>(() => appInitializer.getState().phase)
   const [skillsManagerReloadKey, setSkillsManagerReloadKey] = useState(0)
 
   // Provider 编辑/添加相关状态
@@ -279,11 +310,34 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }>>({})
 
   useEffect(() => {
-    if (isOpen) {
-      loadSettings()
-      loadSystemStatus()
+    return appInitializer.onStateChange((nextState) => {
+      setInitPhase(nextState.phase)
+    })
+  }, [])
+
+  const shouldWaitForApi = isTauri() && initPhase !== 'ready' && initPhase !== 'error'
+
+  useEffect(() => {
+    console.log('[SettingsModal] useEffect triggered:', {
+      isOpen,
+      shouldWaitForApi,
+      providersCount: settings.providers.length,
+      loading,
+      systemStatus: !!systemStatus,
+      systemLoading,
+    })
+
+    if (isOpen && !shouldWaitForApi) {
+      // 只在数据为空时加载，避免重复加载
+      if (settings.providers.length === 0 && !loading) {
+        console.log('[SettingsModal] Triggering loadSettings because providers is empty')
+        void loadSettings()
+      }
+      if (!systemStatus && !systemLoading) {
+        void loadSystemStatus()
+      }
     }
-  }, [isOpen])
+  }, [isOpen, shouldWaitForApi, settings.providers.length, systemStatus, loading, systemLoading])
 
   useEffect(() => {
     if (!success) return
@@ -299,7 +353,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const loadSettings = async () => {
     try {
       setLoading(true)
+      console.log('[SettingsModal] Loading settings...')
       const data = await api.get<Settings>('/api/settings')
+      console.log('[SettingsModal] Settings loaded:', {
+        providersCount: data.providers?.length || 0,
+        activeProviderId: data.activeProviderId,
+      })
       setSettings({
         activeProviderId: data.activeProviderId || null,
         providers: data.providers || [],
@@ -334,11 +393,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const loadSystemStatus = async () => {
     try {
       setSystemLoading(true)
+      setSystemError(null)
       const status = await api.get<DependencyStatus>('/api/health/dependencies')
       setSystemStatus(status)
+      setSystemError(null)
     } catch (err) {
       console.error('Failed to load system status:', err)
-      setError('读取系统状态失败')
+      setSystemStatus(null)
+      setSystemError('读取系统状态失败')
     } finally {
       setSystemLoading(false)
     }
@@ -765,7 +827,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="设置"
+    >
       {/* Backdrop */}
       <div className="ew-settings-backdrop absolute inset-0" onClick={onClose} />
 
@@ -1032,7 +1099,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                   {/* Provider 列表 */}
                   <div className="space-y-3">
-                    {settings.providers.length === 0 ? (
+                    {shouldWaitForApi ? (
+                      <div className="rounded-lg border border-dashed border-border p-8 text-center ">
+                        <Loader2 className="mx-auto size-5 animate-spin ew-subtext mb-2" />
+                        <p className="text-sm ew-subtext">等待 API 服务就绪...</p>
+                      </div>
+                    ) : settings.providers.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border p-8 text-center ">
                         <p className="text-sm ew-subtext">暂无 Provider 配置</p>
                         <p className="mt-1 text-xs ew-subtext">点击上方按钮添加</p>
@@ -1838,7 +1910,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {systemStatus ? (
                 <div className="space-y-2 rounded-lg border border-border p-4 ">
-                  <StatusItem label="Claude Code 已安装" ok={systemStatus.claudeCode} />
                   <StatusItem label="Provider 已配置" ok={systemStatus.providerConfigured} />
                   <StatusItem label="已选择启用 Provider" ok={systemStatus.activeProvider} />
                   <div className="mt-3 border-t border-border pt-3 text-xs ew-subtext">
@@ -1847,7 +1918,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-6 text-sm ew-subtext">
-                  {systemLoading ? '正在检查系统状态...' : '暂无系统状态数据'}
+                  {shouldWaitForApi
+                    ? '正在等待 API 初始化...'
+                    : systemLoading
+                      ? '正在检查系统状态...'
+                      : '暂无系统状态数据'}
+                </div>
+              )}
+
+              {activeTab === 'system' && systemError && (
+                <div className="ew-status-panel rounded-lg p-3 text-sm" data-tone="danger">
+                  {systemError}
                 </div>
               )}
             </div>

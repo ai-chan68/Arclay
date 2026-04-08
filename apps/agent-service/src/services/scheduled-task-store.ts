@@ -12,20 +12,21 @@ import type {
   UpdateScheduledTaskInput,
 } from '../types/scheduled-task'
 import { getNextRunAt } from './cron-utils'
-import { resolveEasyWorkPath } from '../shared/easywork-home'
+import { resolveArclayPath } from '../shared/arclay-home'
 
 function getStoreDir(): string {
-  return resolveEasyWorkPath()
+  return resolveArclayPath()
 }
 
 function getStoreFile(): string {
-  return resolveEasyWorkPath('scheduled-tasks.json')
+  return resolveArclayPath('scheduled-tasks.json')
 }
 
 const DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
 const DEFAULT_COOLDOWN_SECONDS = 30 * 60
 const DEFAULT_TIMEOUT_SECONDS = 30 * 60
 const DEFAULT_TIMEZONE = 'Asia/Shanghai'
+const DEFAULT_WORKSPACE_ID = 'ws_default'
 
 interface PaginatedResult<T> {
   items: T[]
@@ -36,9 +37,16 @@ interface PaginatedResult<T> {
 
 function createInitialData(): ScheduledTaskStoreData {
   return {
-    version: 1,
+    version: 2,
     tasks: [],
     runs: [],
+  }
+}
+
+function normalizeTaskWorkspace(task: ScheduledTask): ScheduledTask {
+  return {
+    ...task,
+    workspaceId: task.workspaceId || DEFAULT_WORKSPACE_ID,
   }
 }
 
@@ -75,7 +83,11 @@ export class ScheduledTaskStore {
       if (!parsed || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.runs)) {
         return createInitialData()
       }
-      return parsed
+      return {
+        version: 2,
+        tasks: parsed.tasks.map((task) => normalizeTaskWorkspace(task)),
+        runs: parsed.runs,
+      }
     } catch (error) {
       console.error('[ScheduledTaskStore] Failed to load store:', error)
       return createInitialData()
@@ -100,15 +112,18 @@ export class ScheduledTaskStore {
   }
 
   getTask(taskId: string): ScheduledTask | null {
-    return this.data.tasks.find((task) => task.id === taskId) ?? null
+    const task = this.data.tasks.find((item) => item.id === taskId)
+    return task ? normalizeTaskWorkspace(task) : null
   }
 
   listTasks(query: ScheduledTaskListQuery = {}): PaginatedResult<ScheduledTask> {
-    const { enabled, breakerState, keyword } = query
+    const { workspaceId, enabled, breakerState, keyword } = query
     const { page, pageSize } = sanitizePagination(query.page, query.pageSize)
 
     const filtered = this.data.tasks
+      .map((task) => normalizeTaskWorkspace(task))
       .filter((task) => {
+        if (workspaceId && task.workspaceId !== workspaceId) return false
         if (typeof enabled === 'boolean' && task.enabled !== enabled) return false
         if (breakerState && task.breakerState !== breakerState) return false
         if (keyword) {
@@ -134,6 +149,7 @@ export class ScheduledTaskStore {
 
     const task: ScheduledTask = {
       id: `st_${nanoid(12)}`,
+      workspaceId: input.workspaceId,
       name: input.name.trim(),
       enabled,
       cronExpr: input.cronExpr.trim(),
@@ -177,6 +193,7 @@ export class ScheduledTaskStore {
 
     const nextTask: ScheduledTask = {
       ...task,
+      workspaceId: input.workspaceId ?? task.workspaceId,
       name: input.name?.trim() ?? task.name,
       enabled: nextEnabled,
       cronExpr: nextCronExpr.trim(),
@@ -215,6 +232,27 @@ export class ScheduledTaskStore {
     // Keep runs for history by design.
     this.persist()
     return true
+  }
+
+  reassignWorkspaceTasks(fromWorkspaceId: string, toWorkspaceId: string): number {
+    if (fromWorkspaceId === toWorkspaceId) return 0
+
+    let changed = 0
+    this.data.tasks = this.data.tasks.map((task) => {
+      const normalized = normalizeTaskWorkspace(task)
+      if (normalized.workspaceId !== fromWorkspaceId) return normalized
+      changed += 1
+      return {
+        ...normalized,
+        workspaceId: toWorkspaceId,
+        updatedAt: Date.now(),
+      }
+    })
+
+    if (changed > 0) {
+      this.persist()
+    }
+    return changed
   }
 
   setTaskEnabled(taskId: string, enabled: boolean): ScheduledTask | null {

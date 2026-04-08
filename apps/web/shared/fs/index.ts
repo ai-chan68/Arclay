@@ -1,4 +1,4 @@
-import { isTauri, FileInfo, PickFileOptions, FileFilter } from 'shared-types';
+import { isTauri, FileInfo, PickFileOptions, FileFilter } from '@arclay/shared-types';
 
 // File system API that abstracts Tauri and web implementations
 

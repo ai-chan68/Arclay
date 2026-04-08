@@ -20,8 +20,8 @@ interface MetricsRecord {
 }
 
 async function analyzeMetrics() {
-  const easyWorkHome = process.env.EASYWORK_HOME || join(homedir(), '.easywork')
-  const metricsDir = join(easyWorkHome, 'metrics')
+  const arclayHome = process.env.ARCLAY_HOME || join(homedir(), '.arclay')
+  const metricsDir = join(arclayHome, 'metrics')
 
   try {
     const files = await readdir(metricsDir)

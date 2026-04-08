@@ -55,6 +55,9 @@ export { createAgentError, isAgentError } from './error';
 
 // Database types (Phase 3)
 export type {
+  Workspace,
+  CreateWorkspaceInput,
+  UpdateWorkspaceInput,
   TaskStatus,
   Session,
   Task,

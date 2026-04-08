@@ -245,6 +245,13 @@ class ProviderManagerImpl {
   }
 
   /**
+   * 检查是否已初始化
+   */
+  isInitialized(): boolean {
+    return this.initialized
+  }
+
+  /**
    * 初始化 Manager
    * 动态导入并注册所有 registry
    */

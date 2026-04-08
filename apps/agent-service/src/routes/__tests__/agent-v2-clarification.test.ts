@@ -58,7 +58,7 @@ describe('V2 Agent Clarification Flow', () => {
 
   beforeAll(async () => {
     oldHome = process.env.HOME
-    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'easywork-agent-v2-clarification-'))
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'arclay-agent-v2-clarification-'))
     process.env.HOME = tempHome
 
     vi.resetModules()

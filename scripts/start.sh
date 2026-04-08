@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================
-# EasyWork 一键启动脚本
+# Arclay 一键启动脚本
 # 自动检测并清理端口占用，然后启动服务
 # ===========================================
 
@@ -127,7 +127,7 @@ trap cleanup SIGINT SIGTERM
 # 显示 Banner
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║        EasyWork 启动脚本               ║${NC}"
+echo -e "${GREEN}║         Arclay 启动脚本                ║${NC}"
 echo -e "${GREEN}║    Multi-Agent 协作工具                ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
 echo ""
@@ -209,14 +209,14 @@ case "$MODE" in
         log_info "启动 API 服务器 (端口 $API_PORT)..."
         log_info "日志文件: $API_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src-api dev 2>&1 | tee "$API_LOG"
+        pnpm --filter @arclay/agent-service dev 2>&1 | tee "$API_LOG"
         ;;
 
     "web")
         log_info "启动 Web 前端 (端口 $FRONTEND_PORT)..."
         log_info "日志文件: $FRONTEND_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src dev 2>&1 | tee "$FRONTEND_LOG"
+        pnpm --filter @arclay/web dev 2>&1 | tee "$FRONTEND_LOG"
         ;;
 
     "tauri")
@@ -270,7 +270,7 @@ case "$MODE" in
         log_info "启动 API 服务器 (端口 $API_PORT)..."
         log_info "API 日志: $API_LOG"
         cd "$(dirname "$0")/.."
-        pnpm --filter src-api dev >> "$API_LOG" 2>&1 &
+        pnpm --filter @arclay/agent-service dev >> "$API_LOG" 2>&1 &
         API_PID=$!
 
         # 等待 API 启动
@@ -285,7 +285,7 @@ case "$MODE" in
 
         log_info "启动 Web 前端 (端口 $FRONTEND_PORT)..."
         log_info "前端日志: $FRONTEND_LOG"
-        pnpm --filter src dev >> "$FRONTEND_LOG" 2>&1 &
+        pnpm --filter @arclay/web dev >> "$FRONTEND_LOG" 2>&1 &
         FRONTEND_PID=$!
 
         log_success "所有服务已启动!"

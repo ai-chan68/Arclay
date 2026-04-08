@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AlertCircle, Loader2, RefreshCw, Wrench } from 'lucide-react'
+import { isTauri } from '@arclay/shared-types'
 import { api } from '@/shared/api'
+import { appInitializer, type InitPhase } from '@/shared/initialization/app-initializer'
 import { cn } from '@/shared/lib/utils'
 
 interface DependencyStatus {
   success: boolean
-  claudeCode: boolean
   providers: number
   providerConfigured: boolean
   activeProvider: boolean
@@ -22,6 +23,7 @@ export function SetupGuard({ children }: SetupGuardProps) {
   const [status, setStatus] = useState<DependencyStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [skipped, setSkipped] = useState(false)
+  const [initPhase, setInitPhase] = useState<InitPhase>(() => appInitializer.getState().phase)
 
   const checkDependencies = useCallback(async () => {
     setState('checking')
@@ -31,24 +33,43 @@ export function SetupGuard({ children }: SetupGuardProps) {
       const result = await api.get<DependencyStatus>('/api/health/dependencies')
       setStatus(result)
 
-      const ready = result.claudeCode && result.providerConfigured && result.activeProvider
+      const ready = result.providerConfigured && result.activeProvider
       setState(ready ? 'ready' : 'blocked')
     } catch (err) {
       setError(err instanceof Error ? err.message : '环境检查失败')
-      setState('blocked')
+      setState('ready')
     }
   }, [])
 
   useEffect(() => {
-    if (!skipped) {
-      checkDependencies()
-    } else {
-      // When skipped, immediately show children
-      setState('ready')
-    }
-  }, [checkDependencies, skipped])
+    return appInitializer.onStateChange((nextState) => {
+      setInitPhase(nextState.phase)
+    })
+  }, [])
 
-  if (state === 'checking' && !skipped) {
+  const shouldWaitForInitializer = isTauri() && initPhase !== 'ready' && initPhase !== 'error'
+
+  useEffect(() => {
+    if (skipped || shouldWaitForInitializer) {
+      return
+    }
+
+    void checkDependencies()
+  }, [checkDependencies, shouldWaitForInitializer, skipped])
+
+  if (skipped) {
+    return <>{children}</>
+  }
+
+  if (state === 'ready') {
+    return <>{children}</>
+  }
+
+  if (state === 'checking' && (shouldWaitForInitializer || (!status && !error))) {
+    return <>{children}</>
+  }
+
+  if (state === 'checking') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-950">
         <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
@@ -59,9 +80,8 @@ export function SetupGuard({ children }: SetupGuardProps) {
     )
   }
 
-  if ((state === 'blocked' && !skipped) || error) {
+  if (state === 'blocked') {
     const checks = [
-      { label: 'Claude Code 已安装', ok: status?.claudeCode ?? false },
       { label: '已配置至少一个 Provider', ok: status?.providerConfigured ?? false },
       { label: '已选择当前启用 Provider', ok: status?.activeProvider ?? false },
     ]

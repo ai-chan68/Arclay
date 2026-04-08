@@ -1,7 +1,7 @@
 /**
  * Agent API routes - New two-phase execution architecture
  *
- * easywork-style two-phase execution:
+ * Arclay-style two-phase execution:
  *   Phase 1: POST /agent/plan - Generate plan
  *   Phase 2: POST /agent/execute - Execute approved plan
  *   Direct: POST /agent - Direct execution (compatibility mode)

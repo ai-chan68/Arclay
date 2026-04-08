@@ -6,6 +6,7 @@ import { LeftSidebar, type UITask } from '@/components/task-detail/LeftSidebar'
 import { useDatabase } from '@/shared/hooks/useDatabase'
 import { subscribeToBackgroundTasks, type BackgroundTask } from '@/shared/lib'
 import { cn } from '@/shared/lib/utils'
+import { useWorkspace } from '@/shared/workspace/workspace-store'
 import type { Task } from '@shared-types'
 
 type TaskFilter = 'all' | 'favorite' | 'running' | 'completed' | 'error' | 'stopped'
@@ -74,6 +75,7 @@ function statusBadgeClass(status: Task['status']): string {
 function LibraryContent() {
   const { isLeftOpen, toggleLeft } = useSidebar()
   const navigate = useNavigate()
+  const { isReady: isWorkspaceReady, currentWorkspaceId } = useWorkspace()
   const { isReady, loadAllTasks, deleteTask, updateTask } = useDatabase()
   const [tasks, setTasks] = useState<Task[]>([])
   const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([])
@@ -86,17 +88,17 @@ function LibraryContent() {
   useEffect(() => subscribeToBackgroundTasks(setBackgroundTasks), [])
 
   const refreshTasks = useCallback(async () => {
-    if (!isReady) return
+    if (!isReady || !isWorkspaceReady || !currentWorkspaceId) return
     setIsLoading(true)
     try {
-      const allTasks = await loadAllTasks()
+      const allTasks = await loadAllTasks(currentWorkspaceId)
       setTasks(allTasks)
     } catch (error) {
       console.error('[Library] Failed to load tasks:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [isReady, loadAllTasks])
+  }, [currentWorkspaceId, isReady, isWorkspaceReady, loadAllTasks])
 
   useEffect(() => {
     refreshTasks()

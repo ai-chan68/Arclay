@@ -7,7 +7,7 @@
  * - error: task encountered an error
  * - stopped: task was manually stopped
  *
- * Note: easywork style - no 'idle' state, tasks start as 'running'
+ * Note: Arclay style - no 'idle' state, tasks start as 'running'
  */
 
 import type { TaskStatus, AgentMessage, AgentError, AgentTurnState } from '@shared-types'
@@ -27,7 +27,7 @@ export interface TransitionResult {
 
 /**
  * Valid state transitions
- * Note: easywork style - no 'idle' status
+ * Note: Arclay style - no 'idle' status
  */
 const VALID_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   running: ['completed', 'error', 'stopped'],
@@ -176,7 +176,7 @@ export function getNextPhase(
 
 /**
  * Derive task status from messages
- * Note: easywork style - no 'idle' status, defaults to 'running'
+ * Note: Arclay style - no 'idle' status, defaults to 'running'
  */
 export function deriveStatusFromMessages(
   messages: AgentMessage[],
@@ -354,7 +354,7 @@ export function derivePhaseFromMessages(
 
 /**
  * Create initial task state
- * Note: easywork style - tasks start as 'running', not 'idle'
+ * Note: Arclay style - tasks start as 'running', not 'idle'
  */
 export function createInitialTaskState(): TransitionResult {
   return {
