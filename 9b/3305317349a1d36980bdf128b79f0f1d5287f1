@@ -1,0 +1,36 @@
+.github/workflows/build.yml
+  7b72b95fefdd91f3 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "9b3305317349a1d36980bdf128b79f0f1d5287f1",
+  "prompts": {
+    "7b72b95fefdd91f3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "509afb15-d519-4b5b-aa89-f69ed569b707",
+        "model": "composer-2-fast"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 37739,
+      "overriden_lines": 0
+    }
+  }
+}
