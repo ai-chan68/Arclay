@@ -35,7 +35,7 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             pkg_target: node20-win-x64
           - target: macos-intel
-            os: macos-13
+            os: macos-15-intel
             rust_target: x86_64-apple-darwin
             pkg_target: node20-macos-x64
           - target: macos-arm64
