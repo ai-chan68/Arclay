@@ -137,7 +137,6 @@ interface DependencyStatus {
 // Provider 默认 baseUrl
 const PROVIDER_DEFAULT_BASE_URL: Record<string, string> = {
   glm: 'https://open.bigmodel.cn/api/paas/v4',
-  openai: 'https://api.openai.com/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   kimi: 'https://api.moonshot.cn/v1',
   deepseek: 'https://api.deepseek.com',
@@ -146,7 +145,6 @@ const PROVIDER_DEFAULT_BASE_URL: Record<string, string> = {
 const PROVIDER_MODELS: Record<string, string[]> = {
   claude: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
   glm: ['glm-4-plus', 'glm-4-0520', 'glm-4', 'glm-4-air', 'glm-4-airx', 'glm-4-long', 'glm-4-flash'],
-  openai: ['gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'o3', 'o4-mini', 'o3-mini'],
   openrouter: ['anthropic/claude-sonnet-4', 'anthropic/claude-opus-4', 'openai/gpt-5.2', 'openai/gpt-4o'],
   kimi: ['moonshot-v1-128k', 'moonshot-v1-32k', 'moonshot-v1-8k'],
   deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
@@ -155,7 +153,6 @@ const PROVIDER_MODELS: Record<string, string[]> = {
 const PROVIDER_LABELS: Record<string, string> = {
   claude: 'Claude',
   glm: 'GLM',
-  openai: 'OpenAI',
   openrouter: 'OpenRouter',
   kimi: 'Kimi',
   deepseek: 'DeepSeek',
@@ -211,7 +208,7 @@ interface SettingsModalProps {
 
 type SettingsTab = 'provider' | 'appearance' | 'sandbox' | 'mcp' | 'skills' | 'approval' | 'system' | 'knowledge'
 
-// 编辑/添加 Provider 的表单状态
+// 编辑/添加供应商的表单状态
 interface ProviderFormState {
   id?: string
   name: string
@@ -495,7 +492,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   }
 
-  // 开始添加 Provider
+  // 开始添加供应商
   const handleAddProvider = () => {
     setEditingProviderId(null)
     setProviderForm({
@@ -567,7 +564,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setError(null)
   }
 
-  // Provider 类型改变时自动设置默认模型和 baseUrl
+  // 供应商类型改变时自动设置默认模型和 baseUrl
   const handleProviderTypeChange = (providerType: string) => {
     setProviderForm({
       ...providerForm,
@@ -866,7 +863,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               )}
             >
               <Server className="size-4" />
-              模型与 Provider
+              模型供应商
             </button>
             <button
               onClick={() => setActiveTab('appearance')}
@@ -968,7 +965,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-medium ew-text">
-                      {editingProviderId ? '编辑 Provider' : '添加 Provider'}
+                      {editingProviderId ? '编辑供应商' : '添加供应商'}
                     </h3>
                     <button
                       onClick={handleCancelEdit}
@@ -992,10 +989,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     />
                   </div>
 
-                  {/* Provider 类型 */}
+                  {/* 供应商 */}
                   <div>
                     <label className="mb-1.5 block text-sm font-medium ew-text">
-                      Provider 类型
+                      供应商
                     </label>
                     <select
                       value={providerForm.provider}
@@ -1004,7 +1001,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     >
                       <option value="claude">Claude (Anthropic)</option>
                       <option value="glm">GLM (Zhipu)</option>
-                      <option value="openai">OpenAI</option>
                       <option value="openrouter">OpenRouter</option>
                       <option value="kimi">Kimi (Moonshot AI)</option>
                       <option value="deepseek">DeepSeek</option>
@@ -1093,7 +1089,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className="ew-button-primary flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium"
                     >
                       <Plus className="size-3.5" />
-                      添加 Provider
+                      添加供应商
                     </button>
                   </div>
 

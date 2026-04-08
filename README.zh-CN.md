@@ -74,25 +74,25 @@ pnpm dev:all
 
 ### ⚙️ 配置
 
-在应用的 **Settings** 页面配置 LLM Provider，或手动编辑：
+在应用的 **Settings** 页面配置 LLM 供应商，或手动编辑：
 
 ```bash
 ~/.arclay/settings.json
 ```
 
-**支持的 Provider：**
+**支持的供应商：**
 
-Arclay 使用 **Claude Agent SDK**，这意味着任何支持 **Anthropic API 格式**的 Provider 都可以接入。
+Arclay 使用 **Claude Agent SDK**，这意味着任何支持 **Anthropic API 格式**的供应商都可以接入。
 
-| Provider | 需要的 API Key | 兼容性 | 说明 |
+| 供应商 | 需要的 API Key | 兼容性 | 说明 |
 |----------|---------------|--------|------|
 | Claude | `ANTHROPIC_API_KEY` | ✅ 原生支持 | 推荐使用，官方支持 |
-| OpenAI | `OPENAI_API_KEY` | ✅ 兼容 | 通过 Anthropic 兼容包装器 |
-| GLM | `GLM_API_KEY` | ✅ 兼容 | 国内市场 |
-| Kimi | `KIMI_API_KEY` | ✅ 兼容 | 国内市场 |
+| GLM | `GLM_API_KEY` | ✅ 兼容 | 国内市场，智谱 AI |
+| Kimi | `KIMI_API_KEY` | ✅ 兼容 | 国内市场，月之暗面 |
+| DeepSeek | `DEEPSEEK_API_KEY` | ✅ 兼容 | 国内市场 |
 | OpenRouter | `OPENROUTER_API_KEY` | ✅ 兼容 | 多模型网关 |
 
-> **注意：** 任何实现了 Anthropic API 格式（Messages API、tool use、streaming）的 LLM Provider 都可以在 Arclay 中使用。
+> **注意：** 任何实现了 Anthropic API 格式（Messages API、tool use、streaming）的 LLM 供应商都可以在 Arclay 中使用。
 
 ---
 

@@ -87,9 +87,9 @@ Arclay uses the **Claude Agent SDK**, which means any provider that supports the
 | Provider | API Key Required | Compatibility | Notes |
 |----------|------------------|---------------|-------|
 | Claude | `ANTHROPIC_API_KEY` | ✅ Native | Recommended, official support |
-| OpenAI | `OPENAI_API_KEY` | ✅ Compatible | Via Anthropic-compatible wrapper |
-| GLM | `GLM_API_KEY` | ✅ Compatible | Chinese market |
-| Kimi | `KIMI_API_KEY` | ✅ Compatible | Chinese market |
+| GLM | `GLM_API_KEY` | ✅ Compatible | Chinese market (Zhipu AI) |
+| Kimi | `KIMI_API_KEY` | ✅ Compatible | Chinese market (Moonshot AI) |
+| DeepSeek | `DEEPSEEK_API_KEY` | ✅ Compatible | Chinese market |
 | OpenRouter | `OPENROUTER_API_KEY` | ✅ Compatible | Multi-model gateway |
 
 > **Note:** Any LLM provider that implements the Anthropic API format (Messages API, tool use, streaming) can be used with Arclay.
