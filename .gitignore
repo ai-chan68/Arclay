@@ -21,7 +21,7 @@ build/
 
 # Local agent / workspace / docs artifacts not intended for GitHub
 .claude/
-workspace/
+/workspace/
 docs/
 !docs/
 docs/*
