@@ -33,6 +33,7 @@ function spawnDetached(command, args, file) {
     cwd: rootDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false,
+    detached: true,
   });
   child.stdout?.on('data', (chunk) => appendFile(file, `[stdout] ${chunk}`));
   child.stderr?.on('data', (chunk) => appendFile(file, `[stderr] ${chunk}`));
@@ -77,7 +78,7 @@ async function main() {
     }
     console.log('[quality-gate] PASS smoke with API');
   } finally {
-    apiProcess.kill('SIGTERM');
+    process.kill(-apiProcess.pid, 'SIGTERM');
   }
 }
 
