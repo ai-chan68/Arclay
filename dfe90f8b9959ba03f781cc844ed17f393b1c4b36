@@ -1,0 +1,36 @@
+.gitignore
+  924ffc0ba4c47bfb 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "dfe90f8b9959ba03f781cc844ed17f393b1c4b36",
+  "prompts": {
+    "924ffc0ba4c47bfb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4141aca-d854-4192-ab83-84bce767fcbb",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 37739,
+      "overriden_lines": 0
+    }
+  }
+}
