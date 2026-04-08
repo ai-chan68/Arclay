@@ -64,6 +64,6 @@ test.describe('Thinking Stream Display', () => {
     await expect(page.locator('button:has-text("思考过程"), button:has-text("思考中")')).toBeVisible({ timeout: 15000 })
 
     // Verify execution status indicators (success/error icons)
-    await expect(page.locator('text=/执行完成|执行失败/')).toBeVisible({ timeout: 20000 })
+    await expect(page.locator('text=/执行完成|执行失败/').first()).toBeVisible({ timeout: 20000 })
   })
 })

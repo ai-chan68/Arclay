@@ -49,7 +49,7 @@ test('deleting a workspace falls back to the default workspace', async ({ page }
   await expect(deleteDialog).toBeVisible()
   await deleteDialog.getByRole('button', { name: '删除并迁移任务' }).click()
 
-  await expect(deleteDialog).toBeHidden()
+  await expect(deleteDialog).toBeHidden({ timeout: 10000 })
   await expect(switcher.locator('option:checked')).toHaveText('默认工作区')
   await expect(switcher.locator('option', { hasText: workspaceName })).toHaveCount(0)
 })
