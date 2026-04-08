@@ -89,7 +89,8 @@ jobs:
         run: pnpm build
 
       - name: Build API sidecar
-        run: pnpm build:api --target ${{ matrix.pkg_target }}
+        shell: bash
+        run: bash ./scripts/build-api-binary.sh --target ${{ matrix.pkg_target }}
 
       - name: Trim resources by platform
         run: node ./scripts/trim-resources-by-platform.mjs --target ${{ matrix.target }}
