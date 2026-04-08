@@ -73,5 +73,4 @@ playwright-report-integration/
 test-results/
 apps/desktop/binaries/
 .worktrees/
-e2e/
 .docs/
