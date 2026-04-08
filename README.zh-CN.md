@@ -1,165 +1,263 @@
+<div align="center">
+
 # 🚀 Arclay
 
-<p align="center">
-  <img src="./app-icon.png" alt="Arclay Logo" width="100">
-</p>
+**透明可控的桌面 AI 助手**
 
-<p align="center">
-  <a href="https://github.com/WhiteSnoopy/Arclay/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/WhiteSnoopy/Arclay" alt="License">
-  </a>
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome">
-</p>
+通过可控工作流将自然语言转化为可靠的本地自动化
 
-> **Arclay** 是一个面向普通用户的桌面 AI 助手。它通过可控的 `Planning → Approval → Execution` 工作流，把自然语言请求转化为文件、报告和本地任务结果，而不是黑盒式自动执行。
+[![License](https://img.shields.io/github/license/WhiteSnoopy/Arclay)](https://github.com/WhiteSnoopy/Arclay/blob/main/LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![Built with Tauri](https://img.shields.io/badge/Built%20with-Tauri-24C8DB?logo=tauri)](https://tauri.app)
 
-## 核心特性
+[简体中文](#) | [English](./README.md)
 
-- **自然语言发起任务**：直接用普通话描述你想完成的事情
-- **先看计划，再执行**：执行前可以先确认系统准备做什么
-- **桌面优先**：作为本地桌面应用运行，数据保存在本机
-- **更可控的执行过程**：带有命令边界与运行时检查
-- **需要时可扩展**：支持 MCP 与 Skills，但默认不要求用户理解这些技术概念
+<img src="./app-icon.png" alt="Arclay Logo" width="120">
 
-## 快速开始
+</div>
 
-### 环境要求
+---
 
-- Node.js `>= 20`
-- pnpm `>= 9`
-- Rust stable
-- Git
+## 🎯 Arclay 是什么？
 
-### 安装与运行
+Arclay 是一个**桌面优先的 AI 助手**，通过**透明、可控的工作流**，将你的自然语言请求转化为可执行的结果——文件、报告、本地服务。
+
+与黑盒式 AI 工具不同，Arclay 在执行前会向你展示计划，让你完全掌控机器上发生的一切。
+
+### ✨ 核心亮点
+
+```
+📝 自然语言输入  →  🤖 AI 规划  →  ✅ 你的审批  →  ⚡ 安全执行
+```
+
+- **🗣️ 自然表达** - 用日常语言描述任务，无需技术术语
+- **👀 先看后做** - 执行前查看完整计划
+- **🔒 本地私密** - 桌面应用，数据保存在本机，无云端依赖
+- **🛡️ 可控执行** - 运行时检查和沙箱边界保护你的系统
+- **🔧 可扩展** - 支持 MCP 和 Skills（高级用户可选）
+
+---
+
+## 🚀 快速开始
+
+### 📋 环境要求
+
+| 依赖 | 版本 | 用途 |
+|------|------|------|
+| **Node.js** | `>= 20` | API 服务运行时 |
+| **pnpm** | `>= 9` | 包管理器 |
+| **Rust** | stable | 桌面应用编译 |
+| **Git** | latest | 版本控制 |
+
+### ⚡ 安装
 
 ```bash
+# 克隆仓库
 git clone https://github.com/WhiteSnoopy/Arclay.git
 cd Arclay
+
+# 安装依赖
 pnpm install
 ```
 
-桌面开发模式：
+### 🎮 运行应用
 
+**桌面模式**（推荐 - 生产环境栈）
 ```bash
 pnpm dev
 ```
 
-Web 开发模式：
-
+**Web 模式**（仅用于开发 - 快速迭代）
 ```bash
 pnpm dev:all
 ```
 
-常用命令：
+### ⚙️ 配置
+
+在应用的 **Settings** 页面配置 LLM Provider，或手动编辑：
 
 ```bash
-pnpm dev:web
-pnpm dev:api
-pnpm build
-pnpm build:desktop
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm test:coverage
-pnpm test:e2e
-```
-
-### 配置
-
-在应用的 Settings 页面配置模型 Provider 和 API Key，或直接编辑：
-
-```text
 ~/.arclay/settings.json
 ```
 
-当前支持的 LLM Provider：
+**支持的 Provider：**
 
-- `claude`
-- `glm`
-- `openai`
-- `openrouter`
-- `kimi`
+Arclay 使用 **Claude Agent SDK**，这意味着任何支持 **Anthropic API 格式**的 Provider 都可以接入。
 
-## 项目文档
+| Provider | 需要的 API Key | 兼容性 | 说明 |
+|----------|---------------|--------|------|
+| Claude | `ANTHROPIC_API_KEY` | ✅ 原生支持 | 推荐使用，官方支持 |
+| OpenAI | `OPENAI_API_KEY` | ✅ 兼容 | 通过 Anthropic 兼容包装器 |
+| GLM | `GLM_API_KEY` | ✅ 兼容 | 国内市场 |
+| Kimi | `KIMI_API_KEY` | ✅ 兼容 | 国内市场 |
+| OpenRouter | `OPENROUTER_API_KEY` | ✅ 兼容 | 多模型网关 |
 
-- [docs/getting-started.md](./docs/getting-started.md) - 快速上手
-- [README.md](./README.md) - English overview
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - 进阶架构说明
+> **注意：** 任何实现了 Anthropic API 格式（Messages API、tool use、streaming）的 LLM Provider 都可以在 Arclay 中使用。
 
-## 项目结构
+---
 
-```text
-apps/
-  web/            React 前端
-  agent-service/  Node.js API Sidecar
-  desktop/        Tauri / Rust 桌面壳
-packages/
-  shared-types/   共享类型
+## 🏗️ 架构概览
+
+Arclay 是一个基于现代 Web 技术构建的**双进程桌面应用**：
+
+```
+┌─────────────────────────────────────────┐
+│  Arclay 桌面应用                         │
+│                                         │
+│  ┌─────────────┐      ┌──────────────┐ │
+│  │  React UI   │ ←──→ │ Tauri 壳     │ │
+│  │  (WebView)  │      │   (Rust)     │ │
+│  └──────┬──────┘      └──────────────┘ │
+│         │ HTTP/SSE                      │
+│  ┌──────▼──────────────────────────┐   │
+│  │  API Sidecar (Node.js)          │   │
+│  │  • Agent 编排                   │   │
+│  │  • 工具执行                     │   │
+│  │  • MCP & Skills 集成            │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
 ```
 
-## 核心概念
+### 📦 项目结构
 
-### 引导式执行
+```
+apps/
+├── web/              # React 19 + Vite 前端
+├── agent-service/    # Hono + Node.js API Sidecar
+└── desktop/          # Tauri 2 + Rust 桌面壳
 
-1. **Planning**：生成 `TaskPlan`
-2. **Approval**：用户审批计划
-3. **Execution**：执行工具链并实时反馈
+packages/
+└── shared-types/     # 共享 TypeScript 类型
+```
 
-### 结果类型
+### 🔄 工作原理
 
-- `static_files`
-- `local_service`
-- `deployed_service`
-- `script_execution`
-- `data_output`
-- `unknown`
+**三阶段工作流：**
 
-这些类型帮助系统判断应该生成静态文件、运行本地服务，还是返回一次性结果。
+1. **📝 规划阶段**
+   - AI 分析你的请求
+   - 生成详细的 `TaskPlan`
+   - 分类可交付物类型（文件、服务、数据等）
 
-### 开发模式差异
+2. **✅ 审批阶段**
+   - 你审查计划
+   - 批准、拒绝或请求澄清
+   - 执行前完全透明
 
-- 桌面模式：真实生产栈，使用 SQLite
-- Web 模式：用于快速迭代和 E2E，使用 IndexedDB
+3. **⚡ 执行阶段**
+   - 沙箱中的受控工具执行
+   - 实时流式反馈
+   - 运行时验证和健康检查
 
-## 开发者说明
+**可交付物类型：**
+
+| 类型 | 描述 | 运行时验证 |
+|------|------|-----------|
+| `static_files` | HTML、CSS、文档 | 宽松 |
+| `local_service` | 开发服务器、API | 严格健康检查 |
+| `deployed_service` | 云部署 | 严格健康检查 |
+| `script_execution` | 一次性脚本 | 宽松 |
+| `data_output` | 报告、分析 | 宽松 |
+
+---
+
+## 📚 项目文档
+
+| 文档 | 说明 |
+|------|------|
+| [🇺🇸 English](./README.md) | 英文版 README |
+| [🏛️ 架构文档](./ARCHITECTURE.md) | 详细技术架构 |
+| [🤝 贡献指南](./CONTRIBUTING.md) | 如何为 Arclay 贡献代码 |
+| [👨‍💻 开发者指南](./AGENTS.md) | 分步开发工作流 |
+| [🤖 AI 协作](./CLAUDE.md) | AI 辅助开发规则 |
+
+---
+
+## 🛠️ 开发指南
 
 <details>
-<summary>展开查看开发与测试细节</summary>
+<summary><b>点击展开开发指南</b></summary>
 
 ### 技术栈
 
-- Desktop: Tauri 2 + Rust + SQLite
-- UI: React 19 + Vite + Tailwind CSS 4 + React Router 7
-- API: Hono + Node.js + Claude Agent SDK + Zod
-- Monorepo: pnpm workspace
+| 层级 | 技术 |
+|------|------|
+| **桌面** | Tauri 2, Rust, SQLite |
+| **前端** | React 19, Vite, Tailwind CSS 4, React Router 7 |
+| **API** | Hono, Node.js, Claude Agent SDK, Zod |
+| **Monorepo** | pnpm workspace |
 
-### 推荐开发路径
-
-- 改前端：`pnpm dev:all`
-- 改 API：`pnpm dev:api`
-- 验证真实桌面行为：`pnpm dev`
-
-### 提交前检查
+### 开发工作流
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:coverage
-pnpm test:e2e
-pnpm build
+# 前端开发（热重载）
+pnpm dev:all
+
+# API 开发（独立运行）
+pnpm dev:api
+
+# 桌面模式（生产环境栈）
+pnpm dev
+
+# 运行测试
+pnpm test                # 单元测试
+pnpm test:coverage       # 覆盖率报告
+pnpm test:e2e            # E2E 测试
+
+# 质量检查
+pnpm typecheck           # TypeScript
+pnpm lint                # ESLint
+
+# 构建
+pnpm build               # 所有包
+pnpm build:desktop       # 桌面应用
 ```
 
-### 进一步阅读
+### 提交前检查清单
 
-- 快速上手： [docs/getting-started.md](./docs/getting-started.md)
-- 详细架构： [ARCHITECTURE.md](./ARCHITECTURE.md)
-- 开发流程： [AGENTS.md](./AGENTS.md)
-- 贡献规范： [CONTRIBUTING.md](./CONTRIBUTING.md)
-- AI 协作规则： [CLAUDE.md](./CLAUDE.md)
+提交 PR 前，确保：
+
+- [ ] `pnpm typecheck` 通过
+- [ ] `pnpm test` 通过且覆盖率 ≥80%
+- [ ] `pnpm test:e2e` 通过
+- [ ] `pnpm build` 成功
+- [ ] 桌面模式手动测试通过
+
+### 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `pnpm dev:web` | 仅启动前端 |
+| `pnpm dev:api` | 仅启动 API |
+| `pnpm build:api` | 构建 API 二进制 |
+| `pnpm build:api:all` | 为所有平台构建 |
+| `./scripts/start.sh --clean` | 清理端口并启动 |
 
 </details>
 
-## 许可证
+---
 
-[MIT License](./LICENSE)
+## 🤝 参与贡献
+
+我们欢迎贡献！请阅读我们的[贡献指南](./CONTRIBUTING.md)开始。
+
+**快速链接：**
+- [报告 Bug](https://github.com/WhiteSnoopy/Arclay/issues/new?labels=bug)
+- [请求功能](https://github.com/WhiteSnoopy/Arclay/issues/new?labels=enhancement)
+- [提问讨论](https://github.com/WhiteSnoopy/Arclay/discussions)
+
+---
+
+## 📄 许可证
+
+本项目采用 [MIT License](./LICENSE) 开源。
+
+---
+
+<div align="center">
+
+**用 ❤️ 构建，基于 Tauri、React 和 Claude Agent SDK**
+
+[⭐ 在 GitHub 上给我们 Star](https://github.com/WhiteSnoopy/Arclay) | [📖 阅读文档](./ARCHITECTURE.md) | [💬 加入讨论](https://github.com/WhiteSnoopy/Arclay/discussions)
+
+</div>
