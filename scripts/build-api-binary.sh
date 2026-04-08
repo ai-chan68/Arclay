@@ -15,9 +15,9 @@ CLAUDE_SDK_RESOURCE_DIR="$RESOURCES_DIR/claude-agent-sdk"
 # Detect current platform for default target
 detect_platform() {
   case "$(uname -s)" in
-    Darwin*) echo "node18-macos-arm64" ;;
-    Linux*) echo "node18-linux-x64" ;;
-    MINGW*|MSYS*|CYGWIN*) echo "node18-win-x64" ;;
+    Darwin*) echo "node20-macos-arm64" ;;
+    Linux*) echo "node20-linux-x64" ;;
+    MINGW*|MSYS*|CYGWIN*) echo "node20-win-x64" ;;
     *) echo "unknown" ;;
   esac
 }
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --all|-a)
-      TARGETS=("node18-macos-arm64" "node18-macos-x64" "node18-win-x64" "node18-linux-x64")
+      TARGETS=("node20-macos-arm64" "node20-macos-x64" "node20-win-x64" "node20-linux-x64")
       shift
       ;;
     *)
@@ -61,7 +61,7 @@ cd "$ROOT_DIR"
 npx esbuild apps/agent-service/src/index.ts \
   --bundle \
   --platform=node \
-  --target=node18 \
+  --target=node20 \
   --format=cjs \
   --outfile="$DIST_DIR/api.cjs" \
   --external:deasync \
