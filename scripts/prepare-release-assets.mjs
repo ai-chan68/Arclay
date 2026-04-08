@@ -98,10 +98,10 @@ async function main() {
   }
 
   const safeVersion = sanitizeSegment(version);
-  const bundleDir = resolve(rootDir, 'apps', 'desktop', 'target', 'release', 'bundle');
+  const targetTriple = resolveTargetTriple(target);
+  const bundleDir = resolve(rootDir, 'apps', 'desktop', 'target', targetTriple, 'release', 'bundle');
   const binariesDir = resolve(rootDir, 'apps', 'desktop', 'binaries');
   const outputDir = resolve(rootDir, 'dist', 'release', target);
-  const targetTriple = resolveTargetTriple(target);
 
   await mkdir(outputDir, { recursive: true });
 

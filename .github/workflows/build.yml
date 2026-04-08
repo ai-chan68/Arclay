@@ -119,10 +119,16 @@ jobs:
         shell: bash
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm tauri build --target ${{ matrix.rust_target }}
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_TEAM_ID_SECRET" ]; then
+            export APPLE_ID="$APPLE_ID_SECRET"
+            export APPLE_PASSWORD="$APPLE_PASSWORD_SECRET"
+            export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
+          fi
+          pnpm tauri build --target ${{ matrix.rust_target }}
 
       - name: Prepare release artifacts and checksums
         run: >
