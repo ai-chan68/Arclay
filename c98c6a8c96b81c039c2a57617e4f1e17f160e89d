@@ -1,0 +1,509 @@
+apps/agent-service/src/routes/settings.ts
+  501fd2629370c45c 35-39,41,101,105,115,127,130,142,145-199,236-242,1333-1336,1371,1405,1442,1467,1496-1498,1501-1516,1569,1572,1577-1578,1585-1605,1666
+  bc14929d2dba6df6 143-144,1526,1528,1534,1537-1538,1541-1557,1559-1560,1562-1565,1570-1571,1574-1576,1580,1582-1584,1606-1633,1636-1642,1647
+  4cceabb34be60813 1558,1561,1581
+  2d4bd56c43e68e4f 312-320
+apps/agent-service/src/services/__tests__/turn-runtime-store.test.ts
+  eea91ca3d39ad096 12
+apps/web/components/layout/TitleBar.tsx
+  8b0da1b6ca7342b9 3
+  2d4bd56c43e68e4f 9
+apps/desktop/gen/schemas/macOS-schema.json
+  bc14929d2dba6df6 1937-1942,6232
+  77fac7f4acde205e 1943-2074,6167-6231
+apps/agent-service/docs/implementation/2026-04-05-thought-stream-implementation.md
+  900a60b9e89b8caf 11,152
+apps/agent-service/src/routes/knowledge-notes.ts
+  eea91ca3d39ad096 9,14
+  bc14929d2dba6df6 13,15,19,23,27-28,38,43,47-48,62,74,78,89,95,99-100,111,116,120-121
+apps/agent-service/src/core/agent/interface.ts
+  900a60b9e89b8caf 78
+apps/web/shared/services/notification-service.ts
+  8b0da1b6ca7342b9 1
+  2d4bd56c43e68e4f 168,175
+apps/web/shared/theme/ui-theme.tsx
+  eea91ca3d39ad096 13
+apps/agent-service/src/services/approval-store.ts
+  eea91ca3d39ad096 12,17,21
+apps/agent-service/src/config.ts
+  54582a3e04276264 10,41-44,145-148,164-167
+  bc14929d2dba6df6 138,152-153,156,169-171
+  eea91ca3d39ad096 139,143-144
+apps/agent-service/src/core/agent/providers/index.ts
+  eea91ca3d39ad096 57
+apps/agent-service/src/core/agent/providers/claude.ts
+  54582a3e04276264 115-126,131,142,147,151,153,159,170-171
+  36756a60bdb80508 12,96-106,108-114,127-130,132-141,143-146,148-150,152,154-158,160-161,163-164,167-168,172-173,242-244,248-253,255-263,265-266,522-523,534,536,538,696,848-849,853-857,859-868,901-949,1907,1934-1935,1937-1941
+  77fac7f4acde205e 69-95,2266-2271,2274-2281,2284-2288
+  bc14929d2dba6df6 537,950-951,1943-1944,2282-2283
+  900a60b9e89b8caf 616,2130
+apps/web/components/task-detail/SkillsManager.tsx
+  4cceabb34be60813 557,563,578,583-585,592,599,605,615-617,633-634,644,663-668,671-679,683-688,802,891-893,896-898
+  501fd2629370c45c 24-32,478-488,497
+  8b0da1b6ca7342b9 16
+  bc14929d2dba6df6 294,489-496,544-556,558-559,565,567-568,576-577,579-581,593-598,600-604,606-614,618-632,635-643,645-647,662,669,705,721,803-806,811,813-862,906,911
+apps/web/vite.config.ts
+  bc14929d2dba6df6 11,18
+  eea91ca3d39ad096 19
+apps/agent-service/src/routes/__tests__/agent-v2-plan-conversation.test.ts
+  eea91ca3d39ad096 16
+apps/web/app/pages/Home.tsx
+  501fd2629370c45c 16,47,57-58,61-62,78
+packages/shared-types/tsconfig.json
+  bc14929d2dba6df6 2
+apps/agent-service/src/shared/__tests__/task-message-turns.test.ts
+  1cae6b20aed5468c 9
+apps/agent-service/src/services/__tests__/agent-service.test.ts
+  900a60b9e89b8caf 12,21,25,30
+  eea91ca3d39ad096 26,203-204
+apps/desktop/gen/schemas/acl-manifests.json
+  77fac7f4acde205e 1
+apps/agent-service/src/services/github-skill-importer.ts
+  4cceabb34be60813 28,44,52-65,99,123,188-209,221-226,231-239,241-246,249-250,252-254,264-265,273-274,347-348,408-523,525-567
+  bc14929d2dba6df6 19,31-43,45-51,135,137-187,210-213,228-230,247-248,255-257,259-263,266-267,269-271,276-286,288-291,293,296-300,310-317,342-346,349-407,568
+  eea91ca3d39ad096 524
+apps/agent-service/src/services/preview-manager.ts
+  900a60b9e89b8caf 5
+apps/agent-service/package.json
+  8b0da1b6ca7342b9 2,24
+apps/agent-service/src/services/execution-runtime-gate.ts
+  eea91ca3d39ad096 26,176
+apps/agent-service/src/services/__tests__/desktop-regression-config.test.ts
+  1cae6b20aed5468c 5,18,20
+apps/agent-service/src/types/scheduled-task.ts
+  501fd2629370c45c 27,70,76,91,106
+apps/web/shared/api/index.ts
+  8b0da1b6ca7342b9 1
+  bc14929d2dba6df6 81-85,89,96-97,106-110,177-178,182,184,188,190
+apps/agent-service/src/services/__tests__/session-documents.test.ts
+  eea91ca3d39ad096 11
+apps/agent-service/src/services/knowledge-notes-store.ts
+  bc14929d2dba6df6 14,18-19,22-23,27-28,57-58,62-63,93,96,102-103,114,120-121
+apps/agent-service/src/routes/todos.ts
+  eea91ca3d39ad096 25
+apps/agent-service/src/shared/provider/manager.ts
+  bc14929d2dba6df6 247
+apps/web/index.html
+  2d4bd56c43e68e4f 6
+apps/web/components/task-detail/TaskMessageList.tsx
+  900a60b9e89b8caf 2
+apps/agent-service/src/shared/__tests__/task-turn-display.test.ts
+  1cae6b20aed5468c 4-5
+apps/agent-service/src/shared/__tests__/agent-error-display.test.ts
+  1cae6b20aed5468c 4-5
+apps/agent-service/src/skills/ecosystem-service.ts
+  eea91ca3d39ad096 184,208
+apps/agent-service/src/routes/__tests__/settings-mcp-runtime.test.ts
+  eea91ca3d39ad096 52-53,167,197,222
+  2d4bd56c43e68e4f 248-327
+apps/agent-service/src/routes/__tests__/mcp-server-utils.test.ts
+  1cae6b20aed5468c 2
+apps/web/shared/hooks/useDatabase.ts
+  bc14929d2dba6df6 163,166,222-225
+  501fd2629370c45c 16,24-25,37-38,42,51,149,151-154,164-165,167,174-176,181,217-221,278,280,299
+apps/agent-service/src/services/__tests__/plan-store.test.ts
+  eea91ca3d39ad096 28
+apps/web/package.json
+  8b0da1b6ca7342b9 2,30
+apps/web/shared/db/database.ts
+  8b0da1b6ca7342b9 14
+  eea91ca3d39ad096 16-17
+  305d6f6892fd87a4 2,12-13,67-75,80-82,149-261,264-308,316,327-328,380-388,391-400,550-561,563-566,568-578
+  501fd2629370c45c 18,26-37,39
+  bc14929d2dba6df6 262-263,389-390,401-402,562,567,579-580
+apps/web/components/task-detail/SidebarContext.tsx
+  eea91ca3d39ad096 21-23
+apps/agent-service/src/services/__tests__/planning-files.test.ts
+  eea91ca3d39ad096 11
+apps/agent-service/src/settings-store.ts
+  eea91ca3d39ad096 7,10,14
+packages/shared-types/src/knowledge-note.ts
+  bc14929d2dba6df6 7
+apps/agent-service/src/routes/files.ts
+  eea91ca3d39ad096 320
+apps/desktop/src/lib.rs
+  54582a3e04276264 3,7-8,11,17-26,92-93,96,102-107,109,140-142,254-290,293-297,312-339
+  bc14929d2dba6df6 144,184,291-292,340-341
+  77fac7f4acde205e 27-28,43,95,97-98,108,110,248-253
+apps/agent-service/src/services/__tests__/vite-watch-config.test.ts
+  bc14929d2dba6df6 15
+  eea91ca3d39ad096 16
+  1cae6b20aed5468c 3
+apps/agent-service/src/shared/__tests__/task-state.test.ts
+  1cae6b20aed5468c 13
+apps/agent-service/src/services/__tests__/file-utils-preview.test.ts
+  900a60b9e89b8caf 122
+  bc14929d2dba6df6 3-4
+apps/agent-service/src/routes/__tests__/settings.test.ts
+  501fd2629370c45c 31-45
+apps/web/shared/db/index.ts
+  900a60b9e89b8caf 2
+apps/web/components/task-detail/SettingsModal.tsx
+  77fac7f4acde205e 11,38,287-288,313-320,334,337-338,396,399,402-403,1921-1923,1925-1931
+  305d6f6892fd87a4 832-834
+  bc14929d2dba6df6 259-264,830-831,835,1924
+apps/web/components/task-detail/QuestionInput.tsx
+  900a60b9e89b8caf 5
+packages/shared-types/src/index.ts
+  305d6f6892fd87a4 58-60
+apps/web/shared/lib/file-utils.ts
+  900a60b9e89b8caf 5
+  8b0da1b6ca7342b9 8,503
+apps/web/shared/db/indexeddb-adapter.ts
+  8b0da1b6ca7342b9 14,19
+  bc14929d2dba6df6 234,304,307,665
+  305d6f6892fd87a4 2-4,93-110,185-233,235-267,272,296,300,302-303,402-406,408-409,631,652-664
+apps/web/app/pages/Library.tsx
+  501fd2629370c45c 9,78,91,94,101
+apps/agent-service/src/services/__tests__/task-turn-display-interop.test.ts
+  1cae6b20aed5468c 3
+apps/agent-service/src/services/turn-detail-store.ts
+  bc14929d2dba6df6 3
+apps/desktop/src/db/migrations.rs
+  305d6f6892fd87a4 12,33-36,178-182,208,379-396
+  2d4bd56c43e68e4f 813
+  bc14929d2dba6df6 397-400
+packages/shared-types/src/database.ts
+  305d6f6892fd87a4 10-28,35,116,170-174,177,184
+apps/agent-service/src/skills/index-store.ts
+  eea91ca3d39ad096 7,53-56,58,62,66
+apps/agent-service/src/routes/agent-new.ts
+  900a60b9e89b8caf 4
+apps/agent-service/src/services/__tests__/desktop-database-schema.test.ts
+  eea91ca3d39ad096 19,79
+  bc14929d2dba6df6 220-221
+  305d6f6892fd87a4 52,64-78,80-106,129,174,200,206-219
+apps/agent-service/src/routes/__tests__/agent-v2-preflight-clarification.test.ts
+  eea91ca3d39ad096 45
+apps/agent-service/src/services/__tests__/tauri-commands.test.ts
+  1cae6b20aed5468c 15,26
+apps/agent-service/src/services/skills-service.ts
+  4cceabb34be60813 93
+  eea91ca3d39ad096 127
+apps/desktop/gen/schemas/desktop-schema.json
+  77fac7f4acde205e 1943-2074,6167-6231
+  bc14929d2dba6df6 1937-1942,6232
+apps/agent-service/src/services/__tests__/execution-runtime-gate.test.ts
+  900a60b9e89b8caf 70,111-263
+  bc14929d2dba6df6 264
+apps/agent-service/src/services/turn-runtime-store.ts
+  eea91ca3d39ad096 14,19,23
+apps/web/shared/lib/task-state.ts
+  900a60b9e89b8caf 10,30,179,357
+apps/agent-service/src/services/scheduled-task-store.ts
+  bc14929d2dba6df6 90
+  305d6f6892fd87a4 237-257
+  501fd2629370c45c 29,40,46-52,86-89,115-116,120,124,126,152,196
+  eea91ca3d39ad096 15,18,22
+packages/shared-types/package.json
+  8b0da1b6ca7342b9 2
+apps/agent-service/src/shared/__tests__/approval-terminal.test.ts
+  1cae6b20aed5468c 7
+apps/agent-service/src/routes/__tests__/agent-v2-turn-runtime.test.ts
+  900a60b9e89b8caf 70,75,135,138
+  eea91ca3d39ad096 76,78,136,344
+apps/web/components/task-detail/PlanApproval.tsx
+  900a60b9e89b8caf 2,5
+apps/agent-service/src/services/__tests__/planning-post-run.test.ts
+  900a60b9e89b8caf 66
+apps/agent-service/src/routes/__tests__/agent-v2-clarification.test.ts
+  eea91ca3d39ad096 61
+apps/agent-service/src/services/agent-service.ts
+  900a60b9e89b8caf 4
+  bc14929d2dba6df6 474
+  eea91ca3d39ad096 32,71,473
+apps/agent-service/src/core/agent/providers/claude-mcp-guidance.test.ts
+  eea91ca3d39ad096 55,75
+apps/agent-service/src/routes/health.ts
+  54582a3e04276264 8,16-17
+apps/web/shared/initialization/app-initializer.ts
+  77fac7f4acde205e 208,213,224-227
+apps/agent-service/scripts/analyze-harness-metrics.ts
+  eea91ca3d39ad096 23-24
+apps/agent-service/src/core/tools/todowrite.ts
+  eea91ca3d39ad096 94
+apps/agent-service/src/services/memory/index.ts
+  900a60b9e89b8caf 4
+apps/agent-service/vitest.config.ts
+  eea91ca3d39ad096 10
+  900a60b9e89b8caf 18-22
+apps/web/shared/types/artifacts.ts
+  900a60b9e89b8caf 7
+apps/web/app/pages/ScheduledTasks.tsx
+  501fd2629370c45c 21,29,273,308,310,315,318,322-327,335,524,532,538,555
+apps/web/shared/services/clipboard-service.ts
+  8b0da1b6ca7342b9 1
+apps/desktop/gen/schemas/capabilities.json
+  f8aeb942ad8e11a7 1
+apps/agent-service/src/runtime/__tests__/app-runtime.test.ts
+  eea91ca3d39ad096 51,130
+apps/web/app/pages/TaskDetail.tsx
+  eea91ca3d39ad096 87
+  900a60b9e89b8caf 2,4
+  bc14929d2dba6df6 557-558,561,581-584,588,800-830,942-943,946
+  501fd2629370c45c 42,201-205,211,239-240,245,277,449-450,458-463,551,559-560,569-580,585-587,589
+apps/agent-service/tsconfig.json
+  bc14929d2dba6df6 2,9
+apps/agent-service/src/runtime/__tests__/startup-composition.test.ts
+  eea91ca3d39ad096 89,110,115,120,125
+apps/desktop/src/main.rs
+  f8aeb942ad8e11a7 5
+apps/web/app/pages/Welcome.tsx
+  2d4bd56c43e68e4f 132
+apps/web/shared/db/storage-adapter.ts
+  305d6f6892fd87a4 2-4,38-43,57,88
+  8b0da1b6ca7342b9 14,153
+apps/agent-service/src/__tests__/index-build-compat.test.ts
+  eea91ca3d39ad096 10
+  1cae6b20aed5468c 7,9,19
+apps/agent-service/src/index.ts
+  bc14929d2dba6df6 67
+  77fac7f4acde205e 127-137,140
+  36756a60bdb80508 18-20,25-66
+apps/agent-service/src/routes/__tests__/health.test.ts
+  54582a3e04276264 10,14-18,22
+  77fac7f4acde205e 43-54
+apps/web/shared/fs/index.ts
+  8b0da1b6ca7342b9 1
+apps/agent-service/src/core/agent/providers/claude-max-turns.test.ts
+  eea91ca3d39ad096 50
+apps/agent-service/src/routes/__tests__/file-src.test.ts
+  1cae6b20aed5468c 17,19,21
+apps/agent-service/src/shared/__tests__/background-tasks.test.ts
+  1cae6b20aed5468c 8
+apps/web/shared/config/app-config.ts
+  305d6f6892fd87a4 44
+  900a60b9e89b8caf 38,40
+  eea91ca3d39ad096 45
+apps/agent-service/src/services/knowledge-notes-store.test.ts
+  bc14929d2dba6df6 20,77
+apps/agent-service/src/routes/scheduled-tasks.ts
+  501fd2629370c45c 29,204
+apps/agent-service/src/services/context-manager.ts
+  bc14929d2dba6df6 212,215,219-221
+packages/shared-types/src/environment.ts
+  501fd2629370c45c 51-60
+apps/agent-service/src/core/agent/providers/claude-sandbox-enforcement.test.ts
+  eea91ca3d39ad096 296,305,316,321
+apps/web/components/setup-guard.tsx
+  bc14929d2dba6df6 36,83
+  77fac7f4acde205e 3,5,26,40,45-54,57-72
+apps/web/components/task-detail/LeftSidebar.tsx
+  501fd2629370c45c 8-9,21-22,24,65-72,74,111-112,114,136-179,181,206,211-213,241,303,319-323,325-326,328-335,337-344,348,351,501,506-507,510-511,514-534,539,578
+  305d6f6892fd87a4 52-53,73,76-80,106-110,113,115-135,180,182-205,207-210,214,269,324,327,336,345-347,349-350,352-362,443,451-500,502-505,508-509,512-513,535-538,540-577,579-584
+  bc14929d2dba6df6 363-365
+packages/shared-types/src/agent.ts
+  900a60b9e89b8caf 170
+apps/web/components/layout/LoadingScreen.tsx
+  8b0da1b6ca7342b9 2
+  900a60b9e89b8caf 94,99,101,112,119
+apps/agent-service/src/services/plan-store.ts
+  eea91ca3d39ad096 13,20
+apps/agent-service/src/services/__tests__/turn-history-interop.test.ts
+  bc14929d2dba6df6 3-4
+apps/web/shared/hooks/useAgentNew.ts
+  900a60b9e89b8caf 2
+  bc14929d2dba6df6 957,969-976,1026
+apps/agent-service/src/routes/__tests__/agent-v2-permission-auto-allow.test.ts
+  eea91ca3d39ad096 25
+apps/web/app/App.tsx
+  bc14929d2dba6df6 14-15
+  501fd2629370c45c 6,12-13,16-17,19-20
+apps/desktop/Cargo.toml
+  77fac7f4acde205e 23
+  f8aeb942ad8e11a7 2,4-5,9
+apps/web/shared/db/sqlite-adapter.ts
+  bc14929d2dba6df6 561-562
+  eea91ca3d39ad096 28
+  8b0da1b6ca7342b9 14,20
+  305d6f6892fd87a4 2-4,74-156,164-165,188,193-194,289,293-297,532,554-560,572
+apps/web/shared/tauri/commands.ts
+  8b0da1b6ca7342b9 1
+apps/web/tsconfig.json
+  bc14929d2dba6df6 2,9
+apps/web/shared/hooks/useEnvironment.ts
+  8b0da1b6ca7342b9 2
+apps/agent-service/src/core/agent/system-prompt-language.test.ts
+  eea91ca3d39ad096 6,9
+apps/web/components/artifacts/ArtifactPreview.tsx
+  900a60b9e89b8caf 5
+apps/agent-service/src/services/github-skill-importer.test.ts
+  4cceabb34be60813 5-7,9,22,35,48,61,95,106-244
+  bc14929d2dba6df6 245-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "c98c6a8c96b81c039c2a57617e4f1e17f160e89d",
+  "prompts": {
+    "1cae6b20aed5468c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6706-b09e-7df2-8a23-0aa7ed1bdb57",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "2d4bd56c43e68e4f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6616-bf7b-7cd2-b84f-53bc328969af",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 95,
+      "overriden_lines": 0
+    },
+    "305d6f6892fd87a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d636f-7cf9-7d00-8911-a7835ba085ce",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 825,
+      "overriden_lines": 0
+    },
+    "36756a60bdb80508": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d681b-3ef3-77e2-8a9c-9223c8c40a7d",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 236,
+      "total_deletions": 25,
+      "accepted_lines": 205,
+      "overriden_lines": 8
+    },
+    "4cceabb34be60813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c4-db95-70b0-a6bf-5663fd442947",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 431,
+      "overriden_lines": 0
+    },
+    "501fd2629370c45c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62f3-2fe7-7003-83ef-d7f4077861ac",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 453,
+      "overriden_lines": 0
+    },
+    "54582a3e04276264": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6869-2ab7-7ce3-a150-763602ba1285",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 157,
+      "total_deletions": 25,
+      "accepted_lines": 147,
+      "overriden_lines": 1
+    },
+    "77fac7f4acde205e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d67b7-5efa-79c1-a618-2ea765112de4",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 559,
+      "overriden_lines": 2
+    },
+    "8b0da1b6ca7342b9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66f5-8469-7f53-afa4-280c7a19fbb0",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "900a60b9e89b8caf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6791-83bb-7221-a6f5-2e860a061dae",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 254,
+      "overriden_lines": 0
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 87836,
+      "overriden_lines": 23
+    },
+    "eea91ca3d39ad096": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66c8-8f50-7cb2-a065-c9eb2ce11c5c",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 93,
+      "overriden_lines": 0
+    },
+    "f8aeb942ad8e11a7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d66b9-bf18-77b2-9663-9bf450cbbe2e",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 16,
+      "overriden_lines": 0
+    }
+  }
+}
