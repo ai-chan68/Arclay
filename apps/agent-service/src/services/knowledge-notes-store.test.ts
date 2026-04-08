@@ -135,6 +135,8 @@ describe('KnowledgeNotesStore', () => {
         scope: 'global',
       })
 
+      await new Promise(resolve => setTimeout(resolve, 10))
+
       const updated = await store.update(created.id, 'global', {
         title: 'Updated',
         content: 'Updated content',

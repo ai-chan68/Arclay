@@ -58,7 +58,7 @@ apps/desktop/target/
 .cache/
 .parcel-cache/
 .turbo/
-apps/agent-service/workspace/sessions/
+apps/agent-service/workspace/*
 
 # Auto-generated skills directory (synced from SKILLs/)
 .codex/skills/

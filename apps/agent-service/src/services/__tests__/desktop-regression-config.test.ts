@@ -37,7 +37,6 @@ describe('desktop regression tooling', () => {
     expect(qualityWorkflow).toContain('pnpm test:coverage')
     expect(qualityWorkflow).toContain('pnpm test:e2e')
     expect(qualityWorkflow).toContain('coverage')
-    expect(buildWorkflow).toContain('pnpm test:coverage')
-    expect(buildWorkflow).toContain('pnpm test:e2e')
+    expect(buildWorkflow).toContain('uses: ./.github/workflows/quality-gates.yml')
   })
 })

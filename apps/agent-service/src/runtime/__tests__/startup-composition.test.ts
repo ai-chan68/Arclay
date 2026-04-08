@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 const createRoutesMock = vi.fn(() => new Hono())
 const createAppRuntimeMock = vi.fn()
 const initializeProvidersMock = vi.fn()
-const providerManagerInitializeMock = vi.fn()
+const providerManagerInitializeMock = vi.fn(() => Promise.resolve())
 const bootstrapRuntimeRecoveryMock = vi.fn()
 const setSandboxServiceMock = vi.fn()
 const setPreviewSandboxServiceMock = vi.fn()
