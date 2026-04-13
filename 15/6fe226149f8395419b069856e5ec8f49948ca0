@@ -1,0 +1,188 @@
+apps/agent-service/src/routes/multi-agent.ts
+  44e8807c0a2437b9 24-26,40,50,70-72,76,81
+apps/agent-service/src/services/memory/history-logger.ts
+  44e8807c0a2437b9 14-16,140,161
+apps/agent-service/src/services/turn-runtime-store.ts
+  44e8807c0a2437b9 15-17,190,203
+apps/agent-service/src/routes/agent-new.ts
+  44e8807c0a2437b9 94-96,341,396,500,503,518
+apps/agent-service/src/core/agent/pool/sub-agent.ts
+  44e8807c0a2437b9 10-12,34,46,54,56,67,172,177,183,190,198,206,210
+apps/agent-service/src/services/skills-service.ts
+  44e8807c0a2437b9 13-15,82,87,119
+apps/agent-service/src/core/sandbox/providers/claude.ts
+  44e8807c0a2437b9 16-18,89-90,93
+apps/agent-service/src/services/route-support.ts
+  44e8807c0a2437b9 10-12,42
+apps/agent-service/src/index.ts
+  44e8807c0a2437b9 1,19,24-25,69,78,81,85-89,120,131,162,194,197,199,259,271-272,277,283,295,303-304,309,315-322
+apps/agent-service/src/routes/files.ts
+  44e8807c0a2437b9 13-15,168,216,263,343
+apps/agent-service/package.json
+  44e8807c0a2437b9 19,24,32-33
+apps/agent-service/src/core/sandbox/providers/index.ts
+  44e8807c0a2437b9 5-7,57
+apps/web/shared/hooks/useSidecarStatus.ts
+  44e8807c0a2437b9 1-51
+ARCHITECTURE_REVIEW.md
+  80957d65a64b6fc4 1-395
+apps/agent-service/src/shared/provider/registry.ts
+  44e8807c0a2437b9 14-16,43,54,70,78,89,156,183,212,235
+apps/desktop/src/db/migrations.rs
+  44e8807c0a2437b9 12,37-39,123,129-134,217,410-419
+apps/agent-service/src/shared/logger.ts
+  44e8807c0a2437b9 1-20
+apps/agent-service/src/config.ts
+  44e8807c0a2437b9 11-13,246-255
+apps/agent-service/src/routes/scheduled-tasks.ts
+  44e8807c0a2437b9 10-12,186,343
+apps/agent-service/src/core/sandbox/sandbox-service.ts
+  44e8807c0a2437b9 11-13,174,176
+apps/agent-service/src/settings-store.ts
+  44e8807c0a2437b9 8-10,257,268,273,279,283,286,289,301,306,308,313,315,320,323,329,331,334-338
+apps/agent-service/src/shared/provider/manager.ts
+  44e8807c0a2437b9 8-10,67,80,117,156,195,245,263,271,273,279,281,285,292,299,314
+apps/agent-service/src/settings-watcher.ts
+  44e8807c0a2437b9 1-180
+apps/agent-service/src/services/agent-service.ts
+  44e8807c0a2437b9 33-35,166-168,172,177,233,398,404,413,417,419,427,446,448,458,473,583,603,638
+apps/agent-service/src/routes/todos.ts
+  44e8807c0a2437b9 4-6,39
+apps/agent-service/src/core/agent/providers/fake.ts
+  44e8807c0a2437b9 13,15-16,549
+apps/agent-service/src/services/scheduled-task-scheduler.ts
+  44e8807c0a2437b9 3,9,48,56,100,120,150
+  bc14929d2dba6df6 10
+apps/agent-service/src/services/execution-entry.ts
+  44e8807c0a2437b9 9-11,257
+apps/agent-service/src/routes/knowledge-notes.ts
+  44e8807c0a2437b9 10-12,35,59,86,107,128
+apps/agent-service/src/services/github-skill-importer.ts
+  44e8807c0a2437b9 20-22,342
+apps/agent-service/src/services/context-manager.ts
+  44e8807c0a2437b9 19-21,111
+apps/agent-service/src/skills/index-store.ts
+  44e8807c0a2437b9 6-8,80
+apps/agent-service/src/services/approval-coordinator.ts
+  44e8807c0a2437b9 11-13,161
+apps/agent-service/src/services/scheduled-task-store.ts
+  44e8807c0a2437b9 16-18,95,108
+apps/agent-service/src/services/preview-manager.ts
+  44e8807c0a2437b9 13,15,66,134,140,165-166,309,315,320,322,363,376,448,457,480,500
+apps/agent-service/src/skills/skill-scanner.ts
+  44e8807c0a2437b9 11-13,51,93,182,222
+apps/agent-service/src/core/agent/orchestrator/task-decomposer.ts
+  44e8807c0a2437b9 12-14,242
+apps/agent-service/src/core/agent/providers/index.ts
+  44e8807c0a2437b9 10-12,64
+apps/desktop/src/lib.rs
+  44e8807c0a2437b9 3,7,17-18,27-37,51-57,149-151,156-159,196,215-313
+  80957d65a64b6fc4 8,47-49,72,90-91,99-116,406-436,439-445,449,452-453,478-483,486-491,493-494
+apps/agent-service/src/core/sandbox/providers/native.ts
+  44e8807c0a2437b9 4-16,27-33,36-47,138
+  bc14929d2dba6df6 34-35
+apps/agent-service/src/services/approval-store.ts
+  44e8807c0a2437b9 13-15,103,116
+apps/agent-service/src/core/agent/pool/parallel-executor.ts
+  44e8807c0a2437b9 10-12,131,135,139,147,219,224,226,231
+apps/web/shared/api/index.ts
+  44e8807c0a2437b9 18-45,115,164,187
+apps/agent-service/src/core/agent/orchestrator/multi-agent-orchestrator.ts
+  44e8807c0a2437b9 23,25-26,64,68,353
+apps/agent-service/src/core/agent/providers/claude.ts
+  44e8807c0a2437b9 13,56-57,202,282,436,513-514,528,566,578-579,585,597-598,603,746,849-850,857,881-882,888,891-892,900,904,945,950,1452,1902,2008,2011,2115,2150,2154,2157,2166,2174,2188,2193,2198,2276,2285,2290,2293,2365,2399,2401,2891,2901,2919,2941,2970,3005
+ARCHITECTURE.md
+  80957d65a64b6fc4 16-38,44-46,48,51-53,82-87,89-93,107-108,112-113,124,172,177,180,182-186,203,219,225-235,336,462-465,473-493,692-696,749-754,779-782,868
+apps/agent-service/src/core/agent/pool/agent-pool.ts
+  44e8807c0a2437b9 10-12,80
+apps/agent-service/src/services/plan-store.ts
+  44e8807c0a2437b9 14-16,188,200,526
+apps/agent-service/src/skills/ecosystem-service.ts
+  44e8807c0a2437b9 8-10,458
+apps/agent-service/src/core/agent/system-prompt.ts
+  80957d65a64b6fc4 136-137
+apps/web/shared/db/database.ts
+  80957d65a64b6fc4 15,131,133-146,155
+apps/agent-service/src/routes/preview.ts
+  44e8807c0a2437b9 12-14,166,172,212,231,235,251,274,287,357,370,377,421,475
+apps/web/components/common/SidecarStatusIndicator.tsx
+  44e8807c0a2437b9 1-48
+apps/agent-service/src/skills/source-binding-store.ts
+  44e8807c0a2437b9 3-5
+apps/agent-service/src/routes/settings.ts
+  44e8807c0a2437b9 6,54,331,379,408,471,513,548,556,583,586,619,927,975,1018,1067,1112,1153,1205,1273,1309,1346,1380,1414,1447,1484,1522,1548,1609,1632,1652,1670,1674
+apps/web/shared/tauri/commands.ts
+  80957d65a64b6fc4 3,25-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "156fe226149f8395419b069856e5ec8f49948ca0",
+  "prompts": {
+    "44e8807c0a2437b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0abe3a2c-96c9-46d6-b94b-0db866790e57",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 2235,
+      "total_deletions": 445,
+      "accepted_lines": 1361,
+      "overriden_lines": 20
+    },
+    "80957d65a64b6fc4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "aae058b6-2b80-434b-95f6-4d0451877d1f",
+        "model": "gpt-5.4-medium"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 689,
+      "total_deletions": 227,
+      "accepted_lines": 627,
+      "overriden_lines": 0
+    },
+    "b28c3208e00edd7c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "5c856631-3331-4624-b0f5-9ec452de8b8d",
+        "model": "composer-2-fast"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 11,
+      "accepted_lines": 0,
+      "overriden_lines": 7
+    },
+    "bc14929d2dba6df6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d62c5-b40a-7070-a1b1-7e0116a4e8b1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 37655,
+      "overriden_lines": 0
+    },
+    "c85bdd8d337bb939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b649d528-a2ab-4aba-8d4e-705ae8722b3d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "ai-chan68",
+      "messages": [],
+      "total_additions": 573,
+      "total_deletions": 19,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
