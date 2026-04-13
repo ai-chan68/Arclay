@@ -114,7 +114,6 @@ Content`
     })
 
     it('should handle invalid YAML gracefully', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const skillsDir = path.join(testDir, 'SKILLs')
       const skillDir = path.join(skillsDir, 'bad-yaml')
       fs.mkdirSync(skillDir, { recursive: true })
@@ -125,8 +124,6 @@ Content`
 
       const result = scanSkills(skillsDir)
       expect(result).toHaveLength(1)
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      consoleErrorSpy.mockRestore()
     })
   })
 

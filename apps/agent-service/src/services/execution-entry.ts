@@ -6,6 +6,9 @@ import { buildExecutionPrompt } from './plan-execution'
 import type { RunExecutionSessionInput } from './execution-session'
 import type { ExecutionCompletionSummary } from './execution-completion'
 import { resolveTurnArtifactsDir, resolveTurnWorkspaceDir } from './workspace-layout'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('execution-entry')
 
 const DEFAULT_MAX_RUNTIME_REPAIR_ATTEMPTS = 1
 
@@ -251,7 +254,7 @@ export function resolveExecutionEntry(
   // Validate and correct deliverable type
   const validation = validateDeliverableType(passthrough.plan)
   if (!validation.valid && validation.correctedType) {
-    console.warn(`[ExecutionEntry] ${validation.reason}`)
+    log.warn({ reason: validation.reason, correctedType: validation.correctedType }, 'Deliverable type corrected')
     passthrough.plan.deliverableType = validation.correctedType
   }
 

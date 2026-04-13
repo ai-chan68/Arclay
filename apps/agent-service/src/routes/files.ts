@@ -10,6 +10,9 @@ import { createReadStream } from 'fs'
 import os from 'os'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:files')
 
 // MIME type mapping
 const MIME_TYPES: Record<string, string> = {
@@ -162,7 +165,7 @@ filesRoutes.get('/serve', async (c) => {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[files/serve] Error serving file:', message)
+    log.error({ err: message }, 'Error serving file')
     return c.json({ error: message }, 500)
   }
 })
@@ -210,7 +213,7 @@ filesRoutes.post('/open', async (c) => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[files/open] Error opening file:', message)
+    log.error({ err: message }, 'Error opening file')
     return c.json({ success: false, error: message }, 500)
   }
 })
@@ -257,7 +260,7 @@ filesRoutes.post('/open-in-editor', async (c) => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[files/open-in-editor] Error opening file in editor:', message)
+    log.error({ err: message }, 'Error opening file in editor')
     return c.json({ success: false, error: message }, 500)
   }
 })
@@ -337,7 +340,7 @@ filesRoutes.post('/export-zip', async (c) => {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to export zip'
-    console.error('[files/export-zip] Error exporting zip:', message)
+    log.error({ err: message }, 'Error exporting zip')
     return c.json({ error: message }, 500)
   } finally {
     if (tmpDir) {

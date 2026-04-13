@@ -133,7 +133,8 @@ When creating a task plan, you MUST classify the deliverable type to help the sy
 - Output is data files or analysis results
 
 **unknown**: When deliverable type is unclear
-- Will enable runtime gate as conservative fallback
+- Use only when classification is genuinely unclear
+- Does not automatically imply strict runtime gate
 
 **Classification rules:**
 - If output can be opened directly without starting a server → \`static_files\`

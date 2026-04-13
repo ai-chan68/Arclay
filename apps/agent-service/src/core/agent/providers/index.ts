@@ -7,6 +7,9 @@ import { agentRegistry, registerAgentPlugin } from '../registry'
 import { createClaudeProvider } from './claude'
 import { fakePlugin } from './fake'
 import type { AgentPlugin, IAgentProvider, AgentProviderConfig } from '../types'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('providers')
 
 /**
  * Claude Provider 插件定义
@@ -58,7 +61,7 @@ export function initializeProviders(): void {
     registerAgentPlugin(fakePlugin)
   }
 
-  console.log('[Providers] Initialized providers:', agentRegistry.getRegisteredTypes())
+  log.info({ types: agentRegistry.getRegisteredTypes() }, 'Initialized providers')
   initialized = true
 }
 

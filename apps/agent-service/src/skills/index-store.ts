@@ -3,6 +3,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { getAllSkills } from './skill-scanner'
 import type { SkillInfo } from './types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('skill:index-store')
 
 const ARCLAY_DIR = '.arclay'
 const SKILL_INDEX_FILE = 'skill-index.json'
@@ -74,7 +77,7 @@ function readJsonFile<T>(filePath: string, fallback: T): T {
     const content = fs.readFileSync(filePath, 'utf-8')
     return JSON.parse(content) as T
   } catch (error) {
-    console.error(`[SkillIndexStore] Failed to read ${filePath}:`, error)
+    log.error({ err: error, filePath }, 'Failed to read file')
     return fallback
   }
 }

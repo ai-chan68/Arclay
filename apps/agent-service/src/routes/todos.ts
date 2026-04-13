@@ -1,6 +1,9 @@
 import { Hono } from 'hono'
 import { join } from 'path'
 import { readFile } from 'fs/promises'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:todos')
 
 const app = new Hono()
 
@@ -33,7 +36,7 @@ app.get('/:taskId/todos', async (c) => {
       return c.json({ todos: [], updatedAt: null })
     }
   } catch (error) {
-    console.error('[Todos] Get failed:', error)
+    log.error({ err: error }, 'Get failed')
     return c.json({ error: 'Failed to get todos' }, 500)
   }
 })

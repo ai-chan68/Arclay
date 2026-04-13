@@ -11,6 +11,9 @@ import type {
   StoredTaskPlan,
 } from '../types/plan-store'
 import { resolveArclayPath } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('plan-store')
 
 const STORE_VERSION = 1 as const
 const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000
@@ -182,7 +185,7 @@ export class PlanStore {
           .filter((item): item is PlanRecord => !!item),
       }
     } catch (error) {
-      console.error('[PlanStore] Failed to load store:', error)
+      log.error({ err: error }, 'Failed to load store')
       return createInitialData()
     }
   }
@@ -194,7 +197,7 @@ export class PlanStore {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
       fs.renameSync(tmpFile, this.storeFile)
     } catch (error) {
-      console.error('[PlanStore] Failed to persist store:', error)
+      log.error({ err: error }, 'Failed to persist store')
       throw error
     }
   }
@@ -520,7 +523,7 @@ export class PlanStore {
         onExpired?.(expiredResult.records)
       }
       if (expiredResult.count > 0 || compactedCount > 0) {
-        console.log('[PlanStore] Lifecycle sweep:', { expiredCount: expiredResult.count, compactedCount })
+        log.info({ expiredCount: expiredResult.count, compactedCount }, 'Lifecycle sweep')
       }
     }, intervalMs)
     this.lifecycleTimer.unref?.()

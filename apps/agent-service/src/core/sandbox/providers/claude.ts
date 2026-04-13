@@ -13,6 +13,9 @@ import type { SandboxResult, ExecuteOptions, SandboxFileInfo } from '@shared-typ
 import type { ISandboxProvider } from '../interface'
 import type { ProviderState } from '../../../shared/provider/types'
 import type { SandboxCapabilities } from '../types'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('sandbox:claude')
 
 /**
  * Get the path to the srt (sandbox runtime) executable
@@ -83,12 +86,11 @@ export class ClaudeSandboxProvider implements ISandboxProvider {
     this.srtPath = getSrtPath()
 
     if (!this.srtPath) {
-      console.warn(
-        '[ClaudeSandboxProvider] Sandbox Runtime not found. ' +
-          'Install with: npm install -g @anthropic-ai/sandbox-runtime'
+      log.warn(
+        'Sandbox Runtime not found. Install with: npm install -g @anthropic-ai/sandbox-runtime'
       )
     } else {
-      console.log(`[ClaudeSandboxProvider] Using Sandbox Runtime at: ${this.srtPath}`)
+      log.info({ srtPath: this.srtPath }, 'Using Sandbox Runtime')
     }
   }
 

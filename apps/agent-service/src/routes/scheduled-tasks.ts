@@ -7,6 +7,9 @@ import { scheduledTaskDefaults, scheduledTaskStore } from '../services/scheduled
 import type { TaskPlan } from '../types/agent-new'
 import type { ScheduledTaskBreakerState } from '../types/scheduled-task'
 import type { AgentRuntimeState } from '../runtime/app-runtime'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:scheduled-tasks')
 
 const taskPlanSchema: z.ZodType<TaskPlan> = z.object({
   id: z.string().min(1),
@@ -180,7 +183,7 @@ scheduledTaskRoutes.post('/plan/suggest', async (c) => {
 
     return c.json({ plan })
   } catch (error) {
-    console.error('[ScheduledTaskRoutes] Failed to generate suggested plan:', error)
+    log.error({ err: error }, 'Failed to generate suggested plan')
     return c.json({ error: error instanceof Error ? error.message : 'Failed to generate plan' }, 500)
   }
 })
@@ -337,7 +340,7 @@ scheduledTaskRoutes.post('/:id/run-now', (c) => {
   }
 
   void deps.scheduler.runNow(id).catch((error) => {
-    console.error(`[ScheduledTaskRoutes] run-now failed for task ${id}:`, error)
+    log.error({ err: error, taskId: id }, 'run-now failed')
   })
 
   return c.json({

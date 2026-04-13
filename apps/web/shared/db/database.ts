@@ -12,6 +12,7 @@ import type {
   UpdateWorkspaceInput,
   Workspace,
 } from '@arclay/shared-types';
+import { waitForDesktopDbReady } from '../tauri/commands';
 
 const SQLITE_DB_NAME = 'sqlite:arclay.db';
 const IDB_NAME = 'arclay';
@@ -127,6 +128,22 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
 let sqliteDb: Awaited<
   ReturnType<typeof import('@tauri-apps/plugin-sql').default.load>
 > | null = null;
+let desktopDbReadyPromise: Promise<void> | null = null;
+
+async function ensureDesktopDbReady(): Promise<void> {
+  if (!isTauriSync()) {
+    return;
+  }
+
+  if (!desktopDbReadyPromise) {
+    desktopDbReadyPromise = waitForDesktopDbReady().catch((error) => {
+      desktopDbReadyPromise = null;
+      throw error;
+    });
+  }
+
+  await desktopDbReadyPromise;
+}
 
 async function getSQLiteDatabase() {
   if (!isTauriSync()) {
@@ -135,6 +152,7 @@ async function getSQLiteDatabase() {
 
   if (!sqliteDb) {
     try {
+      await ensureDesktopDbReady();
       const Database = (await import('@tauri-apps/plugin-sql')).default;
       sqliteDb = await Database.load(SQLITE_DB_NAME);
       console.log('[SQLite] Database connected successfully');

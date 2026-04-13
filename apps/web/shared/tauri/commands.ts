@@ -1,6 +1,6 @@
 import { isTauri } from '@arclay/shared-types'
 
-type TauriCommandName = 'get_api_port'
+type TauriCommandName = 'get_api_port' | 'wait_for_db_ready'
 
 async function invokeDesktopCommand<T>(
   command: TauriCommandName,
@@ -21,4 +21,12 @@ export async function getDesktopApiPort(): Promise<number> {
   } catch {
     return 0
   }
+}
+
+export async function waitForDesktopDbReady(): Promise<void> {
+  if (!isTauri()) {
+    return
+  }
+
+  await invokeDesktopCommand<boolean>('wait_for_db_ready')
 }

@@ -10,6 +10,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { parse as parseYaml } from 'yaml'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('skills-service')
 
 /**
  * Skill 元数据
@@ -76,12 +79,12 @@ function scanSkillsDirectory(dirPath: string): SkillInfo[] {
           content,
         })
       } catch (err) {
-        console.error(`[SkillsService] Failed to parse skill ${entry.name}:`, err)
+        log.error({ err, skill: entry.name }, 'Failed to parse skill')
         // 继续处理其他 skill
       }
     }
   } catch (err) {
-    console.error(`[SkillsService] Failed to scan directory ${dirPath}:`, err)
+    log.error({ err, dirPath }, 'Failed to scan directory')
   }
 
   return skills
@@ -113,7 +116,7 @@ export function parseSkillMetadata(content: string): SkillMetadata {
         result.metadata = parsed.metadata as SkillMetadata['metadata']
       }
     } catch (err) {
-      console.error('[SkillsService] Failed to parse YAML frontmatter:', err)
+      log.error({ err }, 'Failed to parse YAML frontmatter')
     }
   }
 

@@ -9,6 +9,9 @@ import { PreviewManager } from '../services/preview-manager.js';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import type { SandboxService } from '../core/sandbox/sandbox-service';
+import { createLogger } from '../shared/logger';
+
+const log = createLogger('routes:preview');
 
 const preview = new Hono();
 
@@ -160,13 +163,13 @@ async function startSandboxStaticPreview(taskId: string, workDir: string, origin
 
 // Cleanup on process exit
 process.on('SIGINT', async () => {
-  console.log('[Preview] Shutting down preview manager...');
+  log.info('Shutting down preview manager...');
   await previewManager.destroy();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('[Preview] Shutting down preview manager...');
+  log.info('Shutting down preview manager...');
   await previewManager.destroy();
   process.exit(0);
 });
@@ -206,7 +209,7 @@ preview.post('/start', async (c) => {
 
     if (preferSandboxStatic) {
       try {
-        console.log(`[Preview API] Starting sandbox static preview for task ${taskId} in ${workDir}`);
+        log.info({ taskId, workDir }, 'Starting sandbox static preview');
         const sandboxInstance = await startSandboxStaticPreview(taskId, workDir, requestOrigin);
         return c.json({
           success: true,
@@ -225,11 +228,11 @@ preview.post('/start', async (c) => {
           throw sandboxError;
         }
         sandboxStaticInstances.delete(taskId);
-        console.warn('[Preview API] Sandbox static preview failed, fallback to local preview:', sandboxError);
+        log.warn({ err: sandboxError }, 'Sandbox static preview failed, fallback to local preview');
       }
     }
 
-    console.log(`[Preview API] Starting local preview for task ${taskId} in ${workDir}`);
+    log.info({ taskId, workDir }, 'Starting local preview');
     const instance = await previewManager.startPreview(taskId, workDir);
 
     return c.json({
@@ -245,7 +248,7 @@ preview.post('/start', async (c) => {
       }
     });
   } catch (error) {
-    console.error('[Preview API] Failed to start preview:', error);
+    log.error({ err: error }, 'Failed to start preview');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -268,7 +271,7 @@ preview.post('/stop', async (c) => {
       }, 400);
     }
 
-    console.log(`[Preview API] Stopping preview for task ${taskId}`);
+    log.info({ taskId }, 'Stopping preview');
 
     if (sandboxStaticInstances.has(taskId)) {
       sandboxStaticInstances.delete(taskId);
@@ -281,7 +284,7 @@ preview.post('/stop', async (c) => {
     
     return c.json({ success: true });
   } catch (error) {
-    console.error('[Preview API] Failed to stop preview:', error);
+    log.error({ err: error }, 'Failed to stop preview');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -351,7 +354,7 @@ preview.get('/status/:taskId', async (c) => {
       }
     });
   } catch (error) {
-    console.error('[Preview API] Failed to get preview status:', error);
+    log.error({ err: error }, 'Failed to get preview status');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -364,14 +367,14 @@ preview.get('/status/:taskId', async (c) => {
  */
 preview.post('/stop-all', async (c) => {
   try {
-    console.log('[Preview API] Stopping all previews');
+    log.info('Stopping all previews');
     
     sandboxStaticInstances.clear();
     await previewManager.stopAllPreviews();
     
     return c.json({ success: true });
   } catch (error) {
-    console.error('[Preview API] Failed to stop all previews:', error);
+    log.error({ err: error }, 'Failed to stop all previews');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -415,7 +418,7 @@ preview.get('/list', async (c) => {
       ]
     });
   } catch (error) {
-    console.error('[Preview API] Failed to list previews:', error);
+    log.error({ err: error }, 'Failed to list previews');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -469,7 +472,7 @@ preview.get('/sandbox/:taskId/*', async (c) => {
     c.header('Cache-Control', 'no-store');
     return c.body(content);
   } catch (error) {
-    console.error('[Preview API] Failed to serve sandbox preview file:', error);
+    log.error({ err: error }, 'Failed to serve sandbox preview file');
     return c.text('Internal error while serving preview file', 500);
   }
 });

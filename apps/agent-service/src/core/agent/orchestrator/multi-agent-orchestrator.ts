@@ -20,7 +20,10 @@ import type {
   ProviderConfig
 } from '@shared-types'
 import type { IAgentProvider } from '../interface'
+import { createLogger } from '../../../shared/logger'
 import { TaskAnalyzer, type ScenarioAnalysis as IScenarioAnalysis } from './task-analyzer'
+
+const log = createLogger('agent:orchestrator')
 import { TaskDecomposer } from './task-decomposer'
 import { ResultAggregator, AggregationResult } from './result-aggregator'
 import { ParallelExecutor } from '../pool/parallel-executor'
@@ -58,11 +61,11 @@ export class MultiAgentOrchestrator {
       trackCosts: config.trackCosts ?? true
     }
 
-    console.log('[MultiAgentOrchestrator] Config:', {
+    log.info({
       subAgentModel: this.config.subAgentModel,
       provider: options.provider?.name,
       providerConfigModel: options.providerConfig?.model
-    })
+    }, 'Config initialized')
 
     this.provider = options.provider
     this.providerConfig = options.providerConfig
@@ -347,6 +350,6 @@ export class MultiAgentOrchestrator {
    */
   private adjustConfigForScenario(scenarioAnalysis: IScenarioAnalysis): void {
     // TODO: Implement scenario-based configuration adjustment
-    console.log('[MultiAgentOrchestrator] Scenario analysis integration temporarily disabled')
+    log.info('Scenario analysis integration temporarily disabled')
   }
 }

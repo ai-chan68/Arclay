@@ -5,6 +5,9 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import type { SkillSourceConfig } from '../settings-store'
 import { refreshSkillIndex } from './index-store'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('skill:ecosystem')
 
 const MAX_SKILL_FILES = 5000
 const MAX_SKILL_TOTAL_BYTES = 200 * 1024 * 1024
@@ -452,7 +455,7 @@ export async function updateSkillFromSources(
       }
       return syncSkillFromSourceCandidate(source, projectRoot, candidate, 'updated')
     } catch (error) {
-      console.warn('[SkillEcosystem] Skip source for update:', source.id, error)
+      log.warn({ err: error, sourceId: source.id }, 'Skip source for update')
     } finally {
       prepared.cleanup()
     }

@@ -8,6 +8,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { parse as parseYaml } from 'yaml'
 import type { SkillInfo, SkillMetadata, SkillSetting } from './types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('skill:scanner')
 
 /**
  * 扫描指定目录下的所有 skills
@@ -45,7 +48,7 @@ export function scanSkills(skillsDir: string): SkillInfo[] {
         metadata,
       })
     } catch (err) {
-      console.error(`[SkillScanner] Failed to parse skill ${entry.name}:`, err)
+      log.error({ err, skill: entry.name }, 'Failed to parse skill')
       // 继续处理其他 skill
     }
   }
@@ -87,7 +90,7 @@ function parseSkillMetadata(content: string): SkillMetadata {
         result.metadata = parsed.metadata as SkillMetadata['metadata']
       }
     } catch (err) {
-      console.error('[SkillScanner] Failed to parse YAML frontmatter:', err)
+      log.error({ err }, 'Failed to parse YAML frontmatter')
     }
   }
 
@@ -176,7 +179,7 @@ export function syncSkillsToProjectClaudeDir(projectDir: string): number {
     if (!sourceSkills.includes(skillName)) {
       const skillPath = path.join(targetDir, skillName)
       fs.rmSync(skillPath, { recursive: true, force: true })
-      console.log(`[SkillScanner] Removed skill: ${skillName}`)
+      log.info({ skill: skillName }, 'Removed skill')
     }
   }
 
@@ -216,7 +219,7 @@ export function syncSkillsToProjectClaudeDir(projectDir: string): number {
       }
       // 复制新目录
       fs.cpSync(sourceSkillPath, targetSkillPath, { recursive: true })
-      console.log(`[SkillScanner] Synced skill: ${skillName}`)
+      log.info({ skill: skillName }, 'Synced skill')
       syncedCount++
     }
   }

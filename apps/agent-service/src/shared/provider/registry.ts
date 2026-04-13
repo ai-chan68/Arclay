@@ -11,6 +11,9 @@ import type {
   ProviderEventListener,
   ProviderEvent,
 } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('provider:registry');
 
 /**
  * Provider 注册表基类
@@ -37,7 +40,7 @@ export abstract class BaseProviderRegistry<
     const type = plugin.metadata.type;
 
     if (this.plugins.has(type)) {
-      console.warn(`[ProviderRegistry] Plugin "${type}" is already registered, overwriting...`);
+      log.warn({ pluginType: type }, 'Plugin already registered, overwriting');
     }
 
     this.plugins.set(type, plugin);
@@ -48,7 +51,7 @@ export abstract class BaseProviderRegistry<
       data: plugin.metadata,
     });
 
-    console.log(`[ProviderRegistry] Registered plugin: ${type}`);
+    log.debug({ pluginType: type }, 'Registered plugin');
   }
 
   /**
@@ -64,7 +67,7 @@ export abstract class BaseProviderRegistry<
     const instance = this.instances.get(type);
     if (instance) {
       instance.provider.stop().catch((err) => {
-        console.error(`[ProviderRegistry] Error stopping provider "${type}":`, err);
+        log.error({ err, providerType: type }, 'Error stopping provider');
       });
       this.instances.delete(type);
     }
@@ -72,7 +75,7 @@ export abstract class BaseProviderRegistry<
     // 调用销毁回调
     if (plugin.onDestroy) {
       plugin.onDestroy().catch((err) => {
-        console.error(`[ProviderRegistry] Error in onDestroy for "${type}":`, err);
+        log.error({ err, providerType: type }, 'Error in onDestroy');
       });
     }
 
@@ -83,7 +86,7 @@ export abstract class BaseProviderRegistry<
       timestamp: Date.now(),
     });
 
-    console.log(`[ProviderRegistry] Unregistered plugin: ${type}`);
+    log.debug({ pluginType: type }, 'Unregistered plugin');
   }
 
   /**
@@ -150,7 +153,7 @@ export abstract class BaseProviderRegistry<
         data: { config },
       });
 
-      console.log(`[ProviderRegistry] Created instance for: ${type}`);
+      log.debug({ providerType: type }, 'Created instance');
       return provider;
     } catch (error) {
       this.emitEvent({
@@ -177,7 +180,7 @@ export abstract class BaseProviderRegistry<
           available.push(type);
         }
       } catch (error) {
-        console.warn(`[ProviderRegistry] Error checking availability for "${type}":`, error);
+        log.warn({ err: error, providerType: type }, 'Error checking availability');
       }
     }
 
@@ -206,7 +209,7 @@ export abstract class BaseProviderRegistry<
       try {
         listener(event);
       } catch (error) {
-        console.error('[ProviderRegistry] Error in event listener:', error);
+        log.error({ err: error }, 'Error in event listener');
       }
     }
   }
@@ -229,7 +232,7 @@ export abstract class BaseProviderRegistry<
             });
           })
           .catch((err) => {
-            console.error(`[ProviderRegistry] Error stopping "${type}":`, err);
+            log.error({ err, providerType: type }, 'Error stopping provider');
             this.emitEvent({
               type: 'error',
               providerType: type,

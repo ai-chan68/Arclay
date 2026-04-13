@@ -2,6 +2,9 @@ import { registerSandboxPlugin, sandboxRegistry } from '../registry';
 import { NativeSandboxProvider } from './native';
 import { ClaudeSandboxProvider } from './claude';
 import type { SandboxPlugin } from '../types';
+import { createLogger } from '../../../shared/logger';
+
+const log = createLogger('sandbox:providers');
 
 const nativePlugin: SandboxPlugin = {
   metadata: {
@@ -51,5 +54,5 @@ export function initializeSandboxProviders(): void {
   registerSandboxPlugin(nativePlugin);
   registerSandboxPlugin(claudePlugin);
   initialized = true;
-  console.log('[SandboxProviders] Initialized providers:', sandboxRegistry.list());
+  log.info({ providers: sandboxRegistry.list() }, 'Initialized providers');
 }

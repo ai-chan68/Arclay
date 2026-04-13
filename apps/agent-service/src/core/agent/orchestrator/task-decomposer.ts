@@ -9,6 +9,9 @@ import type {
   TaskAnalysis
 } from '@shared-types'
 import { randomUUID } from 'crypto'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('agent:decomposer')
 
 export class TaskDecomposer {
   /**
@@ -236,7 +239,7 @@ export class TaskDecomposer {
     // Validate each subtask has scope
     subtasks.forEach(subtask => {
       if (Object.keys(subtask.scope).length === 0) {
-        console.warn(`Subtask ${subtask.id} has no scope defined`)
+        log.warn({ subtaskId: subtask.id }, 'Subtask has no scope defined')
       }
     })
 

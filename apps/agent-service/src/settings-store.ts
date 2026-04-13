@@ -5,6 +5,9 @@
 
 import * as fs from 'fs'
 import { resolveArclayPath } from './shared/arclay-home'
+import { createLogger } from './shared/logger'
+
+const log = createLogger('settings-store')
 
 function getSettingsDir(): string {
   return resolveArclayPath()
@@ -251,7 +254,7 @@ function migrateFromLegacy(settings: Settings): Settings {
     migrated.activeProviderId = id
   }
 
-  console.log('[Settings] Migrated from legacy format')
+  log.info('Migrated from legacy format')
   return migrated
 }
 
@@ -262,34 +265,28 @@ export function loadSettingsFromFile(): Settings | null {
   const settingsDir = getSettingsDir()
   const settingsFile = getSettingsFile()
 
-  console.log('[Settings] Attempting to load settings from:', settingsFile)
-  console.log('[Settings] Settings directory:', settingsDir)
+  log.debug({ file: settingsFile, settingsDir }, 'Loading settings')
 
   try {
     // Check if directory exists
     if (!fs.existsSync(settingsDir)) {
-      console.log('[Settings] Settings directory does not exist:', settingsDir)
+      log.debug({ settingsDir }, 'Settings directory does not exist')
       return null
     }
 
     if (fs.existsSync(settingsFile)) {
       const content = fs.readFileSync(settingsFile, 'utf-8')
-      console.log('[Settings] File content length:', content.length)
+      log.debug({ file: settingsFile, size: content.length }, 'Reading settings file')
 
       const settings = JSON.parse(content) as Settings
       const migrated = migrateFromLegacy(settings)
-      console.log('[Settings] Loaded settings - providers:', migrated.providers.length, 'active:', migrated.activeProviderId)
+      log.info({ providers: migrated.providers.length, activeId: migrated.activeProviderId }, 'Settings loaded')
       return migrated
     } else {
-      console.log('[Settings] Settings file does not exist:', settingsFile)
+      log.debug({ file: settingsFile }, 'Settings file does not exist')
     }
   } catch (err) {
-    console.error('[Settings] Failed to load settings from file:', err)
-    if (err instanceof Error) {
-      console.error('[Settings] Error name:', err.name)
-      console.error('[Settings] Error message:', err.message)
-      console.error('[Settings] Error stack:', err.stack)
-    }
+    log.error(err, 'Failed to load settings from file')
   }
   return null
 }
@@ -301,72 +298,45 @@ export function saveSettingsToFile(settings: Settings): void {
   const settingsDir = getSettingsDir()
   const settingsFile = getSettingsFile()
 
-  console.log('[Settings] Attempting to save settings to:', settingsFile)
-  console.log('[Settings] Settings directory:', settingsDir)
-  console.log('[Settings] Providers count:', settings.providers?.length || 0)
-  console.log('[Settings] Active provider:', settings.activeProviderId || '(none)')
+  log.debug({ file: settingsFile, settingsDir, providers: settings.providers?.length || 0, activeId: settings.activeProviderId || '(none)' }, 'Saving settings')
 
   try {
     // Ensure directory exists
     if (!fs.existsSync(settingsDir)) {
-      console.log('[Settings] Creating settings directory:', settingsDir)
+      log.debug({ settingsDir }, 'Creating settings directory')
       fs.mkdirSync(settingsDir, { recursive: true })
-      console.log('[Settings] Directory created successfully')
+      log.debug({ settingsDir }, 'Directory created')
     } else {
-      console.log('[Settings] Directory already exists:', settingsDir)
       // Check directory permissions
       try {
         const stat = fs.statSync(settingsDir)
-        console.log('[Settings] Directory permissions:', stat.mode.toString(8))
+        log.debug({ settingsDir, mode: stat.mode.toString(8) }, 'Directory permissions')
       } catch (statErr) {
-        console.error('[Settings] Failed to check directory permissions:', statErr)
+        log.error(statErr, 'Failed to check directory permissions')
       }
     }
 
     const settingsJson = JSON.stringify(settings, null, 2)
-    console.log('[Settings] Writing settings file, size:', settingsJson.length, 'bytes')
+    log.debug({ file: settingsFile, size: settingsJson.length }, 'Writing settings file')
 
     fs.writeFileSync(settingsFile, settingsJson)
-    console.log('[Settings] Successfully saved settings to file:', settingsFile)
+    log.info({ file: settingsFile, providers: settings.providers?.length || 0, activeId: settings.activeProviderId }, 'Settings saved')
 
     // Verify the file was written correctly
     try {
       const writtenContent = fs.readFileSync(settingsFile, 'utf-8')
       const writtenSettings = JSON.parse(writtenContent)
-      console.log('[Settings] Verified saved settings - providers:', writtenSettings.providers?.length || 0)
+      log.debug({ providers: writtenSettings.providers?.length || 0 }, 'Verified saved settings')
     } catch (verifyErr) {
-      console.error('[Settings] Failed to verify saved file:', verifyErr)
+      log.error(verifyErr, 'Failed to verify saved file')
     }
   } catch (err) {
-    console.error('[Settings] ===== FAILED TO SAVE SETTINGS =====')
-    console.error('[Settings] Error:', err)
-    if (err instanceof Error) {
-      console.error('[Settings] Error name:', err.name)
-      console.error('[Settings] Error message:', err.message)
-      console.error('[Settings] Error stack:', err.stack)
+    if (err instanceof Error && 'code' in err) {
+      const code = (err as NodeJS.ErrnoException).code
+      log.error({ err, code, settingsDir }, 'Failed to save settings')
+    } else {
+      log.error(err, 'Failed to save settings')
     }
-    // Check for common filesystem errors
-    if (err instanceof Error) {
-      if ('code' in err) {
-        const code = (err as NodeJS.ErrnoException).code
-        console.error('[Settings] Error code:', code)
-        switch (code) {
-          case 'EACCES':
-            console.error('[Settings] Permission denied - check write permissions for:', settingsDir)
-            break
-          case 'ENOSPC':
-            console.error('[Settings] No space left on device')
-            break
-          case 'EROFS':
-            console.error('[Settings] Read-only file system')
-            break
-          case 'EISDIR':
-            console.error('[Settings] Path is a directory, not a file')
-            break
-        }
-      }
-    }
-    console.error('[Settings] ======================================')
   }
 }
 

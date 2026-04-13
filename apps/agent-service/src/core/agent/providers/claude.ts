@@ -10,6 +10,7 @@ import { cpSync, existsSync, readdirSync, rmSync } from 'fs';
 import { appendFile, mkdir, writeFile } from 'fs/promises';
 import { homedir, platform, arch } from 'os';
 import { join, dirname, relative, resolve, sep, basename } from 'path';
+import { createLogger } from '../../../shared/logger';
 import {
   createSdkMcpServer,
   Options,
@@ -51,6 +52,8 @@ import {
 import { looksLikeBrowserAutomationIntentInText } from '../../../services/browser-intent';
 import { taskPlanner } from '../../../services/task-planner';
 import { evaluateToolExecutionPolicy } from '../policy/tool-execution-policy';
+
+const log = createLogger('provider:claude');
 
 const DEFAULT_AUTO_ALLOW_TOOLS = [
   'Read',
@@ -196,7 +199,7 @@ function createClaudeCodeSpawnProcess(
 
     if (options.env?.DEBUG_CLAUDE_AGENT_SDK && childProcess.stderr) {
       childProcess.stderr.on('data', (data) => {
-        console.error(`[Claude SDK STDERR] ${data.toString()}`);
+        log.debug({ stderr: data.toString() }, 'SDK STDERR');
       });
     }
 
@@ -276,7 +279,7 @@ async function appendProviderDiagnostics(
   try {
     await appendFile(progressPath, `\n\n${lines.join('\n')}\n`, 'utf8');
   } catch (error) {
-    console.warn('[ClaudeAgent] Failed to append provider diagnostics:', error);
+    log.warn({ err: error }, 'Failed to append provider diagnostics');
   }
 }
 
@@ -430,7 +433,7 @@ export class ClaudeAgent extends BaseAgent {
       options?.taskId
     );
     await this.ensureDir(sessionCwd);
-    console.log(`[Claude ${session.id}] Working directory: ${sessionCwd}`);
+    log.info({ sessionId: session.id, sessionCwd }, 'Working directory');
 
     // 4. Skill 自动路由（按设置决定是否真正应用）
     const routedSkills = this.resolveRoutedSkills(prompt, options?.skillsConfig);
@@ -507,7 +510,8 @@ User's request (answer this AFTER reading the images):
     let sdkMessageCount = 0;
     let providerCompletionMetadata: Record<string, unknown> | null = null;
 
-    console.log(`[Claude ${session.id}] LLM execute request started`, {
+    log.info({
+      sessionId: session.id,
       model: this.config.model,
       promptLength: enhancedPrompt.length,
       maxTurns: queryOptions.maxTurns ?? null,
@@ -521,7 +525,7 @@ User's request (answer this AFTER reading the images):
       settingSources: queryOptions.settingSources || [],
       claudeCodePath: queryOptions.pathToClaudeCodeExecutable ?? null,
       claudeExecutable: queryOptions.executable ?? null,
-    });
+    }, 'LLM execute request started');
 
     try {
       const MAX_AUTO_RESUMES = 3;
@@ -559,7 +563,7 @@ User's request (answer this AFTER reading the images):
 
         // Auto-resume: notify frontend and continue
         autoResumeCount++;
-        console.log(`[Claude ${session.id}] Auto-resume #${autoResumeCount}/${MAX_AUTO_RESUMES} after max_turns`);
+        log.info({ sessionId: session.id, autoResumeCount, maxAutoResumes: MAX_AUTO_RESUMES }, 'Auto-resume after max_turns');
         yield {
           id: this.generateMessageId(),
           type: 'turn_limit_warning' as AgentMessageType,
@@ -571,13 +575,14 @@ User's request (answer this AFTER reading the images):
       }
 
       executionSuccess = true;
-      console.log(`[Claude ${session.id}] LLM execute request completed`, {
+      log.info({
+        sessionId: session.id,
         model: this.config.model,
         durationMs: Date.now() - executionStartAt,
         sdkMessageCount,
         aborted: signal.aborted,
         autoResumeCount,
-      });
+      }, 'LLM execute request completed');
 
       // 发送完成消息
       yield {
@@ -589,12 +594,13 @@ User's request (answer this AFTER reading the images):
     } catch (error) {
       const errorMessage = this.mapError(error);
       executionError = errorMessage;
-      console.error(`[Claude ${session.id}] LLM execute request failed`, {
+      log.error({
+        sessionId: session.id,
         model: this.config.model,
         durationMs: Date.now() - executionStartAt,
         sdkMessageCount,
         error: errorMessage,
-      });
+      }, 'LLM execute request failed');
       yield {
         id: this.generateMessageId(),
         type: 'error' as AgentMessageType,
@@ -737,7 +743,7 @@ IMPORTANT:
       // skip further attempts and go straight to execution fallback.
       // Retrying won't help — the model is ignoring the no-tools constraint.
       if (hasToolUse && planningResult.type === 'unknown') {
-        console.warn('[ClaudeAgent] Tool-use pollution detected in planning, skipping to direct execution');
+        log.warn('Tool-use pollution detected in planning, skipping to direct execution');
         const taskPlan = this.createFallbackExecutionPlan(prompt, fullResponse, true);
         yield {
           id: this.generateMessageId(),
@@ -840,14 +846,15 @@ IMPORTANT:
     let sdkMessageCount = 0;
     const requestStartAt = Date.now();
 
-    console.log(`[Claude ${sessionId}] LLM planning request started`, {
+    log.info({
+      sessionId: sessionId,
       model: this.config.model,
       attempt,
       promptLength: planningPrompt.length,
       maxTurns: queryOptions.maxTurns ?? null,
       claudeCodePath: queryOptions.pathToClaudeCodeExecutable ?? null,
       claudeExecutable: queryOptions.executable ?? null,
-    });
+    }, 'LLM planning request started');
 
     try {
       for await (const message of this.runQueryWithPackagedFallback(planningPrompt, queryOptions)) {
@@ -871,16 +878,18 @@ IMPORTANT:
       }
     } catch (error) {
       const errorMessage = this.mapError(error);
-      console.error(`[Claude ${sessionId}] LLM planning request failed`, {
+      log.error({
+        sessionId: sessionId,
         model: this.config.model,
         attempt,
         durationMs: Date.now() - requestStartAt,
         sdkMessageCount,
         error: errorMessage,
-      });
+      }, 'LLM planning request failed');
       throw error;
     } finally {
-      console.log(`[Claude ${sessionId}] LLM planning request completed`, {
+      log.info({
+        sessionId: sessionId,
         model: this.config.model,
         attempt,
         durationMs: Date.now() - requestStartAt,
@@ -888,11 +897,11 @@ IMPORTANT:
         responseLength: fullResponse.length,
         hasToolUse,
         aborted: signal.aborted,
-      });
+      }, 'LLM planning request completed');
     }
 
     if (hasToolUse) {
-      console.warn('[ClaudeAgent] Tool-use blocks detected during planning response');
+      log.warn('Tool-use blocks detected during planning response');
     }
 
     return { fullResponse, hasToolUse };
@@ -933,12 +942,12 @@ IMPORTANT:
         ...retryRuntimeOptions,
       };
 
-      console.warn('[ClaudeAgent] Retrying Claude SDK query with bundled CLI runtime', {
+      log.warn({
         previousPath: queryOptions.pathToClaudeCodeExecutable ?? null,
         previousExecutable: queryOptions.executable ?? null,
         retryPath: retryOptions.pathToClaudeCodeExecutable ?? null,
         retryExecutable: retryOptions.executable ?? null,
-      });
+      }, 'Retrying Claude SDK query with bundled CLI runtime');
 
       for await (const message of query({
         prompt,
@@ -1440,7 +1449,7 @@ IMPORTANT:
 
       return { type: 'unknown' };
     } catch (error) {
-      console.error('[ClaudeAgent] Failed to parse planning response:', error);
+      log.error({ err: error }, 'Failed to parse planning response');
       const inferredClarification = this.inferClarificationFromFreeform(response);
       if (inferredClarification) {
         return {
@@ -1890,7 +1899,7 @@ IMPORTANT:
     const mcpServers = await this.loadMcpServers(options?.mcpConfig, options?.sandbox);
 
     const maxTurns = 200;
-    console.log(`[Claude ${providerSessionId}] maxTurns=${maxTurns} (fixed safety cap)`);
+    log.debug({ sessionId: providerSessionId, maxTurns }, 'maxTurns configured');
 
     const queryOptions: Options = {
       cwd,
@@ -1996,10 +2005,10 @@ IMPORTANT:
       }
 
       if (syncedCount > 0) {
-        console.log(`[ClaudeAgent] Synced ${syncedCount} routed skills to ${targetDir}`);
+        log.info({ syncedCount, targetDir }, 'Synced routed skills');
       }
     } catch (err) {
-      console.error('[ClaudeAgent] Failed to sync skills:', err);
+      log.error({ err }, 'Failed to sync skills');
       // 同步失败不影响主流程
     }
   }
@@ -2103,7 +2112,7 @@ Prioritize these skills when they are relevant.
         error: errorMessage,
       });
     } catch (error) {
-      console.error('[ClaudeAgent] Failed to record skill route outcomes:', error);
+      log.error({ err: error }, 'Failed to record skill route outcomes');
     }
   }
 
@@ -2138,16 +2147,14 @@ Prioritize these skills when they are relevant.
       // Base URL: 自定义端点则设置，否则删除以使用 Anthropic 默认
       if (this.config.baseUrl) {
         env.ANTHROPIC_BASE_URL = this.config.baseUrl;
-        console.log('[ClaudeAgent] Using custom API from settings:', {
-          baseUrl: this.config.baseUrl,
-        });
+        log.info({ baseUrl: this.config.baseUrl }, 'Using custom API from settings');
       } else {
         // 删除以确保使用默认 Anthropic API，而不是 ~/.claude/settings.json 中的配置
         delete env.ANTHROPIC_BASE_URL;
-        console.log('[ClaudeAgent] Using custom API key with default Anthropic base URL');
+        log.info('Using custom API key with default Anthropic base URL');
       }
     } else {
-      console.log('[ClaudeAgent] Using API config from environment');
+      log.info('Using API config from environment');
     }
 
     // Model: 设置所有模型层级（兼容 OpenRouter 等第三方模型名）
@@ -2156,7 +2163,7 @@ Prioritize these skills when they are relevant.
       env.ANTHROPIC_DEFAULT_SONNET_MODEL = this.config.model;
       env.ANTHROPIC_DEFAULT_HAIKU_MODEL = this.config.model;
       env.ANTHROPIC_DEFAULT_OPUS_MODEL = this.config.model;
-      console.log('[ClaudeAgent] Model configured:', this.config.model);
+      log.info({ model: this.config.model }, 'Model configured');
     } else if (this.config.apiKey) {
       // 使用自定义 API 但没有指定模型时，清除 ~/.claude/settings.json 中的模型设置
       // 让第三方 API 使用其默认模型
@@ -2164,7 +2171,7 @@ Prioritize these skills when they are relevant.
       delete env.ANTHROPIC_DEFAULT_SONNET_MODEL;
       delete env.ANTHROPIC_DEFAULT_HAIKU_MODEL;
       delete env.ANTHROPIC_DEFAULT_OPUS_MODEL;
-      console.log('[ClaudeAgent] Custom API without model: cleared local model settings');
+      log.info('Custom API without model: cleared local model settings');
     }
 
     // 自定义 API 模式：禁用遥测、跳过配置读取、延长超时
@@ -2178,17 +2185,17 @@ Prioritize these skills when they are relevant.
       // GLM 特定配置
       if (this.config.baseUrl?.includes('bigmodel.cn')) {
         env.CLAUDE_CODE_USE_BETA = '1';
-        console.log('[ClaudeAgent] GLM provider detected, enabling beta features');
+        log.info('GLM provider detected, enabling beta features');
       }
     }
 
     // 调试日志：输出最终的 API 配置
-    console.log('[ClaudeAgent] Final env config:', {
+    log.debug({
       ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY === undefined ? '(deleted)' : env.ANTHROPIC_API_KEY ? `${env.ANTHROPIC_API_KEY.slice(0, 10)}...` : 'not set',
       ANTHROPIC_AUTH_TOKEN: env.ANTHROPIC_AUTH_TOKEN ? `${env.ANTHROPIC_AUTH_TOKEN.slice(0, 10)}...` : 'not set',
       ANTHROPIC_BASE_URL: env.ANTHROPIC_BASE_URL === undefined ? '(deleted - use default)' : env.ANTHROPIC_BASE_URL || 'not set',
       ANTHROPIC_MODEL: env.ANTHROPIC_MODEL || 'not set',
-    });
+    }, 'Final env config');
 
     const filteredEnv: Record<string, string> = {};
     for (const [key, value] of Object.entries(env)) {
@@ -2266,7 +2273,7 @@ Prioritize these skills when they are relevant.
     for (const candidate of getBundledClaudeSdkCliCandidatePaths()) {
       if (existsSync(candidate)) {
         this.claudeCodePath = candidate;
-        console.log(`[Claude] Using bundled desktop SDK cli.js at: ${candidate}`);
+        log.info({ candidate }, 'Using bundled desktop SDK cli.js');
         return this.claudeCodePath;
       }
     }
@@ -2275,15 +2282,15 @@ Prioritize these skills when they are relevant.
       const require = createRequire(getClaudeSdkResolveBasePath());
       const sdkCliPath = require.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
       if (!existsSync(sdkCliPath)) {
-        console.error(`[Claude] SDK cli.js not found at resolved path: ${sdkCliPath}`);
+        log.error({ sdkCliPath }, 'SDK cli.js not found at resolved path');
         return undefined;
       }
 
       this.claudeCodePath = sdkCliPath;
-      console.log(`[Claude] Using bundled SDK cli.js at: ${sdkCliPath}`);
+      log.info({ sdkCliPath }, 'Using bundled SDK cli.js');
       return this.claudeCodePath;
     } catch (error) {
-      console.error('[Claude] Failed to resolve SDK cli.js', error);
+      log.error({ err: error }, 'Failed to resolve SDK cli.js');
       return undefined;
     }
   }
@@ -2355,7 +2362,7 @@ Prioritize these skills when they are relevant.
     try {
       await mkdir(dirPath, { recursive: true });
     } catch (error) {
-      console.error('Failed to create directory:', error);
+      log.error({ err: error, dirPath }, 'Failed to create directory');
     }
   }
 
@@ -2389,9 +2396,9 @@ Prioritize these skills when they are relevant.
         const buffer = Buffer.from(base64Data, 'base64');
         await writeFile(filePath, buffer);
         savedPaths.push(filePath);
-        console.log(`[Claude] Saved image to: ${filePath}`);
+        log.debug({ filePath }, 'Saved image to disk');
       } catch (error) {
-        console.error(`[Claude] Failed to save image: ${error}`);
+        log.error({ err: error, filePath }, 'Failed to save image');
       }
     }
 
@@ -2881,7 +2888,7 @@ ${formattedMessages}${truncationNotice}
 
     // 只在开发模式下输出详细调试日志（通过环境变量控制）
     if (process.env.DEBUG_SDK_MESSAGES === 'true') {
-      console.log(`[Claude ${sessionId}] Raw SDK message:`, JSON.stringify(msg, null, 2));
+      log.debug({ sessionId, msg }, 'Raw SDK message');
     }
 
     // 处理 assistant 消息
@@ -2891,7 +2898,7 @@ ${formattedMessages}${truncationNotice}
         if ('type' in block && block.type === 'thinking') {
           const thinkingText = this.sanitizeText((block as { thinking?: string }).thinking || '');
           if (thinkingText) {
-            console.log(`[Claude ${sessionId}] Thinking: ${thinkingText.slice(0, 80)}${thinkingText.length > 80 ? '...' : ''}`);
+            log.debug({ sessionId, thinkingPreview: thinkingText.slice(0, 80) }, 'Thinking');
             yield {
               id: this.generateMessageId(),
               type: 'thinking' as AgentMessageType,
@@ -2909,7 +2916,7 @@ ${formattedMessages}${truncationNotice}
             sentTextHashes.add(textHash);
             // 只在文本较长时输出日志，减少噪音
             if (text.length > 50) {
-              console.log(`[Claude ${sessionId}] Text: ${text.slice(0, 80)}${text.length > 80 ? '...' : ''}`);
+              log.debug({ sessionId, textPreview: text.slice(0, 80) }, 'Text block');
             }
             yield {
               id: this.generateMessageId(),
@@ -2931,7 +2938,7 @@ ${formattedMessages}${truncationNotice}
               : toolInput.pattern
               ? `pattern: ${String(toolInput.pattern).slice(0, 40)}`
               : `${Object.keys(toolInput).length} params`;
-            console.log(`[Claude ${sessionId}] Tool: ${toolName} (${inputSummary})`);
+            log.info({ sessionId, toolName, inputSummary }, 'Tool call');
             contextManager?.onToolUse(toolName, toolId, toolInput);
             yield {
               id: this.generateMessageId(),
@@ -2960,7 +2967,7 @@ ${formattedMessages}${truncationNotice}
             false;
           // 只在出错时输出日志，减少正常情况的噪音
           if (isError) {
-            console.log(`[Claude ${sessionId}] Tool result ERROR for: ${String(toolUseId).slice(0, 30)}`);
+            log.warn({ sessionId, toolUseId: String(toolUseId).slice(0, 30) }, 'Tool result ERROR');
           }
           contextManager?.onToolResult(
             toolUseId as string,
@@ -2995,7 +3002,7 @@ ${formattedMessages}${truncationNotice}
 
     // 处理其他可能包含内容的消息类型
     if (msg.type === 'content' || msg.type === 'response') {
-      console.log(`[Claude ${sessionId}] Content/Response message:`, msg);
+      log.debug({ sessionId, msgType: msg.type }, 'Content/Response message');
       if (typeof msg.content === 'string' && msg.content.trim()) {
         const text = this.sanitizeText(msg.content);
         const textHash = text.slice(0, 100);

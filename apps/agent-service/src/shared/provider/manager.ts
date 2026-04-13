@@ -5,6 +5,9 @@
  */
 
 import type { IProvider, IProviderRegistry, ProviderEventListener, ProviderEvent } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('provider:manager');
 
 /**
  * Provider 分类配置
@@ -61,7 +64,7 @@ class ProviderManagerImpl {
     defaultProvider?: string
   ): void {
     if (this.registries.has(category)) {
-      console.warn(`[ProviderManager] Registry "${category}" already registered, overwriting...`);
+      log.warn({ category }, 'Registry already registered, overwriting');
     }
 
     this.registries.set(category, { registry, defaultProvider });
@@ -74,7 +77,7 @@ class ProviderManagerImpl {
       });
     });
 
-    console.log(`[ProviderManager] Registered registry: ${category}`);
+    log.debug({ category }, 'Registered registry');
   }
 
   /**
@@ -111,7 +114,7 @@ class ProviderManagerImpl {
   async getAvailableProviders(category: string): Promise<string[]> {
     const registry = this.getRegistry(category);
     if (!registry) {
-      console.warn(`[ProviderManager] Registry "${category}" not found`);
+      log.warn({ category }, 'Registry not found');
       return [];
     }
     return registry.getAvailable();
@@ -135,13 +138,13 @@ class ProviderManagerImpl {
   async getAgentProvider(type?: string, config?: Record<string, unknown>): Promise<IProvider | undefined> {
     const registry = this.getRegistry('agent');
     if (!registry) {
-      console.warn('[ProviderManager] Agent registry not found');
+      log.warn('Agent registry not found');
       return undefined;
     }
 
     const providerType = type || this.getDefaultProvider('agent');
     if (!providerType) {
-      console.warn('[ProviderManager] No default agent provider configured');
+      log.warn('No default agent provider configured');
       return undefined;
     }
 
@@ -150,7 +153,7 @@ class ProviderManagerImpl {
       this.activeProviders.set(`agent:${providerType}`, provider);
       return provider;
     } catch (error) {
-      console.error(`[ProviderManager] Failed to get agent provider "${providerType}":`, error);
+      log.error({ err: error, providerType }, 'Failed to get agent provider');
       return undefined;
     }
   }
@@ -189,7 +192,7 @@ class ProviderManagerImpl {
       },
     };
 
-    console.log(`[ProviderManager] Switched to agent provider: ${type}`);
+    log.info({ providerType: type }, 'Switched to agent provider');
   }
 
   /**
@@ -239,7 +242,7 @@ class ProviderManagerImpl {
       try {
         listener(event);
       } catch (error) {
-        console.error('[ProviderManager] Error in global event listener:', error);
+        log.error({ err: error }, 'Error in global event listener');
       }
     }
   }
@@ -257,7 +260,7 @@ class ProviderManagerImpl {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    console.log('[ProviderManager] Initializing...');
+    log.info('Initializing...');
 
     // 动态导入 Agent Registry
     // 这个会在 agent registry 文件创建后可用
@@ -265,35 +268,35 @@ class ProviderManagerImpl {
       const { agentRegistry } = await import('../../core/agent/registry');
       // 使用类型断言来解决泛型不兼容问题
       this.registerRegistry('agent', agentRegistry as unknown as IProviderRegistry, 'claude');
-      console.log('[ProviderManager] Agent registry loaded');
+      log.debug('Agent registry loaded');
     } catch (error) {
-      console.warn('[ProviderManager] Failed to load agent registry:', error);
+      log.warn({ err: error }, 'Failed to load agent registry');
     }
 
     try {
       const { sandboxRegistry } = await import('../../core/sandbox/registry');
       this.registerRegistry('sandbox', sandboxRegistry as unknown as IProviderRegistry, 'native');
-      console.log('[ProviderManager] Sandbox registry loaded');
+      log.debug('Sandbox registry loaded');
     } catch (error) {
-      console.warn('[ProviderManager] Failed to load sandbox registry:', error);
+      log.warn({ err: error }, 'Failed to load sandbox registry');
     }
 
     this.initialized = true;
-    console.log('[ProviderManager] Initialized');
+    log.info('Initialized');
   }
 
   /**
    * 关闭 Manager
    */
   async shutdown(): Promise<void> {
-    console.log('[ProviderManager] Shutting down...');
+    log.info('Shutting down...');
 
     // 停止所有活跃的 providers
     const stopPromises: Promise<void>[] = [];
     for (const provider of this.activeProviders.values()) {
       stopPromises.push(
         provider.shutdown().catch((err) => {
-          console.error('[ProviderManager] Error shutting down provider:', err);
+          log.error({ err }, 'Error shutting down provider');
         })
       );
     }
@@ -308,7 +311,7 @@ class ProviderManagerImpl {
 
     this.globalListeners.clear();
     this.initialized = false;
-    console.log('[ProviderManager] Shutdown complete');
+    log.info('Shutdown complete');
   }
 }
 

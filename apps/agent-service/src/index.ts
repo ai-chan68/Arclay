@@ -1,3 +1,4 @@
+import { createLogger } from './shared/logger'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createRoutes } from './routes'
@@ -15,9 +16,12 @@ import { cancelTurnsForExpiredPlans } from './services/plan-turn-sync'
 import { bootstrapRuntimeRecovery } from './services/runtime-recovery-bootstrap'
 import { turnRuntimeStore } from './services/turn-runtime-store'
 import { createAppRuntime } from './runtime/app-runtime'
+import { startSettingsWatcher, stopSettingsWatcher } from './settings-watcher'
 import { homedir, platform } from 'os'
 import { join } from 'path'
 import { existsSync, readdirSync } from 'fs'
+
+const log = createLogger('server')
 
 // Detect if running as Tauri sidecar
 const isTauriSidecar = process.env.TAURI_FAMILY === 'sidecar'
@@ -62,7 +66,7 @@ if (isTauriSidecar || !process.env.PATH?.includes('/opt/homebrew/bin')) {
   }
 
   process.env.PATH = paths.join(pathSeparator)
-  console.log('[Startup] Extended PATH for Tauri sidecar environment')
+  log.info('Extended PATH for Tauri sidecar environment')
 }
 
 // Initialize agent providers
@@ -71,13 +75,18 @@ initializeProviders()
 // Initialize provider manager and wait for it to complete
 providerManager.initialize()
   .then(() => {
-    console.log('[Startup] Provider manager initialized')
+    log.info('Provider manager initialized')
   })
   .catch((error) => {
-    console.error('[Startup] Failed to initialize provider manager:', error)
+    log.error(error, 'Failed to initialize provider manager')
   })
 
 const runtime = createAppRuntime()
+startSettingsWatcher({
+  getAgentRuntimeState: runtime.getAgentRuntimeState,
+  setAgentRuntimeState: runtime.setAgentRuntimeState,
+  workDir: runtime.workDir,
+})
 const scheduledTaskScheduler = new ScheduledTaskScheduler({
   getAgentRuntimeState: runtime.getAgentRuntimeState,
   workDir: runtime.workDir,
@@ -108,7 +117,7 @@ bootstrapRuntimeRecovery({
   cancelExpiredPlanTurns: (records) => cancelTurnsForExpiredPlans(records, {
     cancelPendingApprovals: (scope, reason) => approvalCoordinator.markPendingAsCanceled(scope, reason),
   }),
-  logInfo: console.log,
+  logInfo: log.info.bind(log),
 })
 
 function initializeSandboxServices(): Promise<void> {
@@ -119,7 +128,7 @@ function initializeSandboxServices(): Promise<void> {
 }
 
 void initializeSandboxServices().catch((error) => {
-  console.error('Failed to initialize sandbox service:', error)
+  log.error(error, 'Failed to initialize sandbox service')
 })
 
 logInitialAgentRuntime()
@@ -150,7 +159,7 @@ app.notFound((c) => c.json({ error: 'Not Found' }, 404))
 
 // Error handler
 app.onError((err, c) => {
-  console.error('Server error:', err)
+  log.error(err, 'Server error')
   return c.json({ error: 'Internal Server Error' }, 500)
 })
 
@@ -182,11 +191,12 @@ async function startServer() {
   const defaultPort = parseInt(process.env.PORT || '2026', 10)
   const port = await findAvailablePort(defaultPort)
 
+  // Keep as console.log — Tauri sidecar Rust parser uses regex to extract the port from this exact line format
   console.log(`\nAPI server running on http://localhost:${port}`)
   if (isTauriSidecar) {
-    console.log('Running as Tauri sidecar')
+    log.info('Running as Tauri sidecar')
   }
-  console.log('Press Ctrl+C to stop\n')
+  log.info('Press Ctrl+C to stop')
 
   // Use native http server with Hono's fetch handler for better pkg compatibility
   const server = createHttpServer((req, res) => {
@@ -246,7 +256,7 @@ async function startServer() {
           res.end()
         }
       } catch (err: unknown) {
-        console.error('Server error:', err)
+        log.error(err, 'Server error')
         res.statusCode = 500
         res.end('Internal Server Error')
       }
@@ -258,18 +268,19 @@ async function startServer() {
 
   // Graceful shutdown for sidecar
   const shutdown = () => {
-    console.log('\nShutting down gracefully...')
+    log.info('Shutting down gracefully...')
+    stopSettingsWatcher()
     scheduledTaskScheduler.stop()
     approvalCoordinator.stopLifecycleSweep()
     planStore.stopLifecycleSweep()
     server.close(() => {
-      console.log('Server closed')
+      log.info('Server closed')
       process.exit(0)
     })
 
     // Force exit after 10 seconds
     setTimeout(() => {
-      console.log('Forcing exit...')
+      log.warn('Forcing exit...')
       process.exit(1)
     }, 10000)
   }
@@ -281,7 +292,7 @@ async function startServer() {
 }
 
 if (typeof process !== 'undefined' && !process.env.VITEST) {
-  startServer().catch(console.error)
+  startServer().catch((err) => log.error(err, 'Failed to start server'))
 }
 
 export { app }
@@ -289,19 +300,25 @@ export { app }
 function logInitialAgentRuntime(): void {
   const { agentService, agentServiceConfig } = runtime.getAgentRuntimeState()
   if (!agentService || !agentServiceConfig) {
-    console.log('[API] No API key configured. Agent service will be available after settings are saved.')
-    console.log('[API] Please configure your API key in the Settings page.\n')
+    log.info('No API key configured. Agent service will be available after settings are saved.')
+    log.info('Please configure your API key in the Settings page.')
     return
   }
 
   if (getActiveProviderConfig()?.apiKey) {
-    console.log('[API] Using active provider from saved settings')
+    log.info('Using active provider from saved settings')
   } else {
     logConfig()
   }
 
   const skillsEnabled = agentServiceConfig.skills?.enabled !== false
-  console.log(
-    `[API] Agent service initialized with provider: ${agentServiceConfig.provider.provider}, model: ${agentServiceConfig.provider.model}, skills: ${skillsEnabled ? 'enabled' : 'disabled'}, mcp: ${agentServiceConfig.mcp ? 'enabled' : 'disabled'}\n`
+  log.info(
+    {
+      provider: agentServiceConfig.provider.provider,
+      model: agentServiceConfig.provider.model,
+      skills: skillsEnabled ? 'enabled' : 'disabled',
+      mcp: agentServiceConfig.mcp ? 'enabled' : 'disabled',
+    },
+    'Agent service initialized'
   )
 }

@@ -7,6 +7,9 @@ import type { TaskRuntimeRecord, TurnRecord, TurnTransitionResult } from '../typ
 import type { ExecutionCompletionSummary } from './execution-completion'
 import type { Settings } from '../settings-store'
 import { createTurnStateMessage, emitSseMessage } from './agent-stream-events'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('route-support')
 
 const progressWriteQueues = new Map<string, Promise<void>>()
 
@@ -36,7 +39,7 @@ export async function appendProgressEntry(progressPath: string, lines: string[])
         await ensureExecutionArtifacts(progressPath)
         await appendFile(progressPath, content, 'utf-8')
       } catch (error) {
-        console.warn('[agent-new] Failed to append progress log:', error)
+        log.warn({ err: error }, 'Failed to append progress log')
       }
     })
 

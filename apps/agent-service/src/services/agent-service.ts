@@ -30,6 +30,9 @@ import { generateDailySummary } from './memory/daily-memory'
 import { resolveTaskInputsDir, resolveTaskWorkspaceDir } from './workspace-layout'
 import { KnowledgeNotesStore } from './knowledge-notes-store'
 import { resolveArclayHome } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('agent-service')
 
 /**
  * Generate session work directory path (must match claude.ts logic)
@@ -160,17 +163,18 @@ export class AgentService {
     }
 
     if (requestedType !== plugin.metadata.type) {
-      console.warn(
-        `[AgentService] Provider "${requestedType}" not registered, falling back to "${plugin.metadata.type}"`
+      log.warn(
+        { requested: requestedType, fallback: plugin.metadata.type },
+        'Provider not registered, falling back'
       )
     }
 
-    console.log('[AgentService] Creating agent with config:', {
+    log.debug({
       provider: requestedType,
       model: agentConfig.model,
       baseUrl: agentConfig.baseUrl,
       apiKey: agentConfig.apiKey ? `${agentConfig.apiKey.slice(0, 8)}...${agentConfig.apiKey.slice(-4)}` : '(empty)',
-    })
+    }, 'Creating agent')
     const provider = plugin.factory()
     return provider.createAgent({
       provider: 'claude',
@@ -226,7 +230,7 @@ export class AgentService {
         const isText = att.type.startsWith('text/')
         const isImage = att.type.startsWith('image/')
         const shouldInclude = category || isText
-        console.log(`[AgentService] Filtering attachment: ${att.name} (${att.type}) - category: ${category || 'none'}, isText: ${isText}, isImage: ${isImage}, included: ${shouldInclude}`)
+        log.debug({ name: att.name, type: att.type, category: category || 'none', isText, isImage, included: shouldInclude }, 'Filtering attachment')
         return shouldInclude
       })
       .map(att => ({
@@ -391,13 +395,13 @@ ${categoryInstructions.join('\n---\n')}
     const maskedApiKey = this.config.provider.apiKey
       ? `${this.config.provider.apiKey.slice(0, 8)}...${this.config.provider.apiKey.slice(-4)}`
       : '(empty)'
-    console.log(`[AgentService] streamExecution called with config:`, {
+    log.debug({
       provider: this.config.provider.provider,
       model: this.config.provider.model,
       baseUrl: this.config.provider.baseUrl,
       apiKey: maskedApiKey,
       workDir: baseWorkDir,
-    })
+    }, 'streamExecution called')
 
     const agent = this.createAgent(this.config.provider)
     const abortController = new AbortController()
@@ -406,13 +410,13 @@ ${categoryInstructions.join('\n---\n')}
 
     // 转换 attachments 为 images
     const images = this.convertAttachmentsToImages(attachments)
-    console.log(`[AgentService] Received ${attachments?.length || 0} attachments, ${images.length} images`)
+    log.debug({ totalAttachments: attachments?.length || 0, images: images.length }, 'Received attachments')
 
     // 提取文件附件并保存到磁盘
     const fileAttachments = this.extractFileAttachments(attachments)
-    console.log(`[AgentService] Extracted ${fileAttachments.length} file attachments`)
+    log.debug({ count: fileAttachments.length }, 'Extracted file attachments')
     if (fileAttachments.length > 0) {
-      console.log(`[AgentService] File attachments: ${fileAttachments.map(f => `${f.name} (${f.type})`).join(', ')}`)
+      log.debug({ files: fileAttachments.map(f => `${f.name} (${f.type})`) }, 'File attachments')
     }
 
     const savedFilePaths: string[] = []
@@ -420,7 +424,7 @@ ${categoryInstructions.join('\n---\n')}
 
     // 计算会话工作目录 (与 claude.ts 保持一致)
     const sessionCwd = getSessionWorkDir(baseWorkDir, storageRootId)
-    console.log(`[AgentService] Session work directory: ${sessionCwd}`)
+    log.debug({ sessionCwd }, 'Session work directory')
     const attachmentDir = streamOptions?.taskId
       ? resolveTaskInputsDir(baseWorkDir, streamOptions.taskId)
       : sessionCwd
@@ -439,9 +443,9 @@ ${categoryInstructions.join('\n---\n')}
           await writeFile(filePath, buffer)
           savedFilePaths.push(filePath)
           fileCategories.set(filePath, file.category)
-          console.log(`[AgentService] Saved ${file.category} attachment: ${filePath} (${buffer.length} bytes)`)
+          log.debug({ filePath, category: file.category, bytes: buffer.length }, 'Saved attachment')
         } catch (err) {
-          console.error(`[AgentService] Failed to save attachment ${file.name}:`, err)
+          log.error({ err, fileName: file.name }, 'Failed to save attachment')
         }
       }
     }
@@ -451,7 +455,7 @@ ${categoryInstructions.join('\n---\n')}
     if (savedFilePaths.length > 0) {
       const fileInstruction = this.generateFileInstruction(savedFilePaths, fileCategories)
       enhancedPrompt = `${fileInstruction}\n\n${prompt}`
-      console.log(`[AgentService] Enhanced prompt with file instructions for ${savedFilePaths.length} file(s)`)
+      log.debug({ fileCount: savedFilePaths.length }, 'Enhanced prompt with file instructions')
     }
 
     // 如果有文件附件，使用会话工作目录作为系统提示的 workDir
@@ -466,7 +470,7 @@ ${categoryInstructions.join('\n---\n')}
 
     // --- Intent classification (Task 5.1) ---
     const classification = intentClassifier.classify(enhancedPrompt)
-    console.log(`[AgentService] Intent: ${classification.primaryIntent} (confidence=${classification.confidence.toFixed(2)}, complexity=${classification.complexity})`)
+    log.debug({ intent: classification.primaryIntent, confidence: classification.confidence, complexity: classification.complexity }, 'Intent classified')
 
     // --- Context management (Tasks 5.3–5.5) ---
     const memoryStore = new MemoryStore(baseWorkDir, storageRootId)
@@ -576,7 +580,7 @@ ${categoryInstructions.join('\n---\n')}
           }
         }
       } catch (err) {
-        console.warn('[AgentService] Failed to generate daily memory:', err)
+        log.warn({ err }, 'Failed to generate daily memory')
       }
       if (streamOptions?.taskId && (sawDone || sawError)) {
         try {
@@ -596,7 +600,7 @@ ${categoryInstructions.join('\n---\n')}
             errorCount,
           })
         } catch (err) {
-          console.warn('[AgentService] Failed to append metrics record:', err)
+          log.warn({ err }, 'Failed to append metrics record')
         }
       }
       this.runningSessions.delete(effectiveSessionId)
@@ -631,7 +635,7 @@ ${categoryInstructions.join('\n---\n')}
       await mkdir(dir, { recursive: true })
     } catch (err) {
       // 目录已存在或创建失败
-      console.error(`[AgentService] Failed to create directory ${dir}:`, err)
+      log.error({ err, dir }, 'Failed to create directory')
     }
   }
 }

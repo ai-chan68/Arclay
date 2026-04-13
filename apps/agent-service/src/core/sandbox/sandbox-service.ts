@@ -8,6 +8,9 @@ import { getSandboxProvider } from '../../config'
 import { initializeSandboxProviders } from './providers'
 import { sandboxRegistry } from './registry'
 import type { SandboxSelection } from './types'
+import { createLogger } from '../../shared/logger'
+
+const log = createLogger('sandbox')
 
 /**
  * Sandbox service for managing code execution
@@ -168,11 +171,9 @@ export async function createSandboxService(workDir: string): Promise<SandboxServ
   const service = await SandboxService.create(config, selection)
 
   if (selection.fallbackFrom) {
-    console.warn(
-      `[SandboxService] Requested "${selection.requested}" unavailable, using "${selection.selected}"`
-    )
+    log.warn({ requested: selection.requested, selected: selection.selected }, 'Requested provider unavailable, using fallback')
   } else {
-    console.log(`[SandboxService] Created ${selection.selected} sandbox provider`)
+    log.info({ provider: selection.selected }, 'Created sandbox provider')
   }
 
   return service

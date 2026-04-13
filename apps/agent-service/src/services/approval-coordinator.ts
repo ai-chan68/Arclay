@@ -8,6 +8,9 @@ import type {
   ApprovalRequestStatus,
 } from '../types/approval'
 import { approvalStore } from './approval-store'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('approval-coordinator')
 
 type PermissionDecisionResolver = (decision: { approved: boolean; reason?: string }) => void
 type QuestionDecisionResolver = (decision: { answers: Record<string, string> }) => void
@@ -155,7 +158,7 @@ export class ApprovalCoordinator {
     this.lifecycleTimer = setInterval(() => {
       const expiredCount = approvalStore.expireDuePending()
       if (expiredCount > 0) {
-        console.log(`[ApprovalCoordinator] Expired pending requests: ${expiredCount}`)
+        log.info({ expiredCount }, 'Expired pending requests')
       }
     }, intervalMs)
     this.lifecycleTimer.unref?.()

@@ -10,7 +10,10 @@
  */
 
 import type { AgentMessage, AgentSessionInfo } from '@shared-types'
+import { createLogger } from '../../../shared/logger'
 import { BaseAgent } from '../base-agent'
+
+const log = createLogger('provider:fake')
 import type {
   IAgentProvider,
   AgentProviderConfig,
@@ -543,7 +546,7 @@ export class FakeAgent extends BaseAgent {
       await fs.writeFile(fullPath, content, 'utf-8')
     } catch (error) {
       // Silently ignore errors in fake agent
-      console.warn('[FakeAgent] Failed to write file:', error)
+      log.warn({ err: error }, 'Failed to write file')
     }
   }
 

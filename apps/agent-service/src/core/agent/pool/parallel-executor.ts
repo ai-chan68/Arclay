@@ -7,6 +7,9 @@
 import type { SubTask, SubTaskResult, ProviderConfig } from '@shared-types'
 import type { IAgentProvider } from '../interface'
 import { AgentPool } from './agent-pool'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('agent:parallel-executor')
 
 export interface ExecutionOptions {
   onSubtaskStart?: (subtaskId: string) => void
@@ -125,15 +128,15 @@ export class ParallelExecutor {
     this.aborted = false
     this.results.clear()
 
-    console.log('[ParallelExecutor] Execute options:', {
+    log.info({
       hasProvider: !!options.provider,
       subAgentModel: options.subAgentModel,
       hasProviderConfig: !!options.providerConfig
-    })
+    }, 'Execute options')
 
     // Initialize agent pool if provider is available
     if (options.provider && options.subAgentModel && options.providerConfig) {
-      console.log('[ParallelExecutor] Initializing AgentPool with model:', options.subAgentModel)
+      log.info({ model: options.subAgentModel }, 'Initializing AgentPool')
       this.agentPool = new AgentPool(
         options.provider,
         options.subAgentModel,
@@ -141,7 +144,7 @@ export class ParallelExecutor {
         { providerConfig: options.providerConfig }
       )
     } else {
-      console.warn('[ParallelExecutor] No provider or subAgentModel, will use simulation')
+      log.warn('No provider or subAgentModel, will use simulation')
     }
 
     // Build priority queue
@@ -213,19 +216,19 @@ export class ParallelExecutor {
     subtask: SubTask,
     options: ExecutionOptions
   ): Promise<SubTaskResult> {
-    console.log('[ParallelExecutor] Executing subtask:', subtask.id, 'hasAgentPool:', !!this.agentPool)
+    log.debug({ subtaskId: subtask.id, hasAgentPool: !!this.agentPool }, 'Executing subtask')
     options.onSubtaskStart?.(subtask.id)
 
     // Use real agent pool if available, otherwise fall back to simulation
     if (this.agentPool) {
-      console.log('[ParallelExecutor] Using real AgentPool for subtask:', subtask.id)
+      log.debug({ subtaskId: subtask.id }, 'Using real AgentPool')
       const result = await this.executeWithAgentPool(subtask)
-      console.log('[ParallelExecutor] Subtask result:', subtask.id, 'status:', result.status, 'output length:', result.output?.length || 0)
+      log.debug({ subtaskId: subtask.id, status: result.status, outputLength: result.output?.length || 0 }, 'Subtask result')
       this.results.set(subtask.id, result)
       return result
     } else {
       // Fallback to simulation for testing
-      console.log('[ParallelExecutor] Using simulation for subtask:', subtask.id)
+      log.debug({ subtaskId: subtask.id }, 'Using simulation')
       const result: SubTaskResult = await this.simulateExecution(subtask)
       this.results.set(subtask.id, result)
       return result

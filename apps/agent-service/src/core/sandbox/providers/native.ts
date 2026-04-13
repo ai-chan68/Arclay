@@ -1,8 +1,19 @@
 /**
  * Native sandbox provider implementation
  *
- * Executes commands directly on the local system.
- * WARNING: This provides no isolation - use only for trusted code.
+ * Executes commands directly on the local system with resource limits.
+ *
+ * SECURITY BOUNDARIES:
+ * - Working directory restriction via validatePath()
+ * - Process resource limits via ulimit (soft limits, macOS/Linux only)
+ * - Timeout-based process killing (SIGKILL to process group)
+ *
+ * NOT provided:
+ * - Filesystem isolation (process can read/write outside cwd via absolute paths)
+ * - Network isolation
+ * - Process namespace isolation
+ *
+ * For stronger isolation, use 'claude' or 'docker' provider.
  */
 
 import { spawn } from 'node:child_process'
@@ -12,6 +23,27 @@ import type { SandboxResult, ExecuteOptions, SandboxFileInfo } from '@shared-typ
 import type { ISandboxProvider } from '../interface'
 import type { ProviderState } from '../../../shared/provider/types'
 import type { SandboxCapabilities } from '../types'
+
+/** Default resource limits applied via ulimit on macOS/Linux */
+const RESOURCE_LIMITS = {
+  virtualMemoryKB: 1_048_576,  // 1 GB
+  cpuTimeSeconds: 300,          // 5 minutes
+  fileSizeKB: 102_400,          // 100 MB
+  maxProcesses: 64,
+} as const
+
+/**
+ * Wrap a command with ulimit resource constraints (macOS/Linux only).
+ * On Windows, returns the command unchanged.
+ * The `2>/dev/null` suppresses "operation not permitted" warnings on systems
+ * where certain limits cannot be set by unprivileged users.
+ */
+function wrapWithResourceLimits(command: string): string {
+  if (process.platform === 'win32') return command
+  const { virtualMemoryKB, cpuTimeSeconds, fileSizeKB, maxProcesses } = RESOURCE_LIMITS
+  const limits = `ulimit -v ${virtualMemoryKB} -t ${cpuTimeSeconds} -f ${fileSizeKB} -u ${maxProcesses} 2>/dev/null`
+  return `${limits}; ${command}`
+}
 
 /**
  * Native sandbox provider - executes directly on local system
@@ -103,7 +135,7 @@ export class NativeSandboxProvider implements ISandboxProvider {
       let stderr = ''
       let timedOut = false
 
-      const proc = spawn('/bin/sh', ['-c', command], {
+      const proc = spawn('/bin/sh', ['-c', wrapWithResourceLimits(command)], {
         cwd,
         env: { ...process.env, ...options?.env },
         detached: process.platform !== 'win32'

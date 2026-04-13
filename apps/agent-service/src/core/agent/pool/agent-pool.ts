@@ -7,6 +7,9 @@
 import type { IAgent, IAgentProvider } from '../interface'
 import type { SubAgentInfo, ProviderConfig } from '@shared-types'
 import { SubAgent } from './sub-agent'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('agent:pool')
 
 export interface PoolStats {
   available: number
@@ -74,7 +77,7 @@ export class AgentPool {
     const id = subAgent.getInfo().id
 
     if (!this.inUse.has(id)) {
-      console.warn(`Attempting to release unknown agent: ${id}`)
+      log.warn({ agentId: id }, 'Attempting to release unknown agent')
       return
     }
 

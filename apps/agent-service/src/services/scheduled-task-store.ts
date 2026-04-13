@@ -13,6 +13,9 @@ import type {
 } from '../types/scheduled-task'
 import { getNextRunAt } from './cron-utils'
 import { resolveArclayPath } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('scheduled-task-store')
 
 function getStoreDir(): string {
   return resolveArclayPath()
@@ -89,7 +92,7 @@ export class ScheduledTaskStore {
         runs: parsed.runs,
       }
     } catch (error) {
-      console.error('[ScheduledTaskStore] Failed to load store:', error)
+      log.error({ err: error }, 'Failed to load store')
       return createInitialData()
     }
   }
@@ -102,7 +105,7 @@ export class ScheduledTaskStore {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
       fs.renameSync(tmpFile, storeFile)
     } catch (error) {
-      console.error('[ScheduledTaskStore] Failed to persist store:', error)
+      log.error({ err: error }, 'Failed to persist store')
       throw error
     }
   }

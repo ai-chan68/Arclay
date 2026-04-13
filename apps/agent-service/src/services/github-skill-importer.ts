@@ -17,6 +17,9 @@ import * as path from 'path'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { parseSkillMetadata } from './skills-service'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('github-skill-importer')
 
 const execAsync = promisify(exec)
 
@@ -336,7 +339,7 @@ export function cleanupTempDir(tmpPath: string): void {
       fs.rmSync(tmpPath, { recursive: true, force: true })
     }
   } catch (err) {
-    console.error('[GitHubSkillImporter] Failed to cleanup temp dir:', err)
+    log.error({ err, tmpPath }, 'Failed to cleanup temp dir')
   }
 }
 

@@ -7,6 +7,9 @@
 import type { IAgent, AgentRunOptions } from '../interface'
 import type { SubTask, SubTaskResult, SubTaskStatus } from '@shared-types'
 import type { AgentMessage } from '@shared-types'
+import { createLogger } from '../../../shared/logger'
+
+const log = createLogger('agent:sub-agent')
 
 export class SubAgent {
   private agent: IAgent
@@ -28,8 +31,7 @@ export class SubAgent {
     subtask: SubTask,
     options?: { signal?: AbortSignal; timeout?: number }
   ): Promise<SubTaskResult> {
-    console.log(`[SubAgent ${this.id}] Starting execution for subtask:`, subtask.id)
-    console.log(`[SubAgent ${this.id}] Subtask description:`, subtask.description.substring(0, 100))
+    log.info({ agentId: this.id, subtaskId: subtask.id, description: subtask.description.substring(0, 100) }, 'Starting subtask execution')
     this.status = 'running'
     this.currentSubtask = subtask.id
 
@@ -41,7 +43,7 @@ export class SubAgent {
         systemPrompt: this.createSubtaskPrompt(subtask)
       }
 
-      console.log(`[SubAgent ${this.id}] Calling agent.run()...`)
+      log.debug({ agentId: this.id }, 'Calling agent.run()')
       // Execute with timeout
       const messages = await this.executeWithTimeout(
         subtask.description,
@@ -49,9 +51,9 @@ export class SubAgent {
         options?.timeout
       )
 
-      console.log(`[SubAgent ${this.id}] Received ${messages.length} messages from agent`)
+      log.debug({ agentId: this.id, messageCount: messages.length }, 'Received messages from agent')
       const output = this.extractOutput(messages)
-      console.log(`[SubAgent ${this.id}] Extracted output length:`, output.length)
+      log.debug({ agentId: this.id, outputLength: output.length }, 'Extracted output')
 
       this.status = 'success'
       return {
@@ -62,7 +64,7 @@ export class SubAgent {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error(`[SubAgent ${this.id}] Execution error:`, errorMessage)
+      log.error({ agentId: this.id, err: errorMessage }, 'Execution error')
 
       if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
         this.status = 'timeout'
@@ -167,26 +169,25 @@ Priority: ${subtask.priority}`
    * Handles multiple message types from different providers
    */
   private extractOutput(messages: AgentMessage[]): string {
-    console.log(`[SubAgent ${this.id}] Extracting output from ${messages.length} messages`)
-    console.log(`[SubAgent ${this.id}] Message types:`, messages.map(m => m.type).join(', '))
+    log.debug({ agentId: this.id, messageCount: messages.length, types: messages.map(m => m.type) }, 'Extracting output from messages')
 
     // Check for error messages first
     const errorMessages = messages.filter(m => m.type === 'error')
     if (errorMessages.length > 0) {
-      console.error(`[SubAgent ${this.id}] Error messages found:`, errorMessages.map(m => m.errorMessage || m.content))
+      log.error({ agentId: this.id, errors: errorMessages.map(m => m.errorMessage || m.content) }, 'Error messages found')
     }
 
     // 1. First try to find a 'result' type message
     const resultMessage = messages.find(m => m.type === 'result')
     if (resultMessage?.content) {
-      console.log(`[SubAgent ${this.id}] Found result message with content length: ${resultMessage.content.length}`)
+      log.debug({ agentId: this.id, contentLength: resultMessage.content.length }, 'Found result message')
       return resultMessage.content
     }
 
     // 2. Try to find 'direct_answer' type message (used by some providers)
     const directAnswer = messages.find(m => m.type === 'direct_answer')
     if (directAnswer?.content) {
-      console.log(`[SubAgent ${this.id}] Found direct_answer message with content length: ${directAnswer.content.length}`)
+      log.debug({ agentId: this.id, contentLength: directAnswer.content.length }, 'Found direct_answer message')
       return directAnswer.content
     }
 
@@ -194,7 +195,7 @@ Priority: ${subtask.priority}`
     const textMessages = messages.filter(m => m.type === 'text' && m.content)
     if (textMessages.length > 0) {
       const output = textMessages.map(m => m.content).join('\n')
-      console.log(`[SubAgent ${this.id}] Found ${textMessages.length} text messages, combined length: ${output.length}`)
+      log.debug({ agentId: this.id, textCount: textMessages.length, combinedLength: output.length }, 'Found text messages')
       return output
     }
 
@@ -202,11 +203,11 @@ Priority: ${subtask.priority}`
     const messagesWithContent = messages.filter(m => m.content && typeof m.content === 'string')
     if (messagesWithContent.length > 0) {
       const output = messagesWithContent.map(m => m.content).join('\n')
-      console.log(`[SubAgent ${this.id}] Fallback: found ${messagesWithContent.length} messages with content, combined length: ${output.length}`)
+      log.debug({ agentId: this.id, fallbackCount: messagesWithContent.length, combinedLength: output.length }, 'Fallback: found messages with content')
       return output
     }
 
-    console.warn(`[SubAgent ${this.id}] No output found in messages`)
+    log.warn({ agentId: this.id }, 'No output found in messages')
     return ''
   }
 }

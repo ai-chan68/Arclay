@@ -91,6 +91,9 @@ import {
 } from '../settings-store'
 import type { TurnTransitionResult } from '../types/turn-runtime'
 import type { AgentRuntimeState } from '../runtime/app-runtime'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:agent-new')
 
 export interface AgentRouteDeps {
   getAgentRuntimeState: () => AgentRuntimeState
@@ -335,7 +338,7 @@ agentNewRoutes.post('/plan', async (c) => {
       taskId: normalizedTaskId,
       messages: emittedPlanningMessages,
     }).catch((error) => {
-      console.warn('[agent-new] Failed to persist planning turn detail:', error)
+      log.warn({ err: error }, 'Failed to persist planning turn detail')
     })
   })
 })
@@ -390,7 +393,7 @@ agentNewRoutes.post('/execute', async (c) => {
   const attachments = executionRequestResult.attachments
   const executionWorkDir = agentServiceConfig.workDir
   if (executionRequestResult.planningFilesBootstrap.error) {
-    console.warn('[agent-new] Failed to bootstrap planning files:', executionRequestResult.planningFilesBootstrap.error)
+    log.warn({ err: executionRequestResult.planningFilesBootstrap.error }, 'Failed to bootstrap planning files')
   }
 
   c.header('Content-Type', 'text/event-stream; charset=utf-8')
@@ -494,10 +497,10 @@ agentNewRoutes.post('/execute', async (c) => {
       },
       formatExecutionSummary: formatExecutionCompletionSummary,
       logInfo: (message) => {
-        console.info(message.replace('[execution-session]', '[agent-new]'))
+        log.info(message.replace('[execution-session]', '').trim())
       },
       logWarn: (message) => {
-        console.warn(message.replace('[execution-session]', '[agent-new]'))
+        log.warn(message.replace('[execution-session]', '').trim())
       },
       createId: createRouteMessageId,
       buildRuntimeRepairPrompt,
@@ -512,7 +515,7 @@ agentNewRoutes.post('/execute', async (c) => {
       fallbackPlan: plan,
       messages: emittedExecutionMessages,
     }).catch((error) => {
-      console.warn('[agent-new] Failed to persist execution turn detail:', error)
+      log.warn({ err: error }, 'Failed to persist execution turn detail')
     })
   })
 })

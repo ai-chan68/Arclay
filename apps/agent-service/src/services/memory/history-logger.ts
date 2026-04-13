@@ -11,6 +11,9 @@
 import type { AgentMessage } from '@shared-types'
 import type { HistoryRecord, HistoryRecordType } from './types'
 import { MemoryStore } from './memory-store'
+import { createLogger } from '../../shared/logger'
+
+const log = createLogger('history-logger')
 
 const MAX_CONTENT_LENGTH = 2000
 
@@ -134,7 +137,7 @@ export class HistoryLogger {
       await this.enqueue(() => this.append(record))
     } catch (err) {
       // Non-critical: log but don't interrupt agent execution
-      console.warn('[HistoryLogger] Failed to write history:', err)
+      log.warn({ err }, 'Failed to write history')
     }
   }
 
@@ -155,7 +158,7 @@ export class HistoryLogger {
     try {
       await this.enqueue(() => this.append(record))
     } catch (err) {
-      console.warn('[HistoryLogger] Failed to write completion:', err)
+      log.warn({ err }, 'Failed to write completion')
     }
   }
 }

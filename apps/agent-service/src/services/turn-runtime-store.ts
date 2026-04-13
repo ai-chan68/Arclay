@@ -12,6 +12,9 @@ import type {
   TurnTransitionResult,
 } from '../types/turn-runtime'
 import { resolveArclayPath } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('turn-runtime-store')
 
 const STORE_VERSION = 1 as const
 
@@ -184,7 +187,7 @@ export class TurnRuntimeStore {
           : [],
       }
     } catch (error) {
-      console.error('[TurnRuntimeStore] Failed to load store:', error)
+      log.error({ err: error }, 'Failed to load store')
       return createInitialData()
     }
   }
@@ -197,7 +200,7 @@ export class TurnRuntimeStore {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
       fs.renameSync(tmpFile, storeFile)
     } catch (error) {
-      console.error('[TurnRuntimeStore] Failed to persist store:', error)
+      log.error({ err: error }, 'Failed to persist store')
       throw error
     }
   }

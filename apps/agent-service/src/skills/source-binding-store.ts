@@ -1,5 +1,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('skill:source-binding')
 
 const ARCLAY_DIR = '.arclay'
 const SKILL_SOURCE_BINDINGS_FILE = 'skill-source-bindings.json'
@@ -35,7 +38,7 @@ export function loadSkillSourceBindings(projectRoot: string): Record<string, str
       ? parsed.bindings as Record<string, string>
       : {}
   } catch (error) {
-    console.error('[SkillSourceBindings] Failed to load bindings:', error)
+    log.error({ err: error }, 'Failed to load bindings')
     return {}
   }
 }

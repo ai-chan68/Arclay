@@ -10,6 +10,9 @@ import type {
 } from '../types/approval'
 import type { PendingQuestion, PermissionRequest } from '../types/agent-new'
 import { resolveArclayPath } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('approval-store')
 
 const STORE_VERSION = 1 as const
 
@@ -97,7 +100,7 @@ export class ApprovalStore {
           .filter((item): item is ApprovalRequestRecord => !!item),
       }
     } catch (error) {
-      console.error('[ApprovalStore] Failed to load store:', error)
+      log.error({ err: error }, 'Failed to load store')
       return createInitialData()
     }
   }
@@ -110,7 +113,7 @@ export class ApprovalStore {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8')
       fs.renameSync(tmpFile, storeFile)
     } catch (error) {
-      console.error('[ApprovalStore] Failed to persist store:', error)
+      log.error({ err: error }, 'Failed to persist store')
       throw error
     }
   }

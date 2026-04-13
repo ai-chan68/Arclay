@@ -8,6 +8,9 @@ import type { ProviderConfig, LLMProvider } from '@shared-types';
 import * as path from 'path';
 import { getSettings, getActiveProviderConfig } from './settings-store';
 import { resolveArclayHome, resolveArclayPath } from './shared/arclay-home';
+import { createLogger } from './shared/logger';
+
+const log = createLogger('config');
 
 /**
  * Provider 默认值
@@ -237,19 +240,17 @@ export function logConfig(): void {
   const providerConfig = getProviderConfig();
   const allConfigs = getAllProviderConfigs();
 
-  console.log('Configuration:');
-  console.log(`  Active Provider: ${providerConfig.provider}`);
-  console.log(`  Model: ${providerConfig.model}`);
-  console.log(`  API Key: ${providerConfig.apiKey ? '***configured***' : '***missing***'}`);
-  console.log(`  Work Dir: ${getWorkDir()}`);
-  console.log(`  Sandbox Provider: ${getSandboxProvider()}`);
-  console.log(`  Sandbox Timeout: ${getSandboxTimeout()}ms`);
-
-  // 显示所有可用的 Provider
   const availableProviders = Object.keys(allConfigs).filter(
     (p) => allConfigs[p].apiKey
   );
-  if (availableProviders.length > 1) {
-    console.log(`  Available Providers: ${availableProviders.join(', ')}`);
-  }
+
+  log.info({
+    activeProvider: providerConfig.provider,
+    model: providerConfig.model,
+    apiKey: providerConfig.apiKey ? '***configured***' : '***missing***',
+    workDir: getWorkDir(),
+    sandboxProvider: getSandboxProvider(),
+    sandboxTimeout: getSandboxTimeout(),
+    availableProviders: availableProviders.length > 1 ? availableProviders : undefined,
+  }, 'Configuration loaded');
 }

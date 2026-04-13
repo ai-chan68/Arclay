@@ -9,7 +9,7 @@ struct Migration {
     name: &'static str,
 }
 
-const MIGRATIONS: [Migration; 6] = [
+const MIGRATIONS: [Migration; 7] = [
     Migration {
         version: 1,
         name: "initial-schema",
@@ -33,6 +33,10 @@ const MIGRATIONS: [Migration; 6] = [
     Migration {
         version: 6,
         name: "workspace-schema",
+    },
+    Migration {
+        version: 7,
+        name: "drop-vestigial-settings",
     },
 ];
 
@@ -116,14 +120,18 @@ async fn validate_schema_shape(pool: &SqlitePool, current_version: i64) -> Resul
     }
 
     if current_version >= 1 {
-        for table_name in [
+        let mut required_tables = vec![
             "sessions",
             "tasks",
             "messages",
             "files",
-            "settings",
             "preview_instances",
-        ] {
+        ];
+        // settings table was dropped in v7
+        if current_version < 7 {
+            required_tables.push("settings");
+        }
+        for table_name in required_tables {
             ensure_table_shape(pool, current_version, table_name, &[]).await?;
         }
     }
@@ -206,6 +214,7 @@ async fn apply_migration(pool: &SqlitePool, version: i64) -> Result<(), DbInitEr
         4 => apply_file_columns(pool).await,
         5 => apply_task_preview_columns(pool).await,
         6 => apply_workspace_schema(pool).await,
+        7 => apply_drop_vestigial_settings(pool).await,
         _ => Ok(()),
     }
 }
@@ -394,6 +403,16 @@ async fn apply_workspace_schema(pool: &SqlitePool) -> Result<(), DbInitError> {
     ensure_column(pool, "sessions", "workspace_id", "TEXT").await?;
 
     maybe_create_index(pool, "idx_sessions_workspace_id", "sessions", "workspace_id").await?;
+
+    Ok(())
+}
+
+/// Drop the vestigial `settings` table — all settings are now persisted
+/// in the file-based settings.json managed by the API sidecar.
+async fn apply_drop_vestigial_settings(pool: &SqlitePool) -> Result<(), DbInitError> {
+    sqlx::query("DROP TABLE IF EXISTS settings")
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

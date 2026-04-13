@@ -16,6 +16,9 @@ import type { KnowledgeNote } from '@shared-types'
 import { MemoryInjector } from './memory/memory-injector'
 import { resolveTaskWorkspaceDir } from './workspace-layout'
 import { KnowledgeNotesStore } from './knowledge-notes-store'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('context-manager')
 
 export interface SessionContext {
   sessionId: string
@@ -105,7 +108,7 @@ export class ContextManager {
         'utf8'
       )
     } catch (err) {
-      console.warn('[ContextManager] Failed to save context:', err)
+      log.warn({ err }, 'Failed to save context')
     }
   }
 

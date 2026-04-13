@@ -7,6 +7,9 @@ import { join } from 'path'
 import type { CreateKnowledgeNoteInput, UpdateKnowledgeNoteInput, KnowledgeNoteScope } from '@shared-types'
 import { KnowledgeNotesStore } from '../services/knowledge-notes-store'
 import { resolveArclayHome } from '../shared/arclay-home'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:knowledge-notes')
 
 const app = new Hono()
 
@@ -29,7 +32,7 @@ app.get('/', async (c) => {
 
     return c.json({ notes })
   } catch (error) {
-    console.error('[KnowledgeNotes] List failed:', error)
+    log.error({ err: error }, 'List failed')
     return c.json({ error: 'Failed to list knowledge notes' }, 500)
   }
 })
@@ -53,7 +56,7 @@ app.get('/:id', async (c) => {
 
     return c.json({ note })
   } catch (error) {
-    console.error('[KnowledgeNotes] Get failed:', error)
+    log.error({ err: error }, 'Get failed')
     return c.json({ error: 'Failed to get knowledge note' }, 500)
   }
 })
@@ -80,7 +83,7 @@ app.post('/', async (c) => {
 
     return c.json({ note }, 201)
   } catch (error) {
-    console.error('[KnowledgeNotes] Create failed:', error)
+    log.error({ err: error }, 'Create failed')
     return c.json({ error: 'Failed to create knowledge note' }, 500)
   }
 })
@@ -101,7 +104,7 @@ app.put('/:id', async (c) => {
 
     return c.json({ note })
   } catch (error) {
-    console.error('[KnowledgeNotes] Update failed:', error)
+    log.error({ err: error }, 'Update failed')
     const message = error instanceof Error ? error.message : 'Failed to update knowledge note'
     return c.json({ error: message }, 500)
   }
@@ -122,7 +125,7 @@ app.delete('/:id', async (c) => {
 
     return c.json({ success: true })
   } catch (error) {
-    console.error('[KnowledgeNotes] Delete failed:', error)
+    log.error({ err: error }, 'Delete failed')
     return c.json({ error: 'Failed to delete knowledge note' }, 500)
   }
 })

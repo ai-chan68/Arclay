@@ -21,6 +21,9 @@ import { getProviderConfig } from '../config'
 import { getSettings, getActiveProviderConfig } from '../settings-store'
 import type { MultiAgentConfig, TaskAnalysis, ProviderConfig } from '@shared-types'
 import { randomUUID } from 'crypto'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('routes:multi-agent')
 
 // Store active orchestrators by execution ID
 const activeExecutions = new Map<string, MultiAgentOrchestrator>()
@@ -34,7 +37,7 @@ function getEffectiveProviderConfig(): ProviderConfig {
   // First try to get active provider from settings store
   const activeProvider = getActiveProviderConfig()
   if (activeProvider && activeProvider.apiKey) {
-    console.log('[Multi-Agent] Using active provider from store:', activeProvider.provider, activeProvider.model)
+    log.info({ provider: activeProvider.provider, model: activeProvider.model }, 'Using active provider from store')
     return {
       provider: activeProvider.provider as ProviderConfig['provider'],
       apiKey: activeProvider.apiKey,
@@ -44,7 +47,7 @@ function getEffectiveProviderConfig(): ProviderConfig {
   }
 
   // Fallback to environment variables
-  console.log('[Multi-Agent] Using config from environment variables')
+  log.info('Using config from environment variables')
   return getProviderConfig()
 }
 
@@ -64,18 +67,18 @@ multiAgentRoutes.post('/stream', async (c) => {
 
   // Get provider from settings or environment
   const providerConfig = getEffectiveProviderConfig()
-  console.log('[Multi-Agent] Provider config:', providerConfig.provider, 'model:', providerConfig.model)
-  console.log('[Multi-Agent] API Key configured:', !!providerConfig.apiKey)
-  console.log('[Multi-Agent] Available providers:', Array.from(getProvidersMetadata().keys()))
+  log.info({ provider: providerConfig.provider, model: providerConfig.model }, 'Provider config')
+  log.debug({ hasApiKey: !!providerConfig.apiKey }, 'API Key configured')
+  log.debug({ providers: Array.from(getProvidersMetadata().keys()) }, 'Available providers')
   const provider = getProvider(providerConfig.provider)
 
   if (!provider) {
-    console.error('[Multi-Agent] Provider not found:', providerConfig.provider)
+    log.error({ provider: providerConfig.provider }, 'Provider not found')
     return c.json({ error: `Provider not found: ${providerConfig.provider}` }, 500)
   }
 
   if (!providerConfig.apiKey) {
-    console.error('[Multi-Agent] API key not configured')
+    log.error('API key not configured')
     return c.json({ error: 'API key not configured. Please configure in Settings.' }, 400)
   }
 

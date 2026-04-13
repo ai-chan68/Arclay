@@ -10,7 +10,9 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
+import { createLogger } from '../shared/logger';
 
+const log = createLogger('preview-manager');
 const execAsync = promisify(exec);
 
 export interface PreviewInstance {
@@ -61,7 +63,7 @@ export class PreviewManager {
       await execAsync('node --version');
       return true;
     } catch (error) {
-      console.error('[PreviewManager] Node.js not available:', error);
+      log.error({ err: error }, 'Node.js not available');
       return false;
     }
   }
@@ -129,13 +131,13 @@ export class PreviewManager {
       instance.status = 'running';
       instance.url = `http://localhost:${port}`;
       
-      console.log(`[PreviewManager] Started preview for task ${taskId} on port ${port}`);
+      log.info({ taskId, port }, 'Started preview');
       return instance;
 
     } catch (error) {
       instance.status = 'error';
       instance.error = error instanceof Error ? error.message : String(error);
-      console.error(`[PreviewManager] Failed to start preview for task ${taskId}:`, error);
+      log.error({ err: error, taskId }, 'Failed to start preview');
       throw error;
     }
   }
@@ -160,8 +162,8 @@ export class PreviewManager {
    */
   async stopAllPreviews(): Promise<void> {
     const stopPromises = Array.from(this.instances.values()).map(instance =>
-      this.stopInstance(instance).catch(err => 
-        console.error(`Failed to stop instance ${instance.id}:`, err)
+      this.stopInstance(instance).catch(err =>
+        log.error({ err, instanceId: instance.id }, 'Failed to stop instance')
       )
     );
 
@@ -304,20 +306,20 @@ export default defineConfig({
       const viteBinaryPath = path.join(workDir, 'node_modules', '.bin', 'vite');
       try {
         await fs.access(viteBinaryPath);
-        console.log(`[PreviewManager] Vite already installed in ${workDir}, skipping npm install`);
+        log.debug({ workDir }, 'Vite already installed, skipping npm install');
         return;
       } catch {
         // Vite not installed, continue with npm install.
       }
 
-      console.log(`[PreviewManager] Installing dependencies in ${workDir}`);
+      log.info({ workDir }, 'Installing dependencies');
       await execAsync('npm install', { 
         cwd: workDir,
         timeout: 60000 // 1 minute timeout
       });
-      console.log(`[PreviewManager] Dependencies installed successfully`);
+      log.debug('Dependencies installed successfully');
     } catch (error) {
-      console.error(`[PreviewManager] Failed to install dependencies:`, error);
+      log.error({ err: error }, 'Failed to install dependencies');
       throw new Error('Failed to install dependencies. Please run npm install manually.');
     }
   }
@@ -358,7 +360,7 @@ export default defineConfig({
       // Handle stdout
       viteProcess.stdout?.on('data', (data) => {
         const output = data.toString();
-        console.log(`[Vite:${instance.port}]`, output);
+        log.debug({ port: instance.port, output }, 'Vite stdout');
 
         // Check if server is ready
         if (output.includes('Local:') || output.includes(`localhost:${instance.port}`)) {
@@ -371,7 +373,7 @@ export default defineConfig({
       // Handle stderr
       viteProcess.stderr?.on('data', (data) => {
         const output = data.toString();
-        console.error(`[Vite:${instance.port}]`, output);
+        log.error({ port: instance.port, output }, 'Vite stderr');
 
         if (output.includes('Need to install the following packages')) {
           cleanup();
@@ -443,7 +445,7 @@ export default defineConfig({
           instance.process.kill('SIGKILL');
         }
       } catch (error) {
-        console.error(`[PreviewManager] Error stopping process for instance ${instance.id}:`, error);
+        log.error({ err: error, instanceId: instance.id }, 'Error stopping process');
       }
     }
 
@@ -452,7 +454,7 @@ export default defineConfig({
     instance.url = null;
     
     this.instances.delete(instance.id);
-    console.log(`[PreviewManager] Stopped preview instance ${instance.id}`);
+    log.debug({ instanceId: instance.id }, 'Stopped preview instance');
   }
 
   /**
@@ -475,7 +477,7 @@ export default defineConfig({
       // Check for idle timeout
       const idleTime = now.getTime() - instance.lastAccessed.getTime();
       if (idleTime > idleTimeoutMs && instance.status === 'running') {
-        console.log(`[PreviewManager] Stopping idle instance ${instance.id} (idle for ${Math.round(idleTime / 60000)}m)`);
+        log.info({ instanceId: instance.id, idleMinutes: Math.round(idleTime / 60000) }, 'Stopping idle instance');
         await this.stopInstance(instance);
         continue;
       }
@@ -495,7 +497,7 @@ export default defineConfig({
             throw new Error(`Server returned ${response.status}`);
           }
         } catch (error) {
-          console.log(`[PreviewManager] Instance ${instance.id} is not responsive, stopping`);
+          log.info({ instanceId: instance.id }, 'Instance not responsive, stopping');
           await this.stopInstance(instance);
         }
       }

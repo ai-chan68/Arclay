@@ -1,9 +1,12 @@
 import type { AgentRuntimeState } from '../runtime/app-runtime'
 import type { ScheduledTask, ScheduledTaskRun, ScheduledTaskRunStatus, ScheduledTaskTriggerType } from '../types/scheduled-task'
+import { createLogger } from '../shared/logger'
 import { getNextRunAt } from './cron-utils'
 import { buildExecutionPrompt } from './plan-execution'
 import { bootstrapPlanningFiles } from './planning-files'
 import { scheduledTaskStore } from './scheduled-task-store'
+
+const log = createLogger('scheduler')
 
 const SCHEDULER_TICK_MS = 10_000
 const BREAKER_AUTO_DISABLE_THRESHOLD_24H = 3
@@ -42,7 +45,7 @@ export class ScheduledTaskScheduler {
       void this.tick()
     }, SCHEDULER_TICK_MS)
     void this.tick()
-    console.log('[ScheduledTaskScheduler] Started')
+    log.info('Started')
   }
 
   stop(): void {
@@ -50,7 +53,7 @@ export class ScheduledTaskScheduler {
       clearInterval(this.interval)
       this.interval = null
     }
-    console.log('[ScheduledTaskScheduler] Stopped')
+    log.info('Stopped')
   }
 
   async runNow(taskId: string): Promise<ExecuteTaskResult> {
@@ -94,7 +97,7 @@ export class ScheduledTaskScheduler {
         await this.executeTask(task, triggerType, task.nextRunAt)
       }
     } catch (error) {
-      console.error('[ScheduledTaskScheduler] Tick failed:', error)
+      log.error({ err: error }, 'Tick failed')
     } finally {
       this.tickInProgress = false
     }
@@ -114,7 +117,7 @@ export class ScheduledTaskScheduler {
       }
     }
     if (runningRuns.length > 0) {
-      console.log(`[ScheduledTaskScheduler] Recovered ${runningRuns.length} running runs`)
+      log.info({ count: runningRuns.length }, 'Recovered running runs')
     }
   }
 
@@ -144,7 +147,7 @@ export class ScheduledTaskScheduler {
     try {
       return getNextRunAt(task.cronExpr, task.timezone, new Date(baseTime)).getTime()
     } catch (error) {
-      console.error(`[ScheduledTaskScheduler] Failed to compute next run for task ${task.id}:`, error)
+      log.error({ err: error, taskId: task.id }, 'Failed to compute next run')
       return null
     }
   }

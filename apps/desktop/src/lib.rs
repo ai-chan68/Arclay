@@ -1,13 +1,11 @@
 mod db;
 
-use serde::Deserialize;
-use serde_json::Value;
-use sqlx::{Row, Column};
+use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::sync::atomic::{AtomicU16, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tokio::sync::Notify;
 #[cfg(debug_assertions)]
@@ -16,12 +14,25 @@ use tauri_plugin_shell::ShellExt;
 
 const DEFAULT_API_PORT: u16 = 2026;
 const DESKTOP_SIDECAR_PROTOCOL: u16 = 1;
+const SIDECAR_RESTART_DELAY_SECS: u64 = 2;
+const SIDECAR_MAX_RESTART_ATTEMPTS: u32 = 3;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApiHealthResponse {
     status: String,
     desktop_sidecar_protocol: Option<u16>,
+}
+
+/// Payload emitted to the frontend via the `sidecar-status` Tauri event.
+#[derive(Clone, Serialize)]
+#[serde(tag = "type", content = "data")]
+enum SidecarStatus {
+    Ready,
+    Crashed { exit_code: Option<i32> },
+    Restarting { attempt: u32 },
+    Restarted,
+    RestartFailed { reason: String },
 }
 
 // Global variable to store the API port
@@ -33,8 +44,17 @@ static DB_POOL: OnceLock<SqlitePool> = OnceLock::new();
 // Database initialization notifier
 static DB_READY: OnceLock<Arc<Notify>> = OnceLock::new();
 
+// Database initialization error, if startup migration failed
+static DB_INIT_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+
 // Store sidecar child process for cleanup on exit
-static SIDECAR_CHILD: OnceLock<std::sync::Mutex<Option<tauri_plugin_shell::process::CommandChild>>> = OnceLock::new();
+static SIDECAR_CHILD: OnceLock<Mutex<Option<tauri_plugin_shell::process::CommandChild>>> = OnceLock::new();
+
+// Store app handle globally so spawn_sidecar can be called from the Terminated handler
+static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+// Flag to distinguish user-initiated shutdown from unexpected crash
+static SIDECAR_SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -49,8 +69,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_api_port,
             is_desktop,
-            db_execute,
-            db_query
+            wait_for_db_ready
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
@@ -68,18 +87,37 @@ pub fn run() {
                 }
             }
 
+            DB_READY.get_or_init(|| Arc::new(Notify::new()));
+            DB_INIT_ERROR.get_or_init(|| Mutex::new(None));
+
             // Initialize database asynchronously to avoid blocking startup
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 match init_database(&app_handle).await {
                     Ok(_) => {
                         println!("[DB] Database initialized successfully");
-                        // Notify waiting database commands
+                        if let Some(error_state) = DB_INIT_ERROR.get() {
+                            if let Ok(mut guard) = error_state.lock() {
+                                *guard = None;
+                            }
+                        }
+                        // Notify database readiness waiters
                         if let Some(notify) = DB_READY.get() {
                             notify.notify_waiters();
                         }
                     }
-                    Err(e) => eprintln!("[DB] Database initialization failed: {}", e),
+                    Err(e) => {
+                        let error_message = e.to_string();
+                        eprintln!("[DB] Database initialization failed: {}", error_message);
+                        if let Some(error_state) = DB_INIT_ERROR.get() {
+                            if let Ok(mut guard) = error_state.lock() {
+                                *guard = Some(error_message);
+                            }
+                        }
+                        if let Some(notify) = DB_READY.get() {
+                            notify.notify_waiters();
+                        }
+                    }
                 }
             });
 
@@ -108,61 +146,17 @@ pub fn run() {
                     println!("[API] No existing API detected, starting sidecar");
                 }
 
-                // Spawn API sidecar
-                let shell = app.shell();
-                let sidecar_command = match shell.sidecar("arclay-api") {
-                    Ok(command) => command,
-                    Err(e) => {
-                        eprintln!("Failed to prepare API sidecar command: {}", e);
-                        #[cfg(debug_assertions)]
-                        println!("Running in dev mode - API should be started separately with 'pnpm dev:api'");
-                        return Ok(());
-                    }
-                };
+                // Initialize the sidecar child holder and store AppHandle for restarts
+                SIDECAR_CHILD.get_or_init(|| Mutex::new(None));
+                APP_HANDLE.set(app.handle().clone()).ok();
 
                 // Set environment variable for sidecar detection
                 std::env::set_var("TAURI_FAMILY", "sidecar");
 
-                match sidecar_command.spawn() {
-                    Ok((mut rx, child)) => {
-                        println!("API sidecar started successfully");
-
-                        // Store child process for cleanup on exit
-                        SIDECAR_CHILD.get_or_init(|| std::sync::Mutex::new(Some(child)));
-
-                        // Handle sidecar output in a separate thread
-                        tauri::async_runtime::spawn(async move {
-                            use tauri_plugin_shell::process::CommandEvent;
-                            while let Some(event) = rx.recv().await {
-                                match event {
-                                    CommandEvent::Stdout(line) => {
-                                        let output = String::from_utf8_lossy(&line);
-                                        if let Some(port) = parse_api_port_from_sidecar_output(output.as_ref()) {
-                                            API_PORT.store(port, Ordering::SeqCst);
-                                            println!("[API] Active API port updated to {}", port);
-                                        }
-                                        println!("[API] {}", output);
-                                    }
-                                    CommandEvent::Stderr(line) => {
-                                        eprintln!("[API ERR] {}", String::from_utf8_lossy(&line));
-                                    }
-                                    CommandEvent::Error(err) => {
-                                        eprintln!("[API ERROR] {}", err);
-                                    }
-                                    CommandEvent::Terminated(payload) => {
-                                        println!("[API] Sidecar terminated with code: {:?}", payload.code);
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to start API sidecar: {}", e);
-                        // In development mode, the API might be running separately
-                        #[cfg(debug_assertions)]
-                        println!("Running in dev mode - API should be started separately with 'pnpm dev:api'");
-                    }
+                if let Err(e) = spawn_sidecar(app.handle()) {
+                    eprintln!("Failed to start API sidecar: {}", e);
+                    #[cfg(debug_assertions)]
+                    println!("Running in dev mode - API should be started separately with 'pnpm dev:api'");
                 }
             } else {
                 println!(
@@ -199,6 +193,7 @@ pub fn run() {
             // Clean up sidecar process on exit
             match event {
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
+                    SIDECAR_SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
                     println!("[API] Exit event received, cleaning up sidecar");
                     if let Some(sidecar_mutex) = SIDECAR_CHILD.get() {
                         if let Ok(mut guard) = sidecar_mutex.lock() {
@@ -215,6 +210,105 @@ pub fn run() {
                 _ => {}
             }
         });
+}
+
+/// Emit a sidecar-status event to all frontend windows.
+fn emit_sidecar_status(status: SidecarStatus) {
+    if let Some(handle) = APP_HANDLE.get() {
+        use tauri::Emitter;
+        if let Err(e) = handle.emit("sidecar-status", &status) {
+            eprintln!("[API] Failed to emit sidecar-status event: {}", e);
+        }
+    }
+}
+
+/// Spawn the API sidecar and set up its event handler.
+/// Can be called both on initial startup and for restarts.
+fn spawn_sidecar(app_handle: &tauri::AppHandle) -> Result<(), String> {
+    let shell = app_handle.shell();
+    let sidecar_command = shell
+        .sidecar("arclay-api")
+        .map_err(|e| format!("Failed to prepare sidecar command: {}", e))?;
+
+    let (mut rx, child) = sidecar_command
+        .spawn()
+        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+
+    println!("[API] Sidecar started (PID: {:?})", child.pid());
+
+    // Store child in the global holder (replaces previous if any)
+    if let Some(mutex) = SIDECAR_CHILD.get() {
+        if let Ok(mut guard) = mutex.lock() {
+            *guard = Some(child);
+        }
+    }
+
+    // Handle sidecar output in a background task
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    let output = String::from_utf8_lossy(&line);
+                    if let Some(port) = parse_api_port_from_sidecar_output(output.as_ref()) {
+                        API_PORT.store(port, Ordering::SeqCst);
+                        println!("[API] Active API port updated to {}", port);
+                        emit_sidecar_status(SidecarStatus::Ready);
+                    }
+                    println!("[API] {}", output);
+                }
+                CommandEvent::Stderr(line) => {
+                    eprintln!("[API ERR] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Error(err) => {
+                    eprintln!("[API ERROR] {}", err);
+                }
+                CommandEvent::Terminated(payload) => {
+                    println!("[API] Sidecar terminated with code: {:?}", payload.code);
+
+                    if SIDECAR_SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+                        return; // User-initiated exit, don't restart
+                    }
+
+                    emit_sidecar_status(SidecarStatus::Crashed {
+                        exit_code: payload.code,
+                    });
+
+                    // Attempt restart with backoff
+                    for attempt in 1..=SIDECAR_MAX_RESTART_ATTEMPTS {
+                        let delay = Duration::from_secs(SIDECAR_RESTART_DELAY_SECS * attempt as u64);
+                        println!("[API] Restart attempt {}/{} in {:?}", attempt, SIDECAR_MAX_RESTART_ATTEMPTS, delay);
+                        emit_sidecar_status(SidecarStatus::Restarting { attempt });
+                        tokio::time::sleep(delay).await;
+
+                        if SIDECAR_SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+                            return; // Exit requested during restart wait
+                        }
+
+                        if let Some(handle) = APP_HANDLE.get() {
+                            match spawn_sidecar(handle) {
+                                Ok(_) => {
+                                    println!("[API] Sidecar restarted successfully on attempt {}", attempt);
+                                    emit_sidecar_status(SidecarStatus::Restarted);
+                                    return;
+                                }
+                                Err(e) => {
+                                    eprintln!("[API] Restart attempt {} failed: {}", attempt, e);
+                                }
+                            }
+                        }
+                    }
+
+                    let reason = format!("Failed after {} restart attempts", SIDECAR_MAX_RESTART_ATTEMPTS);
+                    eprintln!("[API] {}", reason);
+                    emit_sidecar_status(SidecarStatus::RestartFailed { reason });
+                }
+                _ => {}
+            }
+        }
+    });
+
+    Ok(())
 }
 
 /// Initialize the database connection pool
@@ -309,11 +403,54 @@ fn is_desktop() -> bool {
     true
 }
 
+fn get_database_init_error() -> Option<String> {
+    DB_INIT_ERROR.get().and_then(|error_state| {
+        error_state
+            .lock()
+            .ok()
+            .and_then(|guard| guard.clone())
+    })
+}
+
+async fn wait_for_database_ready() -> Result<(), String> {
+    if DB_POOL.get().is_some() {
+        return Ok(());
+    }
+
+    if let Some(error_message) = get_database_init_error() {
+        return Err(format!("Database initialization failed: {}", error_message));
+    }
+
+    if let Some(notify) = DB_READY.get() {
+        notify.notified().await;
+    }
+
+    if DB_POOL.get().is_some() {
+        return Ok(());
+    }
+
+    if let Some(error_message) = get_database_init_error() {
+        return Err(format!("Database initialization failed: {}", error_message));
+    }
+
+    Err("Database not initialized".to_string())
+}
+
+/// Tauri command to wait for database initialization to complete
+#[tauri::command]
+async fn wait_for_db_ready() -> Result<bool, String> {
+    wait_for_database_ready().await?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
+        get_database_init_error,
         is_compatible_api_health_response,
         parse_api_port_from_sidecar_output,
+        wait_for_database_ready,
+        DB_INIT_ERROR,
     };
 
     #[test]
@@ -337,116 +474,23 @@ mod tests {
             r#"{"status":"ok","timestamp":"2026-04-07T14:54:23.312Z","desktopSidecarProtocol":1}"#
         ));
     }
-}
 
-/// Execute a SQL statement (INSERT, UPDATE, DELETE, etc.)
-/// Returns the number of rows affected
-#[tauri::command]
-async fn db_execute(sql: String, params: Vec<Value>) -> Result<u64, String> {
-    // Wait for database to be ready if not initialized yet
-    if DB_POOL.get().is_none() {
-        if let Some(notify) = DB_READY.get() {
-            notify.notified().await;
+    #[test]
+    fn wait_for_database_ready_returns_init_error_without_hanging() {
+        let error_state = DB_INIT_ERROR.get_or_init(|| std::sync::Mutex::new(None));
+        {
+            let mut guard = error_state.lock().expect("db init error mutex should lock");
+            *guard = Some("boom".to_string());
         }
+
+        let result = tauri::async_runtime::block_on(wait_for_database_ready());
+        assert_eq!(
+            result.expect_err("wait should surface init failure"),
+            "Database initialization failed: boom"
+        );
+        assert_eq!(get_database_init_error().as_deref(), Some("boom"));
+
+        let mut guard = error_state.lock().expect("db init error mutex should lock");
+        *guard = None;
     }
-
-    let pool = DB_POOL.get().ok_or("Database not initialized")?;
-
-    let mut query = sqlx::query(&sql);
-    for param in &params {
-        query = bind_value(query, param);
-    }
-
-    let result = query
-        .execute(pool)
-        .await
-        .map_err(|e| {
-            eprintln!("[DB] Execute error: {}", e);
-            format!("Database execute error: {}", e)
-        })?;
-
-    Ok(result.rows_affected())
-}
-
-/// Query the database and return results as JSON
-#[tauri::command]
-async fn db_query(sql: String, params: Vec<Value>) -> Result<Vec<serde_json::Map<String, Value>>, String> {
-    // Wait for database to be ready if not initialized yet
-    if DB_POOL.get().is_none() {
-        if let Some(notify) = DB_READY.get() {
-            notify.notified().await;
-        }
-    }
-
-    let pool = DB_POOL.get().ok_or("Database not initialized")?;
-
-    let mut query = sqlx::query(&sql);
-    for param in &params {
-        query = bind_value(query, param);
-    }
-
-    let rows = query
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            eprintln!("[DB] Query error: {}", e);
-            format!("Database query error: {}", e)
-        })?;
-
-    // Convert rows to JSON maps
-    let results: Vec<serde_json::Map<String, Value>> = rows
-        .iter()
-        .map(|row| {
-            let mut map = serde_json::Map::new();
-            for (i, col) in row.columns().iter().enumerate() {
-                let value = row_try_get_json_value(row, i);
-                map.insert(col.name().to_string(), value);
-            }
-            map
-        })
-        .collect();
-
-    Ok(results)
-}
-
-/// Bind a JSON value to a SQL query
-fn bind_value<'q>(query: sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>>, value: &'q Value) -> sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>> {
-    match value {
-        Value::Null => query.bind(None::<String>),
-        Value::Bool(b) => query.bind(b),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                query.bind(i)
-            } else if let Some(f) = n.as_f64() {
-                query.bind(f)
-            } else {
-                query.bind(n.to_string())
-            }
-        }
-        Value::String(s) => query.bind(s),
-        Value::Array(_) | Value::Object(_) => query.bind(value.to_string()),
-    }
-}
-
-/// Try to get a JSON value from a database row
-fn row_try_get_json_value(row: &sqlx::sqlite::SqliteRow, i: usize) -> Value {
-    // Try different types in order
-    if let Ok(v) = row.try_get::<Option<String>, _>(i) {
-        return v.map(Value::String).unwrap_or(Value::Null);
-    }
-    if let Ok(v) = row.try_get::<Option<i64>, _>(i) {
-        return v.map(|n| Value::Number(n.into())).unwrap_or(Value::Null);
-    }
-    if let Ok(v) = row.try_get::<Option<f64>, _>(i) {
-        return v
-            .map(|n| serde_json::Number::from_f64(n).map(Value::Number).unwrap_or(Value::Null))
-            .unwrap_or(Value::Null);
-    }
-    if let Ok(v) = row.try_get::<Option<bool>, _>(i) {
-        return v.map(Value::Bool).unwrap_or(Value::Null);
-    }
-    if let Ok(v) = row.try_get::<Option<Vec<u8>>, _>(i) {
-        return v.map(|bytes| Value::Array(bytes.into_iter().map(|b| Value::Number(b.into())).collect())).unwrap_or(Value::Null);
-    }
-    Value::Null
 }

@@ -15,6 +15,34 @@ export function resetCachedPort() {
   cachedPort = null;
 }
 
+/**
+ * Retry fetch on network errors (TypeError = connection refused).
+ * Only retries connection failures, NOT HTTP errors or timeouts.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  baseDelayMs = 500,
+): Promise<Response> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (err instanceof TypeError && attempt < maxRetries) {
+        lastError = err;
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        console.warn(`[API] Connection failed, retry ${attempt + 1}/${maxRetries} in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError!;
+}
+
 async function getApiPort(): Promise<number> {
   if (cachedPort !== null) {
     return cachedPort;
@@ -84,7 +112,7 @@ export async function apiFetch<T>(
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -133,7 +161,7 @@ export async function apiFetchRaw(
   }
 
   try {
-    return await fetch(url, {
+    return await fetchWithRetry(url, {
       ...options,
       headers,
     });
@@ -156,7 +184,7 @@ export async function apiStream(
   const url = await getApiUrl(path);
   console.log('[API] Streaming:', url);
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -3,6 +3,7 @@
  * 支持多 Provider 配置管理
  */
 
+import { createLogger } from '../shared/logger'
 import { Hono } from 'hono'
 import { createAgentService, type AgentServiceConfig } from '../services/agent-service'
 import { getWorkDir, getProjectRoot } from '../config'
@@ -50,6 +51,7 @@ export function createSettingsRoutes(
   deps: SettingsRouteDeps
 ): Hono {
   assertSettingsRouteDeps(deps)
+  const log = createLogger('routes:settings')
   const settingsRoutes = new Hono()
 
 function getDefaultSkillsSettings(): SkillSettings {
@@ -326,7 +328,7 @@ settingsRoutes.post('/providers', async (c) => {
       },
     })
   } catch (error) {
-    console.error('[Settings API] Failed to add provider:', error)
+    log.error(error, 'Failed to add provider')
     return c.json({ error: 'Failed to add provider' }, 500)
   }
 })
@@ -374,7 +376,7 @@ settingsRoutes.post('/providers/:id/activate', async (c) => {
       },
     })
   } catch (error) {
-    console.error('[Settings API] Failed to activate provider:', error)
+    log.error(error, 'Failed to activate provider')
     return c.json({ error: 'Failed to activate provider' }, 500)
   }
 })
@@ -403,7 +405,7 @@ settingsRoutes.post('/providers/:id/test', async (c) => {
 
     return c.json(testResult)
   } catch (error) {
-    console.error('[Settings API] Failed to test provider:', error)
+    log.error(error, 'Failed to test provider')
     return c.json({
       success: false,
       error: error instanceof Error ? error.message : '测试失败',
@@ -466,7 +468,7 @@ settingsRoutes.put('/providers/:id', async (c) => {
       },
     })
   } catch (error) {
-    console.error('[Settings API] Failed to update provider:', error)
+    log.error(error, 'Failed to update provider')
     return c.json({ error: 'Failed to update provider' }, 500)
   }
 })
@@ -508,7 +510,7 @@ settingsRoutes.delete('/providers/:id', async (c) => {
 
     return c.json({ success: true })
   } catch (error) {
-    console.error('[Settings API] Failed to delete provider:', error)
+    log.error(error, 'Failed to delete provider')
     return c.json({ error: 'Failed to delete provider' }, 500)
   }
 })
@@ -543,7 +545,7 @@ function recreateAgentService(provider: ProviderConfigItem, deps: SettingsRouteD
         }
       : undefined
 
-    console.log('[Settings API] Recreating agent service with:', {
+    log.info({
       provider: provider.provider,
       model: provider.model,
       baseUrl: provider.baseUrl,
@@ -551,7 +553,7 @@ function recreateAgentService(provider: ProviderConfigItem, deps: SettingsRouteD
       skills: skillsConfig.enabled ? 'enabled' : 'disabled',
       mcp: mcpConfig ? 'enabled' : 'disabled',
       sandbox: sandboxConfig ? 'enabled' : 'disabled',
-    })
+    }, 'Recreating agent service')
 
     const agentServiceConfig: AgentServiceConfig = {
       provider: {
@@ -578,10 +580,10 @@ function recreateAgentService(provider: ProviderConfigItem, deps: SettingsRouteD
       agentService,
       agentServiceConfig,
     })
-    console.log('[Settings API] Agent service recreated successfully')
+    log.info('Agent service recreated successfully')
     return true
   } catch (err) {
-    console.error('[Settings API] Failed to recreate agent service:', err)
+    log.error(err, 'Failed to recreate agent service')
     return false
   }
 }
@@ -614,7 +616,7 @@ async function testProviderConfig(provider: ProviderConfigItem): Promise<{
     const headers = buildTestHeaders(provider.provider, apiKey, provider.baseUrl)
     const endpoint = buildTestEndpoint(provider.provider, provider.baseUrl)
 
-    console.log(`[Settings API] Testing provider ${provider.provider} at ${endpoint} with model ${testModel}`)
+    log.debug({ provider: provider.provider, endpoint, model: testModel }, 'Testing provider')
 
     // 发送流式测试请求
     const response = await fetch(endpoint, {
@@ -922,7 +924,7 @@ settingsRoutes.post('/mcp', async (c) => {
 
     return c.json({ success: true, mcp: newMcpSettings })
   } catch (error) {
-    console.error('[Settings API] Failed to save MCP settings:', error)
+    log.error(error, 'Failed to save MCP settings')
     return c.json({ error: 'Failed to save MCP settings' }, 500)
   }
 })
@@ -970,7 +972,7 @@ settingsRoutes.post('/sandbox', async (c) => {
 
     return c.json({ success: true, sandbox: nextSandbox })
   } catch (error) {
-    console.error('[Settings API] Failed to save sandbox settings:', error)
+    log.error(error, 'Failed to save sandbox settings')
     return c.json({ error: 'Failed to save sandbox settings' }, 500)
   }
 })
@@ -1013,7 +1015,7 @@ settingsRoutes.post('/approval', async (c) => {
 
     return c.json({ success: true, approval: nextApproval })
   } catch (error) {
-    console.error('[Settings API] Failed to save approval settings:', error)
+    log.error(error, 'Failed to save approval settings')
     return c.json({ error: 'Failed to save approval settings' }, 500)
   }
 })
@@ -1062,7 +1064,7 @@ settingsRoutes.post('/skills', async (c) => {
 
     return c.json({ success: true, skills: nextSettings })
   } catch (error) {
-    console.error('[Settings API] Failed to save Skills settings:', error)
+    log.error(error, 'Failed to save Skills settings')
     return c.json({ error: 'Failed to save Skills settings' }, 500)
   }
 })
@@ -1107,7 +1109,7 @@ settingsRoutes.post('/skills/routing', async (c) => {
 
     return c.json({ success: true, routing: nextSkills.routing })
   } catch (error) {
-    console.error('[Settings API] Failed to save skills routing settings:', error)
+    log.error(error, 'Failed to save skills routing settings')
     return c.json({ error: 'Failed to save skills routing settings' }, 500)
   }
 })
@@ -1148,7 +1150,7 @@ settingsRoutes.post('/skills/route/preview', async (c) => {
       elapsedMs: routed.elapsedMs,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to preview skill route:', error)
+    log.error(error, 'Failed to preview skill route')
     return c.json({ error: 'Failed to preview skill route' }, 500)
   }
 })
@@ -1200,7 +1202,7 @@ settingsRoutes.post('/skills/route/recommend-plan', async (c) => {
       },
     })
   } catch (error) {
-    console.error('[Settings API] Failed to build recommended plan:', error)
+    log.error(error, 'Failed to build recommended plan')
     return c.json({ error: 'Failed to build recommended plan' }, 500)
   }
 })
@@ -1268,7 +1270,7 @@ settingsRoutes.post('/skills/sources', async (c) => {
       source,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to add skill source:', error)
+    log.error(error, 'Failed to add skill source')
     return c.json({ error: 'Failed to add skill source' }, 500)
   }
 })
@@ -1304,7 +1306,7 @@ settingsRoutes.delete('/skills/sources/:id', (c) => {
 
     return c.json({ success: true })
   } catch (error) {
-    console.error('[Settings API] Failed to delete skill source:', error)
+    log.error(error, 'Failed to delete skill source')
     return c.json({ error: 'Failed to delete skill source' }, 500)
   }
 })
@@ -1341,7 +1343,7 @@ settingsRoutes.post('/skills/install', async (c) => {
       count: installed.length,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to install skills from source:', error)
+    log.error(error, 'Failed to install skills from source')
     return c.json({
       error: error instanceof Error ? error.message : 'Failed to install skills from source',
     }, 500)
@@ -1375,7 +1377,7 @@ settingsRoutes.post('/skills/:skillId/update', async (c) => {
       result: updated,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to update skill from source:', error)
+    log.error(error, 'Failed to update skill from source')
     return c.json({
       error: error instanceof Error ? error.message : 'Failed to update skill from source',
     }, 500)
@@ -1409,7 +1411,7 @@ settingsRoutes.post('/skills/:skillId/repair', async (c) => {
       result: repaired,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to repair skill from source:', error)
+    log.error(error, 'Failed to repair skill from source')
     return c.json({
       error: error instanceof Error ? error.message : 'Failed to repair skill from source',
     }, 500)
@@ -1442,7 +1444,7 @@ settingsRoutes.get('/skills/:skillId/health', (c) => {
       suggestions: health.suggestions,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to inspect skill health:', error)
+    log.error(error, 'Failed to inspect skill health')
     return c.json({ error: 'Failed to inspect skill health' }, 500)
   }
 })
@@ -1479,7 +1481,7 @@ settingsRoutes.get('/skills/diagnostics', (c) => {
       diagnostics,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to run skill diagnostics:', error)
+    log.error(error, 'Failed to run skill diagnostics')
     return c.json({ error: 'Failed to run skill diagnostics' }, 500)
   }
 })
@@ -1517,7 +1519,7 @@ settingsRoutes.get('/skills/list', (c) => {
       stats,
     })
   } catch (error) {
-    console.error('[Settings API] Failed to get skills list:', error)
+    log.error(error, 'Failed to get skills list')
     return c.json({ error: 'Failed to get skills list' }, 500)
   }
 })
@@ -1543,7 +1545,7 @@ settingsRoutes.post('/skills/import/analyze', async (c) => {
 
     return c.json(analysis)
   } catch (error) {
-    console.error('[Settings API] Failed to analyze GitHub skill import:', error)
+    log.error(error, 'Failed to analyze GitHub skill import')
     const errorMessage = error instanceof Error ? error.message : 'Failed to analyze GitHub skill import'
     return c.json({ error: errorMessage }, 500)
   }
@@ -1604,7 +1606,7 @@ settingsRoutes.post('/skills/import', async (c) => {
           )
         }
 
-        console.log(`[Settings API] Imported ${importedSkills.length} skill(s) from GitHub URL ${importPath}`)
+        log.info({ count: importedSkills.length, source: importPath }, 'Imported skills from GitHub')
       } finally {
         // Cleanup temp directory
         if (tempDir) {
@@ -1627,7 +1629,7 @@ settingsRoutes.post('/skills/import', async (c) => {
       // Import to project SKILLs/ directory
       importedSkills = [importSkill(importPath, projectRoot)]
 
-      console.log(`[Settings API] Imported skill "${importedSkills[0]?.name}" from ${importPath} to project SKILLs/`)
+      log.info({ skillName: importedSkills[0]?.name, source: importPath }, 'Imported skill from local path')
     }
 
     const primarySkill = importedSkills[0]
@@ -1647,7 +1649,7 @@ settingsRoutes.post('/skills/import', async (c) => {
       })),
     })
   } catch (error) {
-    console.error('[Settings API] Failed to import skill:', error)
+    log.error(error, 'Failed to import skill')
     const errorMessage = error instanceof Error ? error.message : 'Failed to import skill'
     return c.json({ error: errorMessage }, 500)
   }
@@ -1665,11 +1667,11 @@ settingsRoutes.delete('/skills/:id', async (c) => {
     deleteSkill(id, projectRoot)
     removeSkillSourceBinding(projectRoot, id)
 
-    console.log(`[Settings API] Deleted skill "${id}" from project SKILLs/`)
+    log.info({ skillId: id }, 'Deleted skill')
 
     return c.json({ success: true })
   } catch (error) {
-    console.error('[Settings API] Failed to delete skill:', error)
+    log.error(error, 'Failed to delete skill')
     const errorMessage = error instanceof Error ? error.message : 'Failed to delete skill'
     return c.json({ error: errorMessage }, 500)
   }
